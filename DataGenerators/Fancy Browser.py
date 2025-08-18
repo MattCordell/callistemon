@@ -49,19 +49,17 @@ html_template = """
     <h1>Service Requests</h1>
     <table>
         <tr>
-            <th>ID</th>
+            <th>Requisition Value</th>
             <th>Status</th>
             <th>Patient Name</th>
-            <th>Patient Gender</th>
             <th>Code Display</th>
             <th>Category Display</th>
         </tr>
         {% for service_request in service_requests %}
         <tr>
-            <td>{{ service_request.id[:10] }}</td>
+            <td>{{ service_request.requisition.value if service_request.requisition else 'N/A' }}</td>
             <td>{{ service_request.status }}</td>
             <td>{{ service_request.subject_name }}</td>
-            <td>{{ service_request.subject_gender }}</td>
             <td>{{ service_request.code.coding[0].display if service_request.code and service_request.code.coding else 'N/A' }}</td>
             <td>{{ service_request.category[0].coding[0].display if service_request.category and service_request.category[0].coding else 'N/A' }}</td>
         </tr>
@@ -88,7 +86,7 @@ def index():
         service_requests = response.json().get('entry', [])
         service_requests = [entry['resource'] for entry in service_requests]
 
-        # Resolve subject references to get patient names and genders
+        # Resolve subject references to get patient names
         for service_request in service_requests:
             subject_reference = service_request.get('subject', {}).get('reference')
             if subject_reference:
@@ -96,13 +94,10 @@ def index():
                 if patient_response.status_code == 200:
                     patient = patient_response.json()
                     service_request['subject_name'] = patient.get('name', [{}])[0].get('text', 'N/A')
-                    service_request['subject_gender'] = patient.get('gender', 'N/A')
                 else:
                     service_request['subject_name'] = 'N/A'
-                    service_request['subject_gender'] = 'N/A'
             else:
                 service_request['subject_name'] = 'N/A'
-                service_request['subject_gender'] = 'N/A'
     else:
         service_requests = []
 
