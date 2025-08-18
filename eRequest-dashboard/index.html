@@ -1,462 +1,489 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <title>eRequest Dashboard</title>
 
-/**
- * eRequest Dashboard — FULL REBUILD (v4)
- *
- * Features
- * - Default FHIR server: https://server.fire.ly (overridable)
- * - Preset dropdown + custom URL input
- * - Fetch ServiceRequest with _include=ServiceRequest:subject
- * - Modes: Incoming Services | Patient Listing
- *   • Incoming: Date, Patient, Test Name, Category, Status
- *   • Patient Listing: unique patients w/ most recent SR, search filter, "Last 7 days" filter
- *   • Patient panel: Name, Age, Address, Photo
- * - Pagination (Load more via Bundle.link[next])
- * - Auto-refresh: every 42s after a successful manual Fetch (no overlapping requests)
- * - Debug panel + small runtime self-tests
- */
+  <!-- Tailwind (Play CDN for demos) -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-// ----------------------------- Helpers ------------------------------------
-function getHumanName(patient) {
-  if (!patient || !Array.isArray(patient.name) || patient.name.length === 0) return "(no name)";
-  const n = patient.name.find((x) => x.use === "official") || patient.name[0];
-  if (n && n.text && String(n.text).trim()) return String(n.text).trim();
-  const family = (n && n.family ? String(n.family) : "").trim();
-  const givenArr = (n && Array.isArray(n.given) ? n.given : (n && n.given ? [n.given] : [])).map((g) => String(g).trim()).filter(Boolean);
-  const given = givenArr.join(" ");
-  const parts = [family, given].filter(Boolean);
-  const built = parts.join(", ").trim(); // "Family, Given"
-  return built || "(no name)";
-}
+  <!-- React 18 (UMD) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 
-function calcAge(birthDate) {
-  if (!birthDate) return "";
-  const dob = new Date(birthDate);
-  if (Number.isNaN(dob.getTime())) return "";
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const m = today.getMonth() - dob.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
-  return String(age);
-}
+  <!-- Babel Standalone to transpile JSX in-browser (demo-friendly) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="min-h-screen bg-slate-950">
+  <div id="root"></div>
 
-function formatAddress(address) {
-  if (!address) return "";
-  const a = Array.isArray(address) ? address[0] : address;
-  if (!a) return "";
-  if (a.text && String(a.text).trim()) return String(a.text).trim();
-  const parts = [];
-  if (Array.isArray(a.line) && a.line.length) parts.push(a.line.join(", "));
-  if (a.city) parts.push(a.city);
-  if (a.state) parts.push(a.state);
-  if (a.postalCode) parts.push(a.postalCode);
-  if (a.country) parts.push(a.country);
-  return parts.filter(Boolean).join(", ");
-}
+  <!-- Your app (converted to run without bundlers) -->
+  <script type="text/babel" data-presets='[["env"],["react",{"runtime":"classic"}]]'>
+    const { useEffect, useMemo, useRef, useState } = React;
 
-function srAuthoredOn(sr) { return sr?.authoredOn || sr?.meta?.lastUpdated || null; }
-function srCodeText(sr) { const t = sr?.code?.text; const c = sr?.code?.coding?.[0]; return t || c?.display || c?.code || "(no code)"; }
-function srCategoryText(sr) { const cat = sr?.category?.[0]; const c = cat?.coding?.[0]; return cat?.text || c?.display || c?.code || ""; }
-function srPatientRef(sr) { return sr?.subject?.reference || null; }
-function refKey(ref) { return (ref || "").trim(); }
-function formatDateTime(dtStr) { if (!dtStr) return ""; const d = new Date(dtStr); if (Number.isNaN(d.getTime())) return dtStr; return d.toLocaleString(); }
-
-async function fhirGET(base, pathWithQuery) {
-  const url = `${base.replace(/\/$/, "")}/${pathWithQuery.replace(/^\//, "")}`;
-  const res = await fetch(url, { headers: { Accept: "application/fhir+json" } });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`FHIR GET ${url} -> ${res.status}${text ? `: ${text}` : ""}`);
-  }
-  return res.json();
-}
-
-// --------------------------- Runtime Tests ---------------------------------
-if (typeof window !== "undefined") {
-  try {
-    console.assert(getHumanName({ name: [{ text: "Smith, Alice" }] }) === "Smith, Alice", "prefer .text");
-    console.assert(getHumanName({ name: [{ family: "Doe", given: ["Jane"] }] }) === "Doe, Jane", "family, given fallback");
-    console.assert(getHumanName({ name: [] }) === "(no name)", "empty name array");
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.warn("Self-tests failed:", e);
-  }
-}
-
-// ------------------------------ Component ---------------------------------
-export default function App() {
-  const serverOptions = [
-    "https://server.fire.ly",
-    "https://hapi.fhir.org/baseR4",
-    "https://r4.smarthealthit.org",
-  ];
-
-  const [baseUrl, setBaseUrl] = useState(() => localStorage.getItem("fhirBase") || serverOptions[0]);
-  const [mode, setMode] = useState("incoming"); // "incoming" | "patients"
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  // Data
-  const [srList, setSrList] = useState([]); // ServiceRequest[]
-  const [patientMap, setPatientMap] = useState({}); // ref -> Patient
-  const [nextLink, setNextLink] = useState("");
-
-  // Patient view state
-  const [patientSearch, setPatientSearch] = useState("");
-  const [last7Only, setLast7Only] = useState(false);
-  const [selectedPatientRef, setSelectedPatientRef] = useState("");
-
-  // Polling
-  const [polling, setPolling] = useState(false);
-  const pollingRef = useRef(null);
-  const lastManualFetchSucceeded = useRef(false);
-
-  useEffect(() => { if (baseUrl) localStorage.setItem("fhirBase", baseUrl); }, [baseUrl]);
-
-  const canSearch = !!(baseUrl && /^https?:\/\//i.test(baseUrl));
-
-  // Core fetch (first page)
-  async function fetchFirstPage({ resetSelection } = { resetSelection: true }) {
-    if (!canSearch) return;
-    setError("");
-    setLoading(true);
-    try {
-      const query = new URLSearchParams({ _count: "50", _include: "ServiceRequest:subject", _sort: "-authoredon,-_lastUpdated" });
-      const bundle = await fhirGET(baseUrl, `ServiceRequest?${query.toString()}`);
-      applyBundle(bundle, /*reset*/ true);
-      lastManualFetchSucceeded.current = true;
-      setPolling(true);
-      if (resetSelection) setSelectedPatientRef("");
-    } catch (e) {
-      setError(String(e.message || e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Next page
-  async function loadMore() {
-    if (!nextLink) return;
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(nextLink, { headers: { Accept: "application/fhir+json" } });
-      if (!res.ok) throw new Error(`FHIR GET next -> ${res.status}`);
-      const bundle = await res.json();
-      applyBundle(bundle, /*reset*/ false);
-    } catch (e) {
-      setError(String(e.message || e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Apply a bundle page to state (with dedupe)
-  function applyBundle(bundle, reset) {
-    const entries = bundle?.entry || [];
-    const nextPatients = reset ? {} : { ...patientMap };
-    const nextSRsMap = new Map((reset ? [] : srList).map((r) => [r.id, r]));
-
-    for (const e of entries) {
-      const r = e.resource;
-      if (!r) continue;
-      if (r.resourceType === "ServiceRequest") nextSRsMap.set(r.id, r);
-      if (r.resourceType === "Patient") nextPatients[`Patient/${r.id}`] = r;
+    // ----------------------------- Helpers ------------------------------------
+    function getHumanName(patient) {
+      if (!patient || !Array.isArray(patient.name) || patient.name.length === 0) return "(no name)";
+      const n = patient.name.find((x) => x.use === "official") || patient.name[0];
+      if (n && n.text && String(n.text).trim()) return String(n.text).trim();
+      const family = (n && n.family ? String(n.family) : "").trim();
+      const givenArr = (n && Array.isArray(n.given) ? n.given : (n && n.given ? [n.given] : [])).map((g) => String(g).trim()).filter(Boolean);
+      const given = givenArr.join(" ");
+      const parts = [family, given].filter(Boolean);
+      const built = parts.join(", ").trim(); // "Family, Given"
+      return built || "(no name)";
     }
 
-    setPatientMap(nextPatients);
-    setSrList(Array.from(nextSRsMap.values()));
+    function calcAge(birthDate) {
+      if (!birthDate) return "";
+      const dob = new Date(birthDate);
+      if (Number.isNaN(dob.getTime())) return "";
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+      return String(age);
+    }
 
-    const nxt = (bundle.link || []).find((l) => l.relation === "next")?.url || "";
-    setNextLink(nxt);
-  }
+    function formatAddress(address) {
+      if (!address) return "";
+      const a = Array.isArray(address) ? address[0] : address;
+      if (!a) return "";
+      if (a.text && String(a.text).trim()) return String(a.text).trim();
+      const parts = [];
+      if (Array.isArray(a.line) && a.line.length) parts.push(a.line.join(", "));
+      if (a.city) parts.push(a.city);
+      if (a.state) parts.push(a.state);
+      if (a.postalCode) parts.push(a.postalCode);
+      if (a.country) parts.push(a.country);
+      return parts.filter(Boolean).join(", ");
+    }
 
-  // Polling every 42s after a successful manual fetch
-  useEffect(() => {
-    if (!polling || !lastManualFetchSucceeded.current) return;
-    if (pollingRef.current) clearInterval(pollingRef.current);
-    pollingRef.current = setInterval(() => {
-      if (loading) return; // avoid overlapping
-      // Refresh first page; keep selection
-      fetchFirstPage({ resetSelection: false });
-    }, 42000);
-    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
-  }, [polling, baseUrl, loading]);
+    function srAuthoredOn(sr) { return (sr && sr.authoredOn) || (sr && sr.meta && sr.meta.lastUpdated) || null; }
+    function srCodeText(sr) { const t = sr && sr.code && sr.code.text; const c = sr && sr.code && sr.code.coding && sr.code.coding[0]; return t || (c && (c.display || c.code)) || "(no code)"; }
+    function srCategoryText(sr) { const cat = sr && sr.category && sr.category[0]; const c = cat && cat.coding && cat.coding[0]; return (cat && cat.text) || (c && (c.display || c.code)) || ""; }
+    function srPatientRef(sr) { return sr && sr.subject && sr.subject.reference || null; }
+    function refKey(ref) { return (ref || "").trim(); }
+    function formatDateTime(dtStr) { if (!dtStr) return ""; const d = new Date(dtStr); if (Number.isNaN(d.getTime())) return dtStr; return d.toLocaleString(); }
 
-  // Derived views -----------------------------------------------------------
-  const incomingRows = useMemo(() => {
-    const rows = srList.map((sr) => {
-      const pref = refKey(srPatientRef(sr));
-      const p = patientMap[pref];
-      return {
-        id: sr.id,
-        date: srAuthoredOn(sr),
-        patientRef: pref,
-        patientName: getHumanName(p),
-        testName: srCodeText(sr),
-        category: srCategoryText(sr),
-        status: sr.status || "",
-      };
-    });
-    rows.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-    return rows;
-  }, [srList, patientMap]);
+    async function fhirGET(base, pathWithQuery) {
+      const url = base.replace(/\/$/, "") + "/" + pathWithQuery.replace(/^\//, "");
+      const res = await fetch(url, { headers: { Accept: "application/fhir+json" } });
+      if (!res.ok) {
+        let text = "";
+        try { text = await res.text(); } catch {}
+        throw new Error(`FHIR GET ${url} -> ${res.status}${text ? `: ${text}` : ""}`);
+      }
+      return res.json();
+    }
 
-  const patientRows = useMemo(() => {
-    const map = new Map();
-    for (const sr of srList) {
-      const pref = refKey(srPatientRef(sr));
-      if (!pref) continue;
-      const when = srAuthoredOn(sr) || "";
-      const cur = map.get(pref);
-      if (!cur || new Date(when) > new Date(cur.latestDate)) {
-        map.set(pref, { latestDate: when, count: (cur?.count || 0) + 1 });
-      } else {
-        cur.count += 1;
+    // --------------------------- Runtime Tests ---------------------------------
+    if (typeof window !== "undefined") {
+      try {
+        console.assert(getHumanName({ name: [{ text: "Smith, Alice" }] }) === "Smith, Alice", "prefer .text");
+        console.assert(getHumanName({ name: [{ family: "Doe", given: ["Jane"] }] }) === "Doe, Jane", "family, given fallback");
+        console.assert(getHumanName({ name: [] }) === "(no name)", "empty name array");
+      } catch (e) {
+        console.warn("Self-tests failed:", e);
       }
     }
-    let arr = Array.from(map.entries()).map(([pref, v]) => ({
-      patientRef: pref,
-      patientName: getHumanName(patientMap[pref]),
-      latestDate: v.latestDate,
-      count: v.count,
-    }));
-    const q = patientSearch.trim().toLowerCase();
-    if (q) arr = arr.filter((p) => (p.patientName || "").toLowerCase().includes(q));
-    if (last7Only) {
-      const now = Date.now();
-      const seven = 7 * 24 * 60 * 60 * 1000;
-      arr = arr.filter((p) => {
-        const t = new Date(p.latestDate || 0).getTime();
-        return !Number.isNaN(t) && now - t <= seven;
-      });
-    }
-    arr.sort((a, b) => new Date(b.latestDate || 0) - new Date(a.latestDate || 0));
-    return arr;
-  }, [srList, patientMap, patientSearch, last7Only]);
 
-  const selectedPatient = patientMap[selectedPatientRef];
-  const selectedPatientSRs = useMemo(() => incomingRows.filter((r) => r.patientRef === selectedPatientRef), [incomingRows, selectedPatientRef]);
+    // ------------------------------ Component ---------------------------------
+    function App() {
+      const serverOptions = [
+        "https://server.fire.ly",
+        "https://hapi.fhir.org/baseR4",
+        "https://r4.smarthealthit.org",
+        "https://demo.pathling.app/fhir",
+        "http://fhir.oridashi.com.au",
+      ];
 
-  // UI ----------------------------------------------------------------------
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">eRequest Dashboard</h1>
-            <p className="text-slate-300">Browse ServiceRequests from your target FHIR server.</p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
-            {/* Preset selector */}
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-slate-300">FHIR Server (preset)</span>
-              <select
-                className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[22rem] max-w-full"
-                value={serverOptions.includes(baseUrl) ? baseUrl : ""}
-                onChange={(e) => { const v = e.target.value; if (v) setBaseUrl(v); }}
-              >
-                <option value="">Custom…</option>
-                {serverOptions.map((u) => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-              </select>
-            </label>
-            {/* Free-form URL */}
-            <label className="flex flex-col gap-1">
-              <span className="text-sm text-slate-300">FHIR Server Base URL</span>
-              <input
-                className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[28rem] max-w-full"
-                placeholder="https://server.fire.ly"
-                value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
-              />
-            </label>
-            <button
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 transition disabled:opacity-50"
-              disabled={!canSearch || loading}
-              onClick={() => fetchFirstPage({ resetSelection: true })}
-            >
-              {loading ? "Loading..." : "Fetch"}
-            </button>
-            <div className="text-xs text-slate-400 mt-1 sm:mt-0 sm:self-end">Auto-refresh: {polling ? "On (42s)" : "Off"}</div>
-          </div>
-        </header>
+      const [baseUrl, setBaseUrl] = useState(() => localStorage.getItem("fhirBase") || serverOptions[0]);
+      const [mode, setMode] = useState("incoming"); // "incoming" | "patients"
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState("");
 
-        {/* Mode Toggle */}
-        <div className="flex gap-2">
-          <button onClick={() => setMode("incoming")} className={`px-4 py-2 rounded-xl border ${mode === "incoming" ? "bg-slate-800 border-slate-700" : "bg-slate-900 border-slate-800 hover:bg-slate-800"}`}>Incoming Services</button>
-          <button onClick={() => setMode("patients")} className={`px-4 py-2 rounded-xl border ${mode === "patients" ? "bg-slate-800 border-slate-700" : "bg-slate-900 border-slate-800 hover:bg-slate-800"}`}>Patient Listing</button>
-        </div>
+      // Data
+      const [srList, setSrList] = useState([]); // ServiceRequest[]
+      const [patientMap, setPatientMap] = useState({}); // ref -> Patient
+      const [nextLink, setNextLink] = useState("");
 
-        {error && <div className="bg-red-950/40 border border-red-800 text-red-200 p-3 rounded-xl">{error}</div>}
+      // Patient view state
+      const [patientSearch, setPatientSearch] = useState("");
+      const [last7Only, setLast7Only] = useState(false);
+      const [selectedPatientRef, setSelectedPatientRef] = useState("");
 
-        {/* Incoming Services */}
-        {mode === "incoming" && (
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">All ServiceRequests</h2>
-              <div className="text-sm text-slate-400">{incomingRows.length} shown</div>
+      // Polling
+      const [polling, setPolling] = useState(true);
+      const pollingRef = useRef(null);
+
+      useEffect(() => { if (baseUrl) localStorage.setItem("fhirBase", baseUrl); }, [baseUrl]);
+
+      const canSearch = !!(baseUrl && /^https?:\/\//i.test(baseUrl));
+
+      // Auto-fetch on mount and whenever the baseUrl changes
+      useEffect(() => {
+        if (canSearch) {
+          fetchFirstPage({ resetSelection: true });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [baseUrl]);
+
+      // Core fetch (first page)
+      async function fetchFirstPage({ resetSelection } = { resetSelection: true }) {
+        if (!canSearch) return;
+        setError("");
+        setLoading(true);
+        try {
+          const query = new URLSearchParams({ _count: "50", _include: "ServiceRequest:subject", _sort: "-authoredon,-_lastUpdated" });
+          const bundle = await fhirGET(baseUrl, `ServiceRequest?${query.toString()}`);
+          applyBundle(bundle, /*reset*/ true);
+          if (resetSelection) setSelectedPatientRef("");
+        } catch (e) {
+          setError(String(e.message || e));
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      // Next page
+      async function loadMore() {
+        if (!nextLink) return;
+        setLoading(true);
+        setError("");
+        try {
+          const res = await fetch(nextLink, { headers: { Accept: "application/fhir+json" } });
+          if (!res.ok) throw new Error(`FHIR GET next -> ${res.status}`);
+          const bundle = await res.json();
+          applyBundle(bundle, /*reset*/ false);
+        } catch (e) {
+          setError(String(e.message || e));
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      // Apply a bundle page to state (with dedupe)
+      function applyBundle(bundle, reset) {
+        const entries = (bundle && bundle.entry) || [];
+        const nextPatients = reset ? {} : { ...patientMap };
+        const nextSRsMap = new Map(((reset ? [] : srList)).map((r) => [r.id, r]));
+
+        for (const e of entries) {
+          const r = e.resource;
+          if (!r) continue;
+          if (r.resourceType === "ServiceRequest") nextSRsMap.set(r.id, r);
+          if (r.resourceType === "Patient") nextPatients[`Patient/${r.id}`] = r;
+        }
+
+        setPatientMap(nextPatients);
+        setSrList(Array.from(nextSRsMap.values()));
+
+        const nxt = ((bundle.link || []).find((l) => l.relation === "next") || {}).url || "";
+        setNextLink(nxt);
+      }
+
+      // Polling every 42s
+      useEffect(() => {
+        if (!polling) return;
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        pollingRef.current = setInterval(() => {
+          if (loading) return; // avoid overlapping
+          fetchFirstPage({ resetSelection: false });
+        }, 42000);
+        return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+      }, [polling, baseUrl, loading]);
+
+      // Derived views -----------------------------------------------------------
+      const incomingRows = useMemo(() => {
+        const rows = srList.map((sr) => {
+          const pref = refKey(srPatientRef(sr));
+          const p = patientMap[pref];
+          return {
+            id: sr.id,
+            date: srAuthoredOn(sr),
+            patientRef: pref,
+            patientName: getHumanName(p),
+            testName: srCodeText(sr),
+            category: srCategoryText(sr),
+            status: sr.status || "",
+          };
+        });
+        rows.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        return rows;
+      }, [srList, patientMap]);
+
+      const patientRows = useMemo(() => {
+        const map = new Map();
+        for (const sr of srList) {
+          const pref = refKey(srPatientRef(sr));
+          if (!pref) continue;
+          const when = srAuthoredOn(sr) || "";
+          const cur = map.get(pref);
+          if (!cur || new Date(when) > new Date(cur.latestDate)) {
+            map.set(pref, { latestDate: when, count: (cur ? cur.count : 0) + 1 });
+          } else {
+            cur.count += 1;
+          }
+        }
+        let arr = Array.from(map.entries()).map(([pref, v]) => ({
+          patientRef: pref,
+          patientName: getHumanName(patientMap[pref]),
+          latestDate: v.latestDate,
+          count: v.count,
+        }));
+        const q = patientSearch.trim().toLowerCase();
+        if (q) arr = arr.filter((p) => (p.patientName || "").toLowerCase().includes(q));
+        if (last7Only) {
+          const now = Date.now();
+          const seven = 7 * 24 * 60 * 60 * 1000;
+          arr = arr.filter((p) => {
+            const t = new Date(p.latestDate || 0).getTime();
+            return !Number.isNaN(t) && now - t <= seven;
+          });
+        }
+        arr.sort((a, b) => new Date(b.latestDate || 0) - new Date(a.latestDate || 0));
+        return arr;
+      }, [srList, patientMap, patientSearch, last7Only]);
+
+      const selectedPatient = patientMap[selectedPatientRef];
+      const selectedPatientSRs = useMemo(
+        () => incomingRows.filter((r) => r.patientRef === selectedPatientRef),
+        [incomingRows, selectedPatientRef]
+      );
+
+      // UI ----------------------------------------------------------------------
+      return (
+        <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Header */}
+            <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight">eRequest Dashboard</h1>
+                <p className="text-slate-300">Browse ServiceRequests from your target FHIR server.</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
+                {/* Preset selector */}
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm text-slate-300">FHIR Server (preset)</span>
+                  <select
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[22rem] max-w-full"
+                    value={["https://server.fire.ly","https://hapi.fhir.org/baseR4","https://r4.smarthealthit.org","https://demo.pathling.app/fhir","http://fhir.oridashi.com.au"].includes(baseUrl) ? baseUrl : ""}
+                    onChange={(e) => { const v = e.target.value; if (v) setBaseUrl(v); }}
+                  >
+                    <option value="">Custom…</option>
+                    <option value="https://server.fire.ly">https://server.fire.ly</option>
+                    <option value="https://hapi.fhir.org/baseR4">https://hapi.fhir.org/baseR4</option>
+                    <option value="https://r4.smarthealthit.org">https://r4.smarthealthit.org</option>
+                    <option value="https://demo.pathling.app/fhir">https://demo.pathling.app/fhir</option>
+                    <option value="http://fhir.oridashi.com.au">http://fhir.oridashi.com.au</option>
+                  </select>
+                </label>
+                {/* Free-form URL */}
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm text-slate-300">FHIR Server Base URL</span>
+                  <input
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[28rem] max-w-full"
+                    placeholder="https://server.fire.ly"
+                    value={baseUrl}
+                    onChange={(e) => setBaseUrl(e.target.value)}
+                  />
+                </label>
+                <button
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 transition disabled:opacity-50"
+                  disabled={!canSearch || loading}
+                  onClick={() => fetchFirstPage({ resetSelection: true })}
+                >
+                  {loading ? "Loading..." : "Fetch"}
+                </button>
+                <div className="text-xs text-slate-400 mt-1 sm:mt-0 sm:self-end">Auto-refresh: On (42s)</div>
+              </div>
+            </header>
+
+            {/* Mode Toggle */}
+            <div className="flex gap-2">
+              <button onClick={() => setMode("incoming")} className={`px-4 py-2 rounded-xl border ${mode === "incoming" ? "bg-slate-800 border-slate-700" : "bg-slate-900 border-slate-800 hover:bg-slate-800"}`}>Incoming Services</button>
+              <button onClick={() => setMode("patients")} className={`px-4 py-2 rounded-xl border ${mode === "patients" ? "bg-slate-800 border-slate-700" : "bg-slate-900 border-slate-800 hover:bg-slate-800"}`}>Patient Listing</button>
             </div>
-            <div className="overflow-auto rounded-2xl border border-slate-800">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-900/60">
-                  <tr className="text-left">
-                    <th className="px-4 py-3 font-medium">Date</th>
-                    <th className="px-4 py-3 font-medium">Patient</th>
-                    <th className="px-4 py-3 font-medium">Test Name</th>
-                    <th className="px-4 py-3 font-medium">Category</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {incomingRows.map((r) => (
-                    <tr key={r.id} className="border-t border-slate-800 hover:bg-slate-900/50">
-                      <td className="px-4 py-2 whitespace-nowrap">{formatDateTime(r.date)}</td>
-                      <td className="px-4 py-2">
-                        <button className="underline underline-offset-2 hover:text-indigo-300" onClick={() => { setSelectedPatientRef(r.patientRef); setMode("patients"); }}>
-                          {r.patientName}
-                        </button>
-                      </td>
-                      <td className="px-4 py-2">{r.testName}</td>
-                      <td className="px-4 py-2">{r.category}</td>
-                      <td className="px-4 py-2 uppercase tracking-wide text-slate-300">{r.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="flex items-center gap-3">
-              <button className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 disabled:opacity-50" onClick={loadMore} disabled={!nextLink || loading}>{nextLink ? (loading ? "Loading..." : "Load more") : "No more"}</button>
-              <div className="text-slate-400 text-sm">{nextLink ? "More pages available from server" : "End of results"}</div>
-            </div>
-          </section>
-        )}
 
-        {/* Patients */}
-        {mode === "patients" && (
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Patients with ServiceRequests</h2>
-              <div className="text-sm text-slate-400">{patientRows.length} patients</div>
-            </div>
+            {error && <div className="bg-red-950/40 border border-red-800 text-red-200 p-3 rounded-xl">{error}</div>}
 
-            {/* Filters */}
-            <div className="flex flex-col md:flex-row md:items-end gap-3">
-              <label className="flex flex-col gap-1">
-                <span className="text-sm text-slate-300">Search patient</span>
-                <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[22rem] max-w-full" placeholder="Type a name" value={patientSearch} onChange={(e) => setPatientSearch(e.target.value)} />
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input type="checkbox" className="accent-indigo-600" checked={last7Only} onChange={(e) => setLast7Only(e.target.checked)} />
-                Last 7 days
-              </label>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2">
+            {/* Incoming Services */}
+            {mode === "incoming" && (
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold">All ServiceRequests</h2>
+                  <div className="text-sm text-slate-400">{incomingRows.length} shown</div>
+                </div>
                 <div className="overflow-auto rounded-2xl border border-slate-800">
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-900/60">
-                      <tr className="text-left align-middle">
-                        <th scope="col" className="px-4 py-3 font-medium">Patient</th>
-                        <th scope="col" className="px-4 py-3 font-medium">Most Recent</th>
-                        <th scope="col" className="px-4 py-3 font-medium"># SRs</th>
+                      <tr className="text-left">
+                        <th className="px-4 py-3 font-medium">Date</th>
+                        <th className="px-4 py-3 font-medium">Patient</th>
+                        <th className="px-4 py-3 font-medium">Test Name</th>
+                        <th className="px-4 py-3 font-medium">Category</th>
+                        <th className="px-4 py-3 font-medium">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {patientRows.map((p) => (
-                        <tr key={p.patientRef} className={`border-t border-slate-800 hover:bg-slate-900/50 ${selectedPatientRef === p.patientRef ? "bg-slate-900/60" : ""}`}>
+                      {incomingRows.map((r) => (
+                        <tr key={r.id} className="border-t border-slate-800 hover:bg-slate-900/50">
+                          <td className="px-4 py-2 whitespace-nowrap">{formatDateTime(r.date)}</td>
                           <td className="px-4 py-2">
-                            <button className="underline underline-offset-2 hover:text-indigo-300" onClick={() => setSelectedPatientRef(p.patientRef)}>
-                              {p.patientName}
+                            <button className="underline underline-offset-2 hover:text-indigo-300" onClick={() => { setSelectedPatientRef(r.patientRef); setMode("patients"); }}>
+                              {r.patientName}
                             </button>
                           </td>
-                          <td className="px-4 py-2 whitespace-nowrap">{formatDateTime(p.latestDate)}</td>
-                          <td className="px-4 py-2">{p.count}</td>
+                          <td className="px-4 py-2">{r.testName}</td>
+                          <td className="px-4 py-2">{r.category}</td>
+                          <td className="px-4 py-2 uppercase tracking-wide text-slate-300">{r.status}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </div>
+                <div className="flex items-center gap-3">
+                  <button className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 disabled:opacity-50" onClick={loadMore} disabled={!nextLink || loading}>{nextLink ? (loading ? "Loading..." : "Load more") : "No more"}</button>
+                  <div className="text-slate-400 text-sm">{nextLink ? "More pages available from server" : "End of results"}</div>
+                </div>
+              </section>
+            )}
 
-              <aside className="lg:col-span-1 space-y-3">
-                <div className="rounded-2xl border border-slate-800 p-3">
-                  <h3 className="font-semibold">Selected Patient</h3>
-                  {selectedPatientRef ? (
-                    <div className="mt-2 text-sm flex gap-3">
-                      {selectedPatient?.photo?.[0]?.url ? (
-                        <img src={selectedPatient.photo[0].url} alt="patient" className="w-16 h-16 rounded-xl object-cover border border-slate-800" />
-                      ) : (
-                        <div className="w-16 h-16 rounded-xl bg-slate-900 border border-slate-800 grid place-items-center text-xs text-slate-500">No photo</div>
-                      )}
-                      <div className="space-y-1">
-                        <div><span className="text-slate-400">Name:&nbsp;</span>{getHumanName(selectedPatient)}</div>
-                        {selectedPatient?.birthDate && (
-                          <div><span className="text-slate-400">Age:&nbsp;</span>{calcAge(selectedPatient.birthDate)} (DOB: {selectedPatient.birthDate})</div>
-                        )}
-                        {selectedPatient?.address?.length > 0 && (
-                          <div><span className="text-slate-400">Address:&nbsp;</span>{formatAddress(selectedPatient.address)}</div>
-                        )}
-                        {selectedPatient?.gender && (
-                          <div><span className="text-slate-400">Gender:&nbsp;</span>{selectedPatient.gender}</div>
-                        )}
-                        <div className="text-slate-500 text-xs">{selectedPatientRef}</div>
-                      </div>
+            {/* Patients */}
+            {mode === "patients" && (
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold">Patients with ServiceRequests</h2>
+                  <div className="text-sm text-slate-400">{patientRows.length} patients</div>
+                </div>
+
+                {/* Filters */}
+                <div className="flex flex-col md:flex-row md:items-end gap-3">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-sm text-slate-300">Search patient</span>
+                    <input className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[22rem] max-w-full" placeholder="Type a name" value={patientSearch} onChange={(e) => setPatientSearch(e.target.value)} />
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input type="checkbox" className="accent-indigo-600" checked={last7Only} onChange={(e) => setLast7Only(e.target.checked)} />
+                    Last 7 days
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div className="lg:col-span-2">
+                    <div className="overflow-auto rounded-2xl border border-slate-800">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-slate-900/60">
+                          <tr className="text-left align-middle">
+                            <th scope="col" className="px-4 py-3 font-medium">Patient</th>
+                            <th scope="col" className="px-4 py-3 font-medium">Most Recent</th>
+                            <th scope="col" className="px-4 py-3 font-medium"># SRs</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {patientRows.map((p) => (
+                            <tr key={p.patientRef} className={`border-t border-slate-800 hover:bg-slate-900/50 ${selectedPatientRef === p.patientRef ? "bg-slate-900/60" : ""}`}>
+                              <td className="px-4 py-2">
+                                <button className="underline underline-offset-2 hover:text-indigo-300" onClick={() => setSelectedPatientRef(p.patientRef)}>
+                                  {p.patientName}
+                                </button>
+                              </td>
+                              <td className="px-4 py-2 whitespace-nowrap">{formatDateTime(p.latestDate)}</td>
+                              <td className="px-4 py-2">{p.count}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  ) : (
-                    <div className="text-slate-400 text-sm mt-2">Click a patient to view details.</div>
-                  )}
-                </div>
+                  </div>
 
-                <div className="rounded-2xl border border-slate-800 p-3">
-                  <h3 className="font-semibold">ServiceRequests</h3>
-                  {selectedPatientRef ? (
-                    <ul className="mt-2 space-y-2">
-                      {selectedPatientSRs.map((r) => (
-                        <li key={r.id} className="bg-slate-900/40 border border-slate-800 rounded-xl p-2">
-                          <div className="text-sm font-medium">{r.testName}</div>
-                          <div className="text-xs text-slate-400">{formatDateTime(r.date)} — {r.category || ""}</div>
-                          <div className="text-xs uppercase text-slate-300">{r.status}</div>
-                        </li>
-                      ))}
-                      {selectedPatientSRs.length === 0 && (
-                        <li className="text-slate-400 text-sm">No SRs loaded for this patient (yet).</li>
+                  <aside className="lg:col-span-1 space-y-3">
+                    <div className="rounded-2xl border border-slate-800 p-3">
+                      <h3 className="font-semibold">Selected Patient</h3>
+                      {selectedPatientRef ? (
+                        <div className="mt-2 text-sm flex gap-3">
+                          {selectedPatient && selectedPatient.photo && selectedPatient.photo[0] && selectedPatient.photo[0].url ? (
+                            <img src={selectedPatient.photo[0].url} alt="patient" className="w-16 h-16 rounded-xl object-cover border border-slate-800" />
+                          ) : (
+                            <div className="w-16 h-16 rounded-xl bg-slate-900 border border-slate-800 grid place-items-center text-xs text-slate-500">No photo</div>
+                          )}
+                          <div className="space-y-1">
+                            <div><span className="text-slate-400">Name:&nbsp;</span>{getHumanName(selectedPatient)}</div>
+                            {selectedPatient && selectedPatient.birthDate && (
+                              <div><span className="text-slate-400">Age:&nbsp;</span>{calcAge(selectedPatient.birthDate)} (DOB: {selectedPatient.birthDate})</div>
+                            )}
+                            {selectedPatient && selectedPatient.address && selectedPatient.address.length > 0 && (
+                              <div><span className="text-slate-400">Address:&nbsp;</span>{formatAddress(selectedPatient.address)}</div>
+                            )}
+                            {selectedPatient && selectedPatient.gender && (
+                              <div><span className="text-slate-400">Gender:&nbsp;</span>{selectedPatient.gender}</div>
+                            )}
+                            <div className="text-slate-500 text-xs">{selectedPatientRef}</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-slate-400 text-sm mt-2">Click a patient to view details.</div>
                       )}
-                    </ul>
-                  ) : (
-                    <div className="text-slate-400 text-sm mt-2">No patient selected.</div>
-                  )}
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-800 p-3">
+                      <h3 className="font-semibold">ServiceRequests</h3>
+                      {selectedPatientRef ? (
+                        <ul className="mt-2 space-y-2">
+                          {selectedPatientSRs.map((r) => (
+                            <li key={r.id} className="bg-slate-900/40 border border-slate-800 rounded-xl p-2">
+                              <div className="text-sm font-medium">{r.testName}</div>
+                              <div className="text-xs text-slate-400">{formatDateTime(r.date)} — {r.category || ""}</div>
+                              <div className="text-xs uppercase text-slate-300">{r.status}</div>
+                            </li>
+                          ))}
+                          {selectedPatientSRs.length === 0 && (
+                            <li className="text-slate-400 text-sm">No SRs loaded for this patient (yet).</li>
+                          )}
+                        </ul>
+                      ) : (
+                        <div className="text-slate-400 text-sm mt-2">No patient selected.</div>
+                      )}
+                    </div>
+                  </aside>
                 </div>
-              </aside>
-            </div>
 
-            <div className="mt-3 flex items-center gap-3">
-              <button className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 disabled:opacity-50" onClick={loadMore} disabled={!nextLink || loading}>{nextLink ? (loading ? "Loading..." : "Load more") : "No more"}</button>
-              <div className="text-slate-400 text-sm">{nextLink ? "More pages available from server" : "End of results"}</div>
-            </div>
-          </section>
-        )}
+                <div className="mt-3 flex items-center gap-3">
+                  <button className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 disabled:opacity-50" onClick={loadMore} disabled={!nextLink || loading}>{nextLink ? (loading ? "Loading..." : "Load more") : "No more"}</button>
+                  <div className="text-slate-400 text-sm">{nextLink ? "More pages available from server" : "End of results"}</div>
+                </div>
+              </section>
+            )}
 
-        {/* Debug */}
-        <details className="mt-4 rounded-2xl border border-slate-800 p-3">
-          <summary className="cursor-pointer select-none">Debug</summary>
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-            <div className="bg-slate-900/40 p-2 rounded-xl border border-slate-800">
-              <div className="font-semibold">State</div>
-              <pre className="whitespace-pre-wrap">{JSON.stringify({ mode, baseUrl, nextLink, counts: { srs: srList.length, patients: Object.keys(patientMap).length }, polling }, null, 2)}</pre>
-            </div>
-            <div className="bg-slate-900/40 p-2 rounded-xl border border-slate-800">
-              <div className="font-semibold">Example query</div>
-              <pre className="whitespace-pre-wrap">{`GET ${baseUrl.replace(/\/$/, "")}/ServiceRequest?_count=50&_include=ServiceRequest:subject&_sort=-authoredon,-_lastUpdated`}</pre>
-            </div>
+            {/* Debug */}
+            <details className="mt-4 rounded-2xl border border-slate-800 p-3">
+              <summary className="cursor-pointer select-none">Debug</summary>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                <div className="bg-slate-900/40 p-2 rounded-xl border border-slate-800">
+                  <div className="font-semibold">State</div>
+                  <pre className="whitespace-pre-wrap">{JSON.stringify({ mode, baseUrl, nextLink, counts: { srs: srList.length, patients: Object.keys(patientMap).length }, polling }, null, 2)}</pre>
+                </div>
+                <div className="bg-slate-900/40 p-2 rounded-xl border border-slate-800">
+                  <div className="font-semibold">Example query</div>
+                  <pre className="whitespace-pre-wrap">{`GET ${baseUrl.replace(/\/$/, "")}/ServiceRequest?_count=50&_include=ServiceRequest:subject&_sort=-authoredon,-_lastUpdated`}</pre>
+                </div>
+              </div>
+            </details>
+
+            <footer className="text-center text-slate-500 text-xs pt-6 pb-3">Default server: https://server.fire.ly · Auto-refresh every 42s</footer>
           </div>
-        </details>
+        </div>
+      );
+    }
 
-        <footer className="text-center text-slate-500 text-xs pt-6 pb-3">Default server: https://server.fire.ly · Auto-refresh every 42s after first Fetch</footer>
-      </div>
-    </div>
-  );
-}
+    // Mount
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>
