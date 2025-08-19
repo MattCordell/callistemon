@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>eRequesting — Patient Reception</title>
+  <style>
+    :root {
+      --bg: #0f172a; --card: #111827; --muted: #9ca3af; --text: #e5e7eb;
+      --accent: #8b5cf6; --accent-2: #22d3ee; --ok: #10b981; --warn: #f59e0b; --err: #ef4444; --ring: rgba(139,92,246,.35);
+    }
+    * { box-sizing: border-box }
+    html, body { height: 100% }
+    body {
+      margin: 0; background: radial-gradient(1200px 600px at 20% -10%, rgba(139,92,246,.20), transparent 60%),
+                            radial-gradient(1000px 500px at 120% 10%, rgba(34,211,238,.18), transparent 60%),
+                            var(--bg);
+      color: var(--text); font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
+    }
+    header { padding: 24px 16px; max-width: 1100px; margin: 0 auto }
+    header h1 { margin: 0 0 6px; font-size: 24px; font-weight: 700; letter-spacing:.2px }
+    header p { margin: 0; color: var(--muted) }
+
+    .shell { max-width: 1100px; margin: 0 auto; padding: 16px }
+    .u-flex { display:flex; gap:16px; flex-wrap:wrap }
+    .panel {
+      background: rgba(17,24,39,.7); border: 1px solid rgba(255,255,255,.06);
+      border-radius: 16px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.25); backdrop-filter: blur(6px);
+    }
+    .panel h2 { margin: 0 0 8px; font-size: 18px }
+    .hint { color: var(--muted); font-size: 14px }
+
+    /* Ingest */
+    .ingest { flex: 1 1 340px; min-width: 300px }
+    .modebar{display:inline-flex;gap:8px;margin:6px 0 12px}
+    .mode{appearance:none;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);color:var(--text);padding:8px 12px;border-radius:999px;cursor:pointer;font-weight:600}
+    .mode.active{outline:2px solid var(--accent); background:linear-gradient(180deg, rgba(139,92,246,.35), rgba(139,92,246,.15))}
+    .pane input{width:100%;margin-top:6px;background:#0b1020;color:var(--text);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 12px}
+    .hidden{display:none}
+    .results{margin-top:8px;border:1px solid rgba(255,255,255,.12);border-radius:12px;overflow:hidden}
+    .res{padding:10px 12px;background:rgba(255,255,255,.02);display:flex;justify-content:space-between;gap:12px}
+    .res:nth-child(even){background:rgba(255,255,255,.04)}
+    .res:hover{background:rgba(139,92,246,.12);cursor:pointer}
+    .res .small{color:var(--muted);font-size:12px}
+    .qrbox{position:relative;border:1px solid rgba(255,255,255,.12);border-radius:12px;overflow:hidden;background:#000;min-height:220px}
+    .qrbox video{width:100%;height:auto;display:block}
+    .qr-actions{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+    /* Card */
+    .card { flex: 2 1 620px; min-width: 340px }
+    .identity { display:flex; gap:16px; align-items: flex-start }
+    .avatar {
+      width: 92px; height: 92px; flex: 0 0 auto; border-radius: 50%;
+      background: #0b1020; border: 1px solid rgba(255,255,255,.08); overflow: hidden;
+      display:grid; place-items:center; font-weight:700; color: #94a3b8;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover }
+
+    .person { flex: 1; display: grid; gap: 8px; }
+    .person .headerline { display:flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap:wrap }
+    .person .name { font-size:18px; font-weight:700 }
+    .person .ident { color: var(--muted); font-size: 14px }
+
+    /* Single details cell */
+    .details { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 10px 12px; }
+    .details dl { margin: 0; display: grid; grid-template-columns: 120px 1fr; row-gap: 6px; column-gap: 10px }
+    .details dt { color: var(--muted) }
+    .details dd { margin: 0; font-weight: 600 }
+
+    /* Requests */
+    .requests { margin-top: 16px }
+    .req { border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 12px; background: rgba(255,255,255,.02); }
+    .req + .req { margin-top: 10px }
+    .req-head { display:flex; justify-content: space-between; gap: 12px; align-items: baseline }
+    .req-title { font-weight: 700; letter-spacing:.2px }
+    .badge { font-size: 12px; padding: 4px 8px; border-radius: 999px; border:1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.03); }
+    .badge.ok { border-color: rgba(16,185,129,.35) }
+    .badge.warn { border-color: rgba(245,158,11,.45) }
+    .badge.err { border-color: rgba(239,68,68,.45) }
+    .note { margin-top: 6px; color: var(--muted) }
+    .empty { margin-top: 10px; color: var(--muted); padding: 12px; border: 1px dashed rgba(255,255,255,.12); border-radius: 12px; text-align: center; }
+    .footer { margin-top: 6px; font-size: 12px; color: var(--muted) }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>eRequesting — Patient Reception</h1>
+    <p class="hint">Load a FHIR Bundle to view Patient details and outstanding ServiceRequests.</p>
+  </header>
+
+  <main class="shell u-flex">
+    <!-- Ingest -->
+    <section class="panel ingest" aria-labelledby="ingest-title">
+      <h2 id="ingest-title">Load Bundle</h2>
+
+      <!-- Mode switcher -->
+      <div class="modebar" role="tablist" aria-label="Load mode">
+        <button id="mode-url" role="tab" aria-selected="true" class="mode active">From URL</button>
+        <button id="mode-search" role="tab" aria-selected="false" class="mode">Search Patient</button>
+        <button id="mode-qr" role="tab" aria-selected="false" class="mode">Scan QR</button>
+      </div>
+
+      <!-- From URL -->
+      <div id="pane-url" role="tabpanel" aria-labelledby="mode-url" class="pane">
+        <label for="bundleUrl" class="hint">FHIR resource or Bundle URL</label>
+        <input id="bundleUrl" type="url" placeholder="e.g. https://server.fire.ly/Patient/498df0e5-a028-4182-a7a9-280cfcc1a7c9/_history/8cb4d474-7075-460c-82db-99fbe2aba77d" />
+        <div class="actions">
+          <button id="loadUrlBtn">Load</button>
+          <span id="status" class="hint"></span>
+        </div>
+        <div class="footer">The server must allow CORS. Accept: <span class="mono">application/fhir+json</span>.</div>
+      </div>
+
+      <!-- Search Patient -->
+      <div id="pane-search" role="tabpanel" aria-labelledby="mode-search" class="pane hidden">
+        <label for="baseUrl" class="hint">FHIR server base URL</label>
+        <input id="baseUrl" type="url" placeholder="e.g. https://server.fire.ly" value="https://server.fire.ly" />
+
+        <label for="patientQuery" class="hint" style="margin-top:8px; display:block;">Search patient by name</label>
+        <input id="patientQuery" type="text" placeholder="Type at least 3 characters…" autocomplete="off" />
+        <div id="results" class="results" role="listbox" aria-label="Patient results"></div>
+        <div class="footer">After selecting a patient, the app fetches <span class="mono">ServiceRequest?subject=Patient/{id}</span> and composes a local Bundle.</div>
+      </div>
+
+      <!-- Scan QR -->
+      <div id="pane-qr" role="tabpanel" aria-labelledby="mode-qr" class="pane hidden">
+        <div class="qrbox">
+          <video id="qrVideo" playsinline muted></video>
+        </div>
+        <div class="qr-actions">
+          <button id="startScanBtn">Start camera</button>
+          <button id="stopScanBtn" class="ghost">Stop</button>
+          <input id="qrFile" type="file" accept="image/*" />
+        </div>
+        <div id="qrStatus" class="hint" style="margin-top:6px"></div>
+        <div class="footer">We’ll read a URL from the QR code and load it as if pasted in the URL field.</div>
+      </div>
+    </section>
+
+    <!-- Card -->
+    <section class="panel card" aria-labelledby="card-title">
+      <h2 id="card-title">Patient Reception Card</h2>
+
+      <!-- Identity (photo left, single details cell right) -->
+      <div id="identity" class="identity" aria-live="polite">
+        <div class="avatar" id="avatar" aria-label="Patient photo or initials">⧗</div>
+        <div class="person">
+          <div class="headerline">
+            <div class="name" id="pt-name">Patient name</div>
+            <div class="ident" id="pt-line">—</div>
+          </div>
+
+          <div class="details">
+            <dl>
+              <dt>DOB</dt><dd id="pt-dob">—</dd>
+              <dt>Age</dt><dd id="pt-age">—</dd>
+              <dt>Gender</dt><dd id="pt-gender">—</dd>
+              <dt>Address</dt><dd id="pt-address">—</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <!-- Outstanding Requests -->
+      <div class="requests">
+        <h3 style="margin:18px 0 8px;">Outstanding ServiceRequests</h3>
+        <div id="reqs"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ---------- Utilities ----------
+    const by = sel => document.querySelector(sel);
+    const statusEl = by('#status');
+
+    function fmtName(hn) {
+      if (!hn) return '—';
+      const g = Array.isArray(hn.given) ? hn.given.join(' ') : (hn.given || '');
+      const f = hn.family || '';
+      const txt = hn.text || [g, f].filter(Boolean).join(' ');
+      return txt || '—';
+    }
+
+    function calcAge(dobStr) {
+      if (!dobStr) return '—';
+      const dob = new Date(dobStr);
+      if (isNaN(dob)) return '—';
+      const now = new Date();
+      let age = now.getFullYear() - dob.getFullYear();
+      const m = now.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
+      return age >= 0 ? age : '—';
+    }
+
+    function fmtAddress(addr) {
+      if (!addr) return '—';
+      const lines = [];
+      if (addr.line && addr.line.length) lines.push(addr.line.join(', '));
+      if (addr.city) lines.push(addr.city);
+      if (addr.state) lines.push(addr.state);
+      if (addr.postalCode) lines.push(addr.postalCode);
+      if (addr.country) lines.push(addr.country);
+      return lines.join(', ') || '—';
+    }
+
+    function isDataUri(str) { return typeof str === 'string' && /^data:image\/[a-zA-Z+.-]+;base64,/.test(str); }
+    function toDataUri(att) {
+      if (!att) return null;
+      if (att.data) {
+        const ct = att.contentType || 'image/jpeg';
+        const raw = att.data.trim();
+        return isDataUri(raw) ? raw : `data:${ct};base64,${raw}`;
+      }
+      if (att.url && typeof att.url === 'string') return att.url;
+      return null;
+    }
+
+    function humanStatus(s) {
+      if (!s) return ['Unknown', 'err'];
+      const map = {
+        draft: ['Draft', 'warn'], active: ['Active', 'ok'], 'on-hold': ['On hold', 'warn'],
+        revoked: ['Revoked', 'err'], completed: ['Completed', 'ok'], 'entered-in-error': ['Entered in error', 'err'],
+        unknown: ['Unknown', 'err']
+      };
+      return map[s] || [s, 'warn'];
+    }
+
+    function srDisplay(sr) {
+      const c = sr.code || {};
+      if (Array.isArray(c.coding) && c.coding.length) {
+        const disp = c.coding.find(x => x.display)?.display || c.coding[0].display || c.coding[0].code;
+        if (disp) return disp;
+      }
+      return c.text || '—';
+    }
+
+    function srNote(sr) {
+      if (Array.isArray(sr.note) && sr.note.length) return sr.note.map(n => n.text).filter(Boolean).join(' ');
+      if (Array.isArray(sr.reasonCode) && sr.reasonCode.length) {
+        const rc = sr.reasonCode[0];
+        const disp = (rc.coding && rc.coding[0]?.display) || rc.text;
+        if (disp) return disp;
+      }
+      return '';
+    }
+
+    // Resolve a Reference against Bundle
+    function makeResolver(bundle) {
+      const byFullUrl = new Map();
+      const byTypeId = new Map();
+      (bundle.entry || []).forEach(e => {
+        if (!e || !e.resource) return;
+        const r = e.resource;
+        if (e.fullUrl) byFullUrl.set(e.fullUrl, r);
+        if (r.resourceType && r.id) byTypeId.set(`${r.resourceType}/${r.id}`, r);
+      });
+      return (ref) => {
+        if (!ref || !ref.reference) return null;
+        const s = ref.reference;
+        if (byFullUrl.has(s)) return byFullUrl.get(s);
+        if (byTypeId.has(s)) return byTypeId.get(s);
+        try {
+          if (s.startsWith('http://') || s.startsWith('https://')) {
+            const parts = new URL(s).pathname.split('/').filter(Boolean);
+            const key = parts.slice(-2).join('/');
+            if (byTypeId.has(key)) return byTypeId.get(key);
+          }
+        } catch {}
+        return null;
+      };
+    }
+
+    function pickPatient(bundle) {
+      const resolver = makeResolver(bundle);
+      const srs = (bundle.entry || []).map(e => e.resource).filter(r => r && r.resourceType === 'ServiceRequest');
+      for (const sr of srs) {
+        const p = sr.subject && resolver(sr.subject);
+        if (p && p.resourceType === 'Patient') return p;
+      }
+      return (bundle.entry || []).map(e => e.resource).find(r => r && r.resourceType === 'Patient') || null;
+    }
+
+    function outstandingServiceRequests(bundle, patient) {
+      const resolver = makeResolver(bundle);
+      const EXCLUDE = new Set(['completed','revoked','entered-in-error']);
+      const srs = (bundle.entry || []).map(e => e.resource).filter(r => r && r.resourceType === 'ServiceRequest');
+      return srs.filter(sr => {
+        if (patient && sr.subject) {
+          const tgt = resolver(sr.subject);
+          if (!tgt || tgt.resourceType !== 'Patient' || tgt.id !== patient.id) return false;
+        }
+        return !EXCLUDE.has((sr.status || '').toLowerCase());
+      });
+    }
+
+    // ---------- Rendering ----------
+    function renderPatient(p) {
+      const name = fmtName((p.name && p.name[0]) || p.name);
+      const dob = p.birthDate || '';
+      const age = calcAge(dob);
+      const gender = p.gender ? (p.gender[0].toUpperCase() + p.gender.slice(1)) : '—';
+      const addr = p.address && p.address.length ? p.address[0] : null;
+
+      by('#pt-name').textContent = name;
+      by('#pt-dob').textContent = dob || '—';
+      by('#pt-age').textContent = age;
+      by('#pt-gender').textContent = gender;
+      by('#pt-address').textContent = fmtAddress(addr);
+
+      const ident = (p.identifier || []).map(id => {
+        const type = id.type?.text || id.type?.coding?.[0]?.display;
+        const sys = id.system ? id.system.split('/').pop() : '';
+        const val = id.value;
+        if (!val) return null;
+        return type ? `${type}: ${val}` : (sys ? `${sys}: ${val}` : val);
+      }).filter(Boolean);
+      by('#pt-line').textContent = ident[0] || '—';
+
+      // photo
+      const av = by('#avatar'); av.innerHTML = '';
+      let uri = null;
+      if (Array.isArray(p.photo) && p.photo.length) uri = toDataUri(p.photo[0]);
+      if (uri) { const img = new Image(); img.alt = 'Patient photo'; img.src = uri; av.appendChild(img); }
+      else { const initials = name.split(/\s+/).filter(Boolean).map(s => s[0]).slice(0,2).join('').toUpperCase() || 'PT'; av.textContent = initials; }
+    }
+
+    function renderRequests(list) {
+      const host = by('#reqs'); host.innerHTML = '';
+      if (!list.length) { host.innerHTML = '<div class="empty">No outstanding requests found for this patient.</div>'; return; }
+      for (const sr of list) {
+        const [label, tone] = humanStatus(sr.status);
+        const title = srDisplay(sr);
+        const note = srNote(sr);
+        const wrap = document.createElement('div');
+        wrap.className = 'req';
+        wrap.innerHTML = `
+          <div class="req-head">
+            <div class="req-title">${escapeHtml(title)}</div>
+            <span class="badge ${tone}">${escapeHtml(label)}</span>
+          </div>
+          ${note ? `<div class="note">${escapeHtml(note)}</div>` : ''}
+        `;
+        host.appendChild(wrap);
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+    }
+
+    function renderBundle(bundle) {
+      statusEl.textContent = '';
+      if (!bundle || bundle.resourceType !== 'Bundle') throw new Error('Input is not a FHIR Bundle.');
+      const patient = pickPatient(bundle);
+      if (!patient) {
+        by('#pt-name').textContent = '—'; by('#pt-line').textContent = '—';
+        by('#pt-dob').textContent = '—'; by('#pt-age').textContent = '—'; by('#pt-gender').textContent = '—'; by('#pt-address').textContent = '—';
+        by('#avatar').textContent = 'PT';
+      } else { renderPatient(patient); }
+      renderRequests(outstandingServiceRequests(bundle, patient));
+    }
+
+    // ---------- Mode switching & ingest wiring ----------
+    const modeBtns = { url: by('#mode-url'), search: by('#mode-search'), qr: by('#mode-qr') };
+    const panes = { url: by('#pane-url'), search: by('#pane-search'), qr: by('#pane-qr') };
+    function setMode(m){
+      for (const k of Object.keys(modeBtns)) {
+        const on = k===m; modeBtns[k].classList.toggle('active', on);
+        modeBtns[k].setAttribute('aria-selected', on);
+        panes[k].classList.toggle('hidden', !on);
+      }
+      if (m !== 'qr') stopScan();
+    }
+    modeBtns.url.addEventListener('click', () => setMode('url'));
+    modeBtns.search.addEventListener('click', () => setMode('search'));
+    modeBtns.qr.addEventListener('click', () => setMode('qr'));
+
+    // --- Load from URL ---
+    const loadUrlBtn = by('#loadUrlBtn');
+    const bundleUrlIn = by('#bundleUrl');
+    loadUrlBtn.addEventListener('click', async () => { loadFromUrl((bundleUrlIn.value||'').trim()); });
+
+    async function loadFromUrl(url){
+      if(!url) return; statusEl.textContent = 'Fetching…';
+      try {
+        const res = await fetch(url, { headers: { 'Accept':'application/fhir+json' } });
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const json = await res.json();
+        const base = inferBaseFromUrl(url, json);
+        const bundle = await ensureBundle(json, base);
+        renderBundle(bundle);
+        statusEl.textContent = 'Loaded ✓';
+      } catch(err){ console.error(err); statusEl.textContent = 'Load failed (CORS? URL? see console).'; }
+    }
+
+    // --- Patient Search ---
+    const baseUrlIn = by('#baseUrl');
+    const patientQueryIn = by('#patientQuery');
+    const resultsEl = by('#results');
+    let searchTimer = null;
+    patientQueryIn.addEventListener('input', () => {
+      const q = patientQueryIn.value.trim();
+      clearTimeout(searchTimer);
+      if(q.length < 3){ resultsEl.innerHTML = ''; return; }
+      searchTimer = setTimeout(() => runPatientSearch(q), 300);
+    });
+
+    async function runPatientSearch(q){
+      const base = (baseUrlIn.value||'').replace(/\/$/,'');
+      if(!base){ resultsEl.innerHTML = '<div class="res"><span>Enter server base URL first</span></div>'; return; }
+      resultsEl.innerHTML = '<div class="res"><span>Searching…</span></div>';
+      try{
+        const url = `${base}/Patient?name=${encodeURIComponent(q)}&_count=10`;
+        const res = await fetch(url, { headers: { 'Accept':'application/fhir+json' } });
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const b = await res.json();
+        const entries = (b.entry||[]).map(e=>e.resource).filter(r=>r && r.resourceType==='Patient');
+        if(!entries.length){ resultsEl.innerHTML = '<div class="res"><span>No matches</span></div>'; return; }
+        resultsEl.innerHTML = entries.map(p=>{
+          const name = fmtName((p.name&&p.name[0])||p.name);
+          const dob = p.birthDate?`DOB ${p.birthDate}`:'';
+          const id = p.id || '';
+          const ident = (p.identifier||[])[0]?.value || '';
+          return `<div class="res" role="option" data-id="${id}"><div><div>${escapeHtml(name)}</div><div class="small">${escapeHtml(dob)}</div></div><div class="small">${escapeHtml(ident||id)}</div></div>`;
+        }).join('');
+        for(const row of resultsEl.querySelectorAll('.res')){
+          row.addEventListener('click', async () => {
+            const id = row.getAttribute('data-id');
+            // Hide suggestions immediately after a selection
+            resultsEl.innerHTML = '';
+            try {
+              statusEl.textContent = 'Loading patient…';
+              const [pt, srs] = await Promise.all([
+                fetchJson(`${base}/Patient/${id}`),
+                fetchJson(`${base}/ServiceRequest?subject=Patient/${id}&_count=100`)
+              ]);
+              const bundle = composeBundle(pt, srs.entry?.map(e=>e.resource)||[]);
+              renderBundle(bundle);
+              statusEl.textContent = 'Loaded ✓';
+            } catch(err){ console.error(err); statusEl.textContent = 'Failed to load patient or requests.'; }
+          });
+        }
+      } catch(err){ console.error(err); resultsEl.innerHTML = '<div class="res"><span>Search failed (CORS? see console)</span></div>'; }
+    }
+
+    // --- QR Scan ---
+    const qrVideo = by('#qrVideo');
+    const qrFile = by('#qrFile');
+    const startScanBtn = by('#startScanBtn');
+    const stopScanBtn = by('#stopScanBtn');
+    const qrStatus = by('#qrStatus');
+    let qrStream = null, qrRaf = null, qrCanvas = null, qrCtx = null, detector = null;
+
+    async function ensureDetector(){
+      if (detector) return detector;
+      if (!('BarcodeDetector' in window)) throw new Error('BarcodeDetector not supported');
+      try { detector = new BarcodeDetector({ formats: ['qr_code'] }); return detector; }
+      catch { throw new Error('QR format not supported'); }
+    }
+
+    function stopScan(){
+      if (qrRaf) { cancelAnimationFrame(qrRaf); qrRaf = null; }
+      if (qrStream) { qrStream.getTracks().forEach(t=>t.stop()); qrStream = null; }
+      if (qrVideo) { qrVideo.srcObject = null; }
+      qrStatus.textContent = '';
+    }
+
+    function handleQrValue(val){
+      if(!val) return;
+      stopScan();
+      qrStatus.textContent = 'QR found ✓';
+      bundleUrlIn.value = String(val).trim();
+      setMode('url');
+      loadUrlBtn.click();
+    }
+
+    async function scanFrame(){
+      try{
+        const det = await ensureDetector();
+        const w = qrVideo.videoWidth, h = qrVideo.videoHeight;
+        if (!w || !h) { qrRaf = requestAnimationFrame(scanFrame); return; }
+        if (!qrCanvas) { qrCanvas = document.createElement('canvas'); qrCtx = qrCanvas.getContext('2d'); }
+        qrCanvas.width = w; qrCanvas.height = h;
+        qrCtx.drawImage(qrVideo, 0, 0, w, h);
+        const codes = await det.detect(qrCanvas);
+        if (codes && codes.length) { handleQrValue(codes[0].rawValue); return; }
+      } catch(err){ /* swallow per-frame errors */ }
+      qrRaf = requestAnimationFrame(scanFrame);
+    }
+
+    startScanBtn?.addEventListener('click', async () => {
+      try{
+        if (!isSecureContext) { throw Object.assign(new Error('Insecure context'), { name: 'InsecureContextError' }); }
+        await ensureDetector();
+        qrStatus.textContent = 'Starting camera…';
+        qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        qrVideo.srcObject = qrStream;
+        await qrVideo.play();
+        qrStatus.textContent = 'Scanning… point camera at QR';
+        scanFrame();
+      } catch(err){
+        console.error(err);
+        let msg = 'QR scanning not available (permissions/browser). Try uploading an image.';
+        if (err && err.name === 'NotAllowedError') msg = 'Camera permission was denied. Use the address bar camera icon to allow access, then try again.';
+        else if (err && (err.name === 'NotFoundError' || err.name === 'OverconstrainedError')) msg = 'No suitable camera found. Try a different device or use the image upload option.';
+        else if (err && err.name === 'InsecureContextError') msg = 'Camera requires HTTPS (or localhost). Open this page via https:// (e.g., GitHub Pages) and try again.';
+        else if (!('BarcodeDetector' in window)) msg = 'This browser does not support live QR scanning. Use the image upload option.';
+        qrStatus.textContent = msg;
+      }
+    });
+
+    stopScanBtn?.addEventListener('click', () => { stopScan(); qrStatus.textContent = 'Stopped.'; });
+
+    qrFile?.addEventListener('change', async () => {
+      const f = qrFile.files?.[0]; if(!f) return;
+      try{
+        await ensureDetector();
+        let imgBitmap = null;
+        if ('createImageBitmap' in window) {
+          imgBitmap = await createImageBitmap(f);
+          const codes = await detector.detect(imgBitmap);
+          if (codes && codes.length) { handleQrValue(codes[0].rawValue); return; }
+        }
+        // Fallback: use HTMLImageElement
+        const img = new Image();
+        img.onload = async () => {
+          const codes = await detector.detect(img);
+          if (codes && codes.length) handleQrValue(codes[0].rawValue); else qrStatus.textContent = 'No QR found in image.';
+        };
+        img.onerror = () => { qrStatus.textContent = 'Could not decode image (unsupported format).'; };
+        img.src = URL.createObjectURL(f);
+      } catch(err){ console.error(err); qrStatus.textContent = 'Could not decode image (unsupported browser).'; }
+    });
+
+    // ---------- Helper fetch/compose ----------
+    function inferBaseFromUrl(url, body){
+      try{
+        const u = new URL(url);
+        const parts = u.pathname.split('/').filter(Boolean);
+        const idx = parts.findIndex(p=>['Patient','Bundle','ServiceRequest','Encounter','Observation'].includes(p));
+        if(idx>0){ return `${u.origin}/${parts.slice(0,idx).join('/')}`; }
+        return `${u.origin}`;
+      }catch{ return ''; }
+    }
+
+    async function fetchJson(url){
+      const res = await fetch(url, { headers: { 'Accept':'application/fhir+json' } });
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      return await res.json();
+    }
+
+    async function ensureBundle(obj, base){
+      if(obj && obj.resourceType==='Bundle') return obj;
+      if(obj && obj.resourceType==='Patient' && base){
+        const srs = await fetchJson(`${base.replace(/\/$/,'')}/ServiceRequest?subject=Patient/${obj.id}&_count=100`);
+        return composeBundle(obj, (srs.entry||[]).map(e=>e.resource));
+      }
+      if(obj && obj.resourceType==='ServiceRequest' && base){
+        let patient = null;
+        const ref = obj.subject?.reference;
+        if(ref){
+          const key = ref.includes('/') ? ref.split('/').slice(-2).join('/') : `Patient/${ref}`;
+          patient = await fetchJson(`${base.replace(/\/$/,'')}/${key}`);
+        }
+        return composeBundle(patient, [obj]);
+      }
+      throw new Error('URL did not return a Bundle/Patient/ServiceRequest.');
+    }
+
+    function composeBundle(patient, serviceRequests){
+      const entry = [];
+      if(patient) entry.push({ fullUrl: `Patient/${patient.id}`, resource: patient });
+      for(const r of (serviceRequests||[])){
+        if(r && r.resourceType==='ServiceRequest'){
+          entry.push({ fullUrl: `ServiceRequest/${r.id||crypto.randomUUID?.()||Math.random().toString(36).slice(2)}`, resource: r });
+        }
+      }
+      return { resourceType:'Bundle', type:'collection', entry };
+    }
+  </script>
+</body>
+</html>
