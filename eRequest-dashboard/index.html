@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>eRequest Dashboard</title>
+  <title>eRequest Dashboard – v5</title>
 
   <!-- Tailwind (Play CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -18,9 +18,17 @@
 <body class="min-h-screen bg-slate-950">
   <div id="root"></div>
 
-  <!-- App (no optional chaining; ErrorBoundary) -->
+  <!-- App v5 -->
   <script type="text/babel" data-presets="react">
     const { useEffect, useMemo, useRef, useState } = React;
+
+    /**
+     * eRequest Dashboard — v5.0
+     * - Patient photos: Attachment.data and Attachment.url (absolute/relative/Binary)
+     * - Row-click selection (Incoming + Patients tables)
+     * - Name normalization + reference normalization
+     * - Server combobox (datalist) + auto-refresh polling (42s)
+     */
 
     // ----------------------------- Error Boundary ------------------------------
     class ErrorBoundary extends React.Component {
@@ -87,6 +95,48 @@
     function refKey(ref) { return (ref || "").trim(); }
     function formatDateTime(dtStr) { if (!dtStr) return ""; const d = new Date(dtStr); if (Number.isNaN(d.getTime())) return dtStr; return d.toLocaleString(); }
 
+    // Normalize any absolute or versioned reference to canonical "Patient/{id}"
+    function normalizePatientRef(ref) {
+      const s = refKey(ref);
+      if (!s) return "";
+      const m = s.match(/Patient\/([^\/#?]+)/);
+      return m ? ("Patient/" + m[1]) : s;
+    }
+
+    // Build absolute URL from base + path (handles slashes)
+    function absUrl(base, path) {
+      const b = String(base || "").replace(/\/$/, "");
+      const p = String(path || "").replace(/^\//, "");
+      return b + "/" + p;
+    }
+
+    // Resolve a FHIR Attachment to an <img src>
+    function attachmentToImgSrc(att, baseUrl) {
+      if (!att) return "";
+      const data = att.data;
+      const url = att.url;
+      const ctype = att.contentType || "image/*";
+      if (data && typeof data === "string" && data.length > 0) {
+        return "data:" + ctype + ";base64," + data;
+      }
+      if (url && typeof url === "string") {
+        const s = url.trim();
+        if (s.startsWith("data:")) return s;               // already data URL
+        if (/^https?:\/\//i.test(s)) return s;             // absolute
+        if (s.startsWith("/")) return baseUrl.replace(/\/$/, "") + s; // absolute path
+        return absUrl(baseUrl, s);                         // relative path e.g. Binary/123
+      }
+      return "";
+    }
+    function getPatientPhotoSrc(patient, baseUrl) {
+      if (!patient || !patient.photo || !Array.isArray(patient.photo) || patient.photo.length === 0) return "";
+      for (let i = 0; i < patient.photo.length; i++) {
+        const src = attachmentToImgSrc(patient.photo[i], baseUrl);
+        if (src) return src;
+      }
+      return "";
+    }
+
     async function fhirGET(base, pathWithQuery) {
       const url = base.replace(/\/$/, "") + "/" + pathWithQuery.replace(/^\//, "");
       const res = await fetch(url, { headers: { Accept: "application/fhir+json" } });
@@ -102,7 +152,15 @@
       try {
         console.assert(getHumanName({ name: [{ text: "Smith, Alice" }] }) === "Smith, Alice", "prefer .text");
         console.assert(getHumanName({ name: [{ family: "Doe", given: ["Jane"] }] }) === "Doe, Jane", "family, given fallback");
+        console.assert(getHumanName({ name: [{ family: "Ng", given: ["Ava", "Mei"] }] }) === "Ng, Ava Mei", "multi-given join");
         console.assert(getHumanName({ name: [] }) === "(no name)", "empty name array");
+        console.assert(normalizePatientRef("Patient/123") === "Patient/123", "relative ref ok");
+        console.assert(normalizePatientRef("https://x/fhir/Patient/abc") === "Patient/abc", "absolute -> canonical");
+        console.assert(normalizePatientRef("Patient/xyz/_history/4") === "Patient/xyz", "versioned -> canonical");
+        console.assert(attachmentToImgSrc({ contentType: "image/png", data: "Zm9v" }, "https://x").indexOf("data:image/png;base64,Zm9v") === 0, "data url");
+        console.assert(attachmentToImgSrc({ url: "Binary/123" }, "https://x") === "https://x/Binary/123", "relative Binary");
+        console.assert(attachmentToImgSrc({ url: "/Binary/123" }, "https://x") === "https://x/Binary/123", "absolute path Binary");
+        console.assert(attachmentToImgSrc({ url: "https://y/Binary/1" }, "https://x") === "https://y/Binary/1", "absolute url");
       } catch (e) { console.warn("Self-tests failed:", e); }
     }
 
@@ -113,16 +171,18 @@
         "https://hapi.fhir.org/baseR4",
         "https://r4.smarthealthit.org",
         "https://demo.pathling.app/fhir",
-        "http://fhir.oridashi.com.au" // HTTP will be blocked on Pages (mixed content)
+        "http://fhir.oridashi.com.au", // HTTP will be blocked on HTTPS pages (mixed content)
       ];
 
-      const [baseUrl, setBaseUrl] = useState(() => (typeof localStorage !== "undefined" && localStorage.getItem("fhirBase")) || serverOptions[0]);
+      const [baseUrl, setBaseUrl] = useState(() =>
+        (typeof localStorage !== "undefined" && localStorage.getItem("fhirBase")) || serverOptions[0]
+      );
       const [mode, setMode] = useState("incoming"); // "incoming" | "patients"
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState("");
 
       // Data
-      const [srList, setSrList] = useState([]);       // ServiceRequest[]
+      const [srList, setSrList] = useState([]);        // ServiceRequest[]
       const [patientMap, setPatientMap] = useState({}); // ref -> Patient
       const [nextLink, setNextLink] = useState("");
 
@@ -212,7 +272,7 @@
       // Derived views
       const incomingRows = useMemo(() => {
         const rows = srList.map((sr) => {
-          const pref = refKey(srPatientRef(sr));
+          const pref = normalizePatientRef(srPatientRef(sr));
           const p = patientMap[pref];
           return {
             id: sr.id,
@@ -232,7 +292,7 @@
         const map = new Map();
         for (let i = 0; i < srList.length; i++) {
           const sr = srList[i];
-          const pref = refKey(srPatientRef(sr));
+          const pref = normalizePatientRef(srPatientRef(sr));
           if (!pref) continue;
           const when = srAuthoredOn(sr) || "";
           const cur = map.get(pref);
@@ -268,6 +328,8 @@
         [incomingRows, selectedPatientRef]
       );
 
+      const selectedPhotoSrc = getPatientPhotoSrc(selectedPatient, baseUrl);
+
       // UI
       return (
         <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
@@ -279,29 +341,19 @@
                 <p className="text-slate-300">Browse ServiceRequests from your target FHIR server.</p>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
-                {/* Preset selector */}
+                {/* Server combobox (presets + free-typed) */}
                 <label className="flex flex-col gap-1">
-                  <span className="text-sm text-slate-300">FHIR Server (preset)</span>
-                  <select
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[22rem] max-w-full"
-                    value={serverOptions.includes(baseUrl) ? baseUrl : ""}
-                    onChange={(e) => { const v = e.target.value; if (v) setBaseUrl(v); }}
-                  >
-                    <option value="">Custom…</option>
-                    {serverOptions.map((u) => (
-                      <option key={u} value={u}>{u}</option>
-                    ))}
-                  </select>
-                </label>
-                {/* Free-form URL */}
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm text-slate-300">FHIR Server Base URL</span>
+                  <span className="text-sm text-slate-300">FHIR Server</span>
                   <input
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[28rem] max-w-full"
+                    list="fhir-presets"
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[36rem] max-w-full"
                     placeholder="https://server.fire.ly"
                     value={baseUrl}
                     onChange={(e) => setBaseUrl(e.target.value)}
                   />
+                  <datalist id="fhir-presets">
+                    {serverOptions.map((u) => (<option key={u} value={u}>{u}</option>))}
+                  </datalist>
                 </label>
                 <button
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 transition disabled:opacity-50"
@@ -310,7 +362,6 @@
                 >
                   {loading ? "Loading..." : "Fetch"}
                 </button>
-                <div className="text-xs text-slate-400 mt-1 sm:mt-0 sm:self-end">Auto-refresh: On (42s)</div>
               </div>
             </header>
 
@@ -342,13 +393,15 @@
                     </thead>
                     <tbody>
                       {incomingRows.map((r) => (
-                        <tr key={r.id} className="border-t border-slate-800 hover:bg-slate-900/50">
+                        <tr
+                          key={r.id}
+                          className="border-t border-slate-800 hover:bg-slate-900/50 cursor-pointer"
+                          onClick={() => { setSelectedPatientRef(r.patientRef); setMode("patients"); }}
+                          tabIndex={0}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedPatientRef(r.patientRef); setMode("patients"); } }}
+                        >
                           <td className="px-4 py-2 whitespace-nowrap">{formatDateTime(r.date)}</td>
-                          <td className="px-4 py-2">
-                            <button className="underline underline-offset-2 hover:text-indigo-300" onClick={() => { setSelectedPatientRef(r.patientRef); setMode("patients"); }}>
-                              {r.patientName}
-                            </button>
-                          </td>
+                          <td className="px-4 py-2">{r.patientName}</td>
                           <td className="px-4 py-2">{r.testName}</td>
                           <td className="px-4 py-2">{r.category}</td>
                           <td className="px-4 py-2 uppercase tracking-wide text-slate-300">{r.status}</td>
@@ -397,12 +450,14 @@
                         </thead>
                         <tbody>
                           {patientRows.map((p) => (
-                            <tr key={p.patientRef} className={`border-t border-slate-800 hover:bg-slate-900/50 ${selectedPatientRef === p.patientRef ? "bg-slate-900/60" : ""}`}>
-                              <td className="px-4 py-2">
-                                <button className="underline underline-offset-2 hover:text-indigo-300" onClick={() => setSelectedPatientRef(p.patientRef)}>
-                                  {p.patientName}
-                                </button>
-                              </td>
+                            <tr
+                              key={p.patientRef}
+                              className={`border-t border-slate-800 hover:bg-slate-900/50 ${selectedPatientRef === p.patientRef ? "bg-slate-900/60" : ""} cursor-pointer`}
+                              onClick={() => setSelectedPatientRef(p.patientRef)}
+                              tabIndex={0}
+                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedPatientRef(p.patientRef); } }}
+                            >
+                              <td className="px-4 py-2">{p.patientName}</td>
                               <td className="px-4 py-2 whitespace-nowrap">{formatDateTime(p.latestDate)}</td>
                               <td className="px-4 py-2">{p.count}</td>
                             </tr>
@@ -417,8 +472,8 @@
                       <h3 className="font-semibold">Selected Patient</h3>
                       {selectedPatientRef ? (
                         <div className="mt-2 text-sm flex gap-3">
-                          {selectedPatient && selectedPatient.photo && selectedPatient.photo[0] && selectedPatient.photo[0].url ? (
-                            <img src={selectedPatient.photo[0].url} alt="patient" className="w-16 h-16 rounded-xl object-cover border border-slate-800" />
+                          {selectedPhotoSrc ? (
+                            <img src={selectedPhotoSrc} alt="patient" className="w-16 h-16 rounded-xl object-cover border border-slate-800" />
                           ) : (
                             <div className="w-16 h-16 rounded-xl bg-slate-900 border border-slate-800 grid place-items-center text-xs text-slate-500">No photo</div>
                           )}
