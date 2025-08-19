@@ -2,30 +2,26 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, viewport-fit=cover"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>eRequest Dashboard</title>
 
-  <!-- Tailwind (Play CDN for demos) -->
+  <!-- Tailwind (Play CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- React 18 (UMD) -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 
-  <!-- Babel Standalone to transpile JSX in-browser (demo-friendly) -->
+  <!-- Babel Standalone for JSX (demo-friendly) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body class="min-h-screen bg-slate-950">
   <div id="root"></div>
 
-  <!-- Your app (converted to run without bundlers) -->
   <script type="text/babel" data-presets='[["env"],["react",{"runtime":"classic"}]]'>
     const { useEffect, useMemo, useRef, useState } = React;
 
-    // ----------------------------- Helpers ------------------------------------
+    // ---------------- Helpers ----------------
     function getHumanName(patient) {
       if (!patient || !Array.isArray(patient.name) || patient.name.length === 0) return "(no name)";
       const n = patient.name.find((x) => x.use === "official") || patient.name[0];
@@ -37,7 +33,6 @@
       const built = parts.join(", ").trim(); // "Family, Given"
       return built || "(no name)";
     }
-
     function calcAge(birthDate) {
       if (!birthDate) return "";
       const dob = new Date(birthDate);
@@ -48,7 +43,6 @@
       if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
       return String(age);
     }
-
     function formatAddress(address) {
       if (!address) return "";
       const a = Array.isArray(address) ? address[0] : address;
@@ -62,11 +56,10 @@
       if (a.country) parts.push(a.country);
       return parts.filter(Boolean).join(", ");
     }
-
     function srAuthoredOn(sr) { return (sr && sr.authoredOn) || (sr && sr.meta && sr.meta.lastUpdated) || null; }
-    function srCodeText(sr) { const t = sr && sr.code && sr.code.text; const c = sr && sr.code && sr.code.coding && sr.code.coding[0]; return t || (c && (c.display || c.code)) || "(no code)"; }
-    function srCategoryText(sr) { const cat = sr && sr.category && sr.category[0]; const c = cat && cat.coding && cat.coding[0]; return (cat && cat.text) || (c && (c.display || c.code)) || ""; }
-    function srPatientRef(sr) { return sr && sr.subject && sr.subject.reference || null; }
+    function srCodeText(sr) { const t = sr?.code?.text; const c = sr?.code?.coding?.[0]; return t || c?.display || c?.code || "(no code)"; }
+    function srCategoryText(sr) { const cat = sr?.category?.[0]; const c = cat?.coding?.[0]; return cat?.text || c?.display || c?.code || ""; }
+    function srPatientRef(sr) { return sr?.subject?.reference || null; }
     function refKey(ref) { return (ref || "").trim(); }
     function formatDateTime(dtStr) { if (!dtStr) return ""; const d = new Date(dtStr); if (Number.isNaN(d.getTime())) return dtStr; return d.toLocaleString(); }
 
@@ -81,67 +74,49 @@
       return res.json();
     }
 
-    // --------------------------- Runtime Tests ---------------------------------
+    // Self-tests
     if (typeof window !== "undefined") {
       try {
         console.assert(getHumanName({ name: [{ text: "Smith, Alice" }] }) === "Smith, Alice", "prefer .text");
         console.assert(getHumanName({ name: [{ family: "Doe", given: ["Jane"] }] }) === "Doe, Jane", "family, given fallback");
         console.assert(getHumanName({ name: [] }) === "(no name)", "empty name array");
-      } catch (e) {
-        console.warn("Self-tests failed:", e);
-      }
+      } catch (e) { console.warn("Self-tests failed:", e); }
     }
 
-    // ------------------------------ Component ---------------------------------
     function App() {
       const serverOptions = [
         "https://server.fire.ly",
         "https://hapi.fhir.org/baseR4",
         "https://r4.smarthealthit.org",
         "https://demo.pathling.app/fhir",
-        "http://fhir.oridashi.com.au",
+        "http://fhir.oridashi.com.au", // HTTP (blocked on HTTPS pages)
       ];
 
       const [baseUrl, setBaseUrl] = useState(() => localStorage.getItem("fhirBase") || serverOptions[0]);
-      const [mode, setMode] = useState("incoming"); // "incoming" | "patients"
+      const [mode, setMode] = useState("incoming");
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState("");
-
-      // Data
-      const [srList, setSrList] = useState([]); // ServiceRequest[]
-      const [patientMap, setPatientMap] = useState({}); // ref -> Patient
+      const [srList, setSrList] = useState([]);
+      const [patientMap, setPatientMap] = useState({});
       const [nextLink, setNextLink] = useState("");
-
-      // Patient view state
       const [patientSearch, setPatientSearch] = useState("");
       const [last7Only, setLast7Only] = useState(false);
       const [selectedPatientRef, setSelectedPatientRef] = useState("");
-
-      // Polling
       const [polling, setPolling] = useState(true);
       const pollingRef = useRef(null);
 
       useEffect(() => { if (baseUrl) localStorage.setItem("fhirBase", baseUrl); }, [baseUrl]);
-
       const canSearch = !!(baseUrl && /^https?:\/\//i.test(baseUrl));
 
-      // Auto-fetch on mount and whenever the baseUrl changes
-      useEffect(() => {
-        if (canSearch) {
-          fetchFirstPage({ resetSelection: true });
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-      }, [baseUrl]);
+      useEffect(() => { if (canSearch) fetchFirstPage({ resetSelection: true }); }, [baseUrl]); // auto-fetch
 
-      // Core fetch (first page)
       async function fetchFirstPage({ resetSelection } = { resetSelection: true }) {
         if (!canSearch) return;
-        setError("");
-        setLoading(true);
+        setError(""); setLoading(true);
         try {
           const query = new URLSearchParams({ _count: "50", _include: "ServiceRequest:subject", _sort: "-authoredon,-_lastUpdated" });
           const bundle = await fhirGET(baseUrl, `ServiceRequest?${query.toString()}`);
-          applyBundle(bundle, /*reset*/ true);
+          applyBundle(bundle, true);
           if (resetSelection) setSelectedPatientRef("");
         } catch (e) {
           setError(String(e.message || e));
@@ -150,16 +125,14 @@
         }
       }
 
-      // Next page
       async function loadMore() {
         if (!nextLink) return;
-        setLoading(true);
-        setError("");
+        setLoading(true); setError("");
         try {
           const res = await fetch(nextLink, { headers: { Accept: "application/fhir+json" } });
           if (!res.ok) throw new Error(`FHIR GET next -> ${res.status}`);
           const bundle = await res.json();
-          applyBundle(bundle, /*reset*/ false);
+          applyBundle(bundle, false);
         } catch (e) {
           setError(String(e.message || e));
         } finally {
@@ -167,41 +140,34 @@
         }
       }
 
-      // Apply a bundle page to state (with dedupe)
       function applyBundle(bundle, reset) {
         const entries = (bundle && bundle.entry) || [];
         const nextPatients = reset ? {} : { ...patientMap };
         const nextSRsMap = new Map(((reset ? [] : srList)).map((r) => [r.id, r]));
-
         for (const e of entries) {
-          const r = e.resource;
-          if (!r) continue;
+          const r = e.resource; if (!r) continue;
           if (r.resourceType === "ServiceRequest") nextSRsMap.set(r.id, r);
           if (r.resourceType === "Patient") nextPatients[`Patient/${r.id}`] = r;
         }
-
         setPatientMap(nextPatients);
         setSrList(Array.from(nextSRsMap.values()));
-
         const nxt = ((bundle.link || []).find((l) => l.relation === "next") || {}).url || "";
         setNextLink(nxt);
       }
 
-      // Polling every 42s
       useEffect(() => {
         if (!polling) return;
         if (pollingRef.current) clearInterval(pollingRef.current);
         pollingRef.current = setInterval(() => {
-          if (loading) return; // avoid overlapping
+          if (loading) return;
           fetchFirstPage({ resetSelection: false });
         }, 42000);
         return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
       }, [polling, baseUrl, loading]);
 
-      // Derived views -----------------------------------------------------------
-      const incomingRows = useMemo(() => {
+      const incomingRows = React.useMemo(() => {
         const rows = srList.map((sr) => {
-          const pref = refKey(srPatientRef(sr));
+          const pref = (sr && sr.subject && sr.subject.reference ? sr.subject.reference : "").trim();
           const p = patientMap[pref];
           return {
             id: sr.id,
@@ -220,7 +186,7 @@
       const patientRows = useMemo(() => {
         const map = new Map();
         for (const sr of srList) {
-          const pref = refKey(srPatientRef(sr));
+          const pref = (sr && sr.subject && sr.subject.reference ? sr.subject.reference : "").trim();
           if (!pref) continue;
           const when = srAuthoredOn(sr) || "";
           const cur = map.get(pref);
@@ -256,7 +222,6 @@
         [incomingRows, selectedPatientRef]
       );
 
-      // UI ----------------------------------------------------------------------
       return (
         <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
           <div className="max-w-7xl mx-auto space-y-6">
@@ -481,7 +446,6 @@
       );
     }
 
-    // Mount
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(React.createElement(App));
   </script>
