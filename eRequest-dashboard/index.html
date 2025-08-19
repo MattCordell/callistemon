@@ -2,32 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>eRequest Dashboard – v5</title>
-
-  <!-- Tailwind (Play CDN) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>eRequest Dashboard — v6.3</title>
+  <!-- Tailwind Play CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- React 18 (UMD) -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-
-  <!-- Babel Standalone for JSX -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <meta name="description" content="FHIR ServiceRequest dashboard" />
 </head>
-<body class="min-h-screen bg-slate-950">
+<body class="bg-slate-950">
   <div id="root"></div>
 
-  <!-- App v5 -->
-  <script type="text/babel" data-presets="react">
-    const { useEffect, useMemo, useRef, useState } = React;
+  <!-- React 18 UMD + Babel Standalone -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+  <script type="text/babel" data-presets="react">
     /**
-     * eRequest Dashboard — v5.0
-     * - Patient photos: Attachment.data and Attachment.url (absolute/relative/Binary)
-     * - Row-click selection (Incoming + Patients tables)
-     * - Name normalization + reference normalization
-     * - Server combobox (datalist) + auto-refresh polling (42s)
+     * eRequest Dashboard — v6.3 (single-file)
+     * - Keeps tx.ontoserver as default terminology server
+     * - Filters: Category (All/Lab/Imaging), Modality (ECL), Anatomy (AU body-site-1 combobox, ≥3 chars, first 5)
+     * - Patient list, row-click selection, photos, 42s polling
+     * - Dropdowns show display text only; no code counts or "selected:" labels
      */
 
     // ----------------------------- Error Boundary ------------------------------
@@ -44,7 +39,7 @@
                 <pre className="bg-slate-900 border border-red-800 text-red-200 p-3 rounded-xl overflow-auto whitespace-pre-wrap">
                   {String(this.state.error && (this.state.error.stack || this.state.error.message || this.state.error))}
                 </pre>
-                <p className="text-slate-400 mt-2">Check for typos (e.g., missing quotes) and try again.</p>
+                <p className="text-slate-400 mt-2">Check any recent edits for typos (e.g., missing quotes) and try again.</p>
               </div>
             </div>
           );
@@ -52,6 +47,9 @@
         return this.props.children;
       }
     }
+
+    // ----------------------------- React Hooks alias ---------------------------
+    const { useEffect, useMemo, useRef, useState } = React;
 
     // ----------------------------- Helpers ------------------------------------
     function getHumanName(patient) {
@@ -65,6 +63,7 @@
       const built = parts.join(", ").trim(); // "Family, Given"
       return built || "(no name)";
     }
+
     function calcAge(birthDate) {
       if (!birthDate) return "";
       const dob = new Date(birthDate);
@@ -75,6 +74,7 @@
       if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
       return String(age);
     }
+
     function formatAddress(address) {
       if (!address) return "";
       const a = Array.isArray(address) ? address[0] : address;
@@ -88,6 +88,7 @@
       if (a.country) parts.push(a.country);
       return parts.filter(Boolean).join(", ");
     }
+
     function srAuthoredOn(sr) { return (sr && sr.authoredOn) || (sr && sr.meta && sr.meta.lastUpdated) || null; }
     function srCodeText(sr) { const t = sr && sr.code && sr.code.text; const c = sr && sr.code && sr.code.coding && sr.code.coding[0]; return t || (c && (c.display || c.code)) || "(no code)"; }
     function srCategoryText(sr) { const cat = sr && sr.category && sr.category[0]; const c = cat && cat.coding && cat.coding[0]; return (cat && cat.text) || (c && (c.display || c.code)) || ""; }
@@ -116,18 +117,17 @@
       const data = att.data;
       const url = att.url;
       const ctype = att.contentType || "image/*";
-      if (data && typeof data === "string" && data.length > 0) {
-        return "data:" + ctype + ";base64," + data;
-      }
+      if (data && typeof data === "string" && data.length > 0) { return "data:" + ctype + ";base64," + data; }
       if (url && typeof url === "string") {
         const s = url.trim();
-        if (s.startsWith("data:")) return s;               // already data URL
-        if (/^https?:\/\//i.test(s)) return s;             // absolute
-        if (s.startsWith("/")) return baseUrl.replace(/\/$/, "") + s; // absolute path
-        return absUrl(baseUrl, s);                         // relative path e.g. Binary/123
+        if (s.startsWith("data:")) return s;
+        if (/^https?:\/\//i.test(s)) return s;
+        if (s.startsWith("/")) return baseUrl.replace(/\/$/, "") + s;
+        return absUrl(baseUrl, s);
       }
       return "";
     }
+
     function getPatientPhotoSrc(patient, baseUrl) {
       if (!patient || !patient.photo || !Array.isArray(patient.photo) || patient.photo.length === 0) return "";
       for (let i = 0; i < patient.photo.length; i++) {
@@ -135,6 +135,24 @@
         if (src) return src;
       }
       return "";
+    }
+
+    function codingsFromCC(cc) {
+      const arr = [];
+      if (!cc) return arr;
+      if (Array.isArray(cc)) {
+        for (let i = 0; i < cc.length; i++) {
+          const c = cc[i] && cc[i].coding;
+          if (Array.isArray(c)) { for (let j = 0; j < c.length; j++) { if (c[j]) arr.push(c[j]); } }
+        }
+        return arr;
+      }
+      const coding = cc.coding;
+      if (Array.isArray(coding)) { for (let j = 0; j < coding.length; j++) { if (coding[j]) arr.push(coding[j]); } }
+      return arr;
+    }
+    function snomedCodesFromCC(cc) {
+      return codingsFromCC(cc).filter(cd => (cd.system || "").toLowerCase().includes("snomed")).map(cd => cd.code).filter(Boolean);
     }
 
     async function fhirGET(base, pathWithQuery) {
@@ -147,21 +165,59 @@
       return res.json();
     }
 
-    // --------------------------- Runtime Tests ---------------------------------
-    if (typeof window !== "undefined") {
-      try {
-        console.assert(getHumanName({ name: [{ text: "Smith, Alice" }] }) === "Smith, Alice", "prefer .text");
-        console.assert(getHumanName({ name: [{ family: "Doe", given: ["Jane"] }] }) === "Doe, Jane", "family, given fallback");
-        console.assert(getHumanName({ name: [{ family: "Ng", given: ["Ava", "Mei"] }] }) === "Ng, Ava Mei", "multi-given join");
-        console.assert(getHumanName({ name: [] }) === "(no name)", "empty name array");
-        console.assert(normalizePatientRef("Patient/123") === "Patient/123", "relative ref ok");
-        console.assert(normalizePatientRef("https://x/fhir/Patient/abc") === "Patient/abc", "absolute -> canonical");
-        console.assert(normalizePatientRef("Patient/xyz/_history/4") === "Patient/xyz", "versioned -> canonical");
-        console.assert(attachmentToImgSrc({ contentType: "image/png", data: "Zm9v" }, "https://x").indexOf("data:image/png;base64,Zm9v") === 0, "data url");
-        console.assert(attachmentToImgSrc({ url: "Binary/123" }, "https://x") === "https://x/Binary/123", "relative Binary");
-        console.assert(attachmentToImgSrc({ url: "/Binary/123" }, "https://x") === "https://x/Binary/123", "absolute path Binary");
-        console.assert(attachmentToImgSrc({ url: "https://y/Binary/1" }, "https://x") === "https://y/Binary/1", "absolute url");
-      } catch (e) { console.warn("Self-tests failed:", e); }
+    // --------------------------- Terminology helpers ---------------------------
+    const DEFAULT_TX = "https://tx.ontoserver.csiro.au/fhir";
+    const TX_PRESETS = [
+      DEFAULT_TX,
+      "https://r4.ontoserver.csiro.au/fhir",
+      "https://healthterminologies.gov.au/fhir",
+    ];
+
+    async function fetchJson(url) {
+      const res = await fetch(url, { headers: { Accept: "application/fhir+json" } });
+      const text = await res.text();
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch { data = null; }
+      return { ok: res.ok, status: res.status, data, text };
+    }
+
+    // ECL -> Set of SNOMED codes via implicit VS
+    async function expandEclToCodes(txBase, ecl) {
+      const vsUrl = "http://snomed.info/sct?fhir_vs=ecl/" + encodeURIComponent(ecl);
+      const url = txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=" + encodeURIComponent(vsUrl) + "&count=2000";
+      const { ok, status, data, text } = await fetchJson(url);
+      if (!ok) throw new Error("$expand ECL failed: " + status + (text ? " — " + text : ""));
+      const contains = (data && data.expansion && data.expansion.contains) || [];
+      const set = new Set();
+      for (let i = 0; i < contains.length; i++) {
+        const it = contains[i];
+        if (it && (it.system || "").toLowerCase().includes("snomed") && it.code) set.add(it.code);
+      }
+      return set;
+    }
+
+    // ValueSet $expand with filter and optional canonical fallback on 404
+    async function expandValueSetFiltered(txBase, canonicalUrl, filter, count) {
+      const base = txBase.replace(/\/$/, "");
+      const qs = "?url=" + encodeURIComponent(canonicalUrl) + (filter ? "&filter=" + encodeURIComponent(filter) : "") + (count ? "&count=" + String(count) : "");
+      let resp = await fetchJson(base + "/ValueSet/$expand" + qs);
+      if (resp.ok) {
+        const contains = (resp.data && resp.data.expansion && resp.data.expansion.contains) || [];
+        return contains.filter(c => c && c.code).map(c => ({ code: c.code, display: c.display || c.code }));
+      }
+      if (resp.status === 404) {
+        try {
+          const u = new URL(canonicalUrl);
+          const fallbackBase = u.origin + "/fhir";
+          resp = await fetchJson(fallbackBase.replace(/\/$/, "") + "/ValueSet/$expand" + qs);
+          if (resp.ok) {
+            const contains2 = (resp.data && resp.data.expansion && resp.data.expansion.contains) || [];
+            return contains2.filter(c => c && c.code).map(c => ({ code: c.code, display: c.display || c.code }));
+          }
+        } catch (e) { /* ignore */ }
+      }
+      const msg = resp && (resp.text || (resp.data && resp.data.issue && JSON.stringify(resp.data.issue)) || "");
+      throw new Error("$expand ValueSet failed: " + (resp ? resp.status : "?") + (msg ? " — " + msg : ""));
     }
 
     // ------------------------------ Component ---------------------------------
@@ -171,18 +227,19 @@
         "https://hapi.fhir.org/baseR4",
         "https://r4.smarthealthit.org",
         "https://demo.pathling.app/fhir",
-        "http://fhir.oridashi.com.au", // HTTP will be blocked on HTTPS pages (mixed content)
+        "http://fhir.oridashi.com.au", // Note: may be blocked by browsers when served over HTTPS (mixed content)
       ];
 
-      const [baseUrl, setBaseUrl] = useState(() =>
-        (typeof localStorage !== "undefined" && localStorage.getItem("fhirBase")) || serverOptions[0]
-      );
+      // FHIR + Terminology servers
+      const [baseUrl, setBaseUrl] = useState(() => (typeof localStorage !== "undefined" && localStorage.getItem("fhirBase")) || serverOptions[0]);
+      const [txBase, setTxBase] = useState(() => (typeof localStorage !== "undefined" && localStorage.getItem("txBase")) || DEFAULT_TX);
+
       const [mode, setMode] = useState("incoming"); // "incoming" | "patients"
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState("");
 
       // Data
-      const [srList, setSrList] = useState([]);        // ServiceRequest[]
+      const [srList, setSrList] = useState([]); // ServiceRequest[]
       const [patientMap, setPatientMap] = useState({}); // ref -> Patient
       const [nextLink, setNextLink] = useState("");
 
@@ -191,18 +248,55 @@
       const [last7Only, setLast7Only] = useState(false);
       const [selectedPatientRef, setSelectedPatientRef] = useState("");
 
+      // Incoming filters
+      const [categoryFilter, setCategoryFilter] = useState("all"); // all | lab | imaging
+      const LAB_SCT = "108252007"; // Laboratory procedure
+      const IMG_SCT = "363679005"; // Imaging procedure
+
+      const MODALITY_OPTIONS = [
+        { code: "34945008", display: "Angiocardiography" },
+        { code: "1753581000168106", display: "Imaging procedure with contrast" },
+        { code: "719259006", display: "Imaging procedure without contrast" },
+        { code: "113091000", display: "Magnetic resonance imaging" },
+        { code: "169283005", display: "Medical photography" },
+        { code: "373205008", display: "Nuclear medicine imaging" },
+        { code: "367385006", display: "Total body scan" },
+        { code: "16310003", display: "Ultrasound" },
+        { code: "371576000", display: "Video imaging" },
+        { code: "77477000", display: "Computed tomography" },
+        { code: "44491008", display: "Fluoroscopy" },
+        { code: "71651007", display: "Mammography" },
+        { code: "168537006", display: "Plain X-ray" },
+      ];
+      const [selectedModality, setSelectedModality] = useState("");
+      const [modalityCodes, setModalityCodes] = useState(new Set());
+      const [modalityLoading, setModalityLoading] = useState(false);
+      const [modalityErr, setModalityErr] = useState("");
+
+      // Anatomy (AU VS: body-site-1)
+      const AU_BODY_SITE_VS = "https://healthterminologies.gov.au/fhir/ValueSet/body-site-1";
+      const [siteQuery, setSiteQuery] = useState("");
+      const [siteOptions, setSiteOptions] = useState([]); // {code, display}
+      const [siteLoading, setSiteLoading] = useState(false);
+      const [siteErr, setSiteErr] = useState("");
+      const [selectedSite, setSelectedSite] = useState("");
+      const [anatomyCodes, setAnatomyCodes] = useState(new Set());
+      const [anatomyLoading, setAnatomyLoading] = useState(false);
+      const [anatomyErr, setAnatomyErr] = useState("");
+      const siteDebounceRef = useRef(null);
+
       // Polling
-      const [polling, setPolling] = useState(true);
+      const [polling] = useState(true);
       const pollingRef = useRef(null);
 
+      // persist selections
       useEffect(() => { try { if (baseUrl && typeof localStorage !== "undefined") localStorage.setItem("fhirBase", baseUrl); } catch {} }, [baseUrl]);
+      useEffect(() => { try { if (txBase && typeof localStorage !== "undefined") localStorage.setItem("txBase", txBase); } catch {} }, [txBase]);
 
       const canSearch = !!(baseUrl && /^https?:\/\//i.test(baseUrl));
 
-      // Auto-fetch on mount and when baseUrl changes
-      useEffect(() => {
-        if (canSearch) { fetchFirstPage({ resetSelection: true }); }
-      }, [baseUrl]);
+      // Auto-fetch on mount and whenever the baseUrl changes
+      useEffect(() => { if (canSearch) { fetchFirstPage({ resetSelection: true }); } }, [baseUrl]);
 
       // Core fetch (first page)
       async function fetchFirstPage({ resetSelection } = { resetSelection: true }) {
@@ -211,13 +305,11 @@
         try {
           const query = new URLSearchParams({ _count: "50", _include: "ServiceRequest:subject", _sort: "-authoredon,-_lastUpdated" });
           const bundle = await fhirGET(baseUrl, "ServiceRequest?" + query.toString());
-          applyBundle(bundle, true);
+          applyBundle(bundle, /*reset*/ true);
           if (resetSelection) setSelectedPatientRef("");
         } catch (e) {
           setError(String(e && (e.message || e)));
-        } finally {
-          setLoading(false);
-        }
+        } finally { setLoading(false); }
       }
 
       // Next page
@@ -228,12 +320,8 @@
           const res = await fetch(nextLink, { headers: { Accept: "application/fhir+json" } });
           if (!res.ok) throw new Error("FHIR GET next -> " + res.status);
           const bundle = await res.json();
-          applyBundle(bundle, false);
-        } catch (e) {
-          setError(String(e && (e.message || e)));
-        } finally {
-          setLoading(false);
-        }
+          applyBundle(bundle, /*reset*/ false);
+        } catch (e) { setError(String(e && (e.message || e))); } finally { setLoading(false); }
       }
 
       // Apply a bundle page to state (with dedupe)
@@ -269,8 +357,65 @@
         return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
       }, [polling, baseUrl, loading]);
 
-      // Derived views
-      const incomingRows = useMemo(() => {
+      // -------- Modality ECL (<<selected) ----------
+      useEffect(() => {
+        let cancelled = false;
+        async function run() {
+          setModalityErr(""); setModalityLoading(true);
+          try {
+            if (!selectedModality) { setModalityCodes(new Set()); return; }
+            const codes = await expandEclToCodes(txBase, "<<" + selectedModality);
+            if (!cancelled) setModalityCodes(codes);
+          } catch (e) {
+            if (!cancelled) { setModalityErr(String(e && (e.message || e))); setModalityCodes(new Set()); }
+          } finally { if (!cancelled) setModalityLoading(false); }
+        }
+        run();
+        return () => { cancelled = true; };
+      }, [txBase, selectedModality]);
+
+      // -------- Anatomy search suggestions (VS filter; only when ≥3 chars) ------
+      useEffect(() => {
+        if (siteDebounceRef.current) clearTimeout(siteDebounceRef.current);
+        if (!siteQuery || siteQuery.trim().length < 3) { setSiteOptions([]); return; }
+        siteDebounceRef.current = setTimeout(async () => {
+          setSiteErr(""); setSiteLoading(true);
+          try {
+            const opts = await expandValueSetFiltered(txBase, AU_BODY_SITE_VS, siteQuery.trim(), 5);
+            setSiteOptions(opts);
+          } catch (e) { setSiteErr(String(e && (e.message || e))); setSiteOptions([]); }
+          finally { setSiteLoading(false); }
+        }, 300);
+        return () => { if (siteDebounceRef.current) clearTimeout(siteDebounceRef.current); };
+      }, [txBase, siteQuery]);
+
+      // Map combobox text -> selected site (by exact match)
+      useEffect(() => {
+        if (!siteQuery) { setSelectedSite(""); return; }
+        const match = siteOptions.find(o => o.display === siteQuery || o.code === siteQuery);
+        if (match) setSelectedSite(match.code);
+      }, [siteQuery, siteOptions]);
+
+      // -------- Anatomy codes from ECL (<363679005:405813007=<<@SITE) ---------
+      useEffect(() => {
+        let cancelled = false;
+        async function run() {
+          setAnatomyErr(""); setAnatomyLoading(true);
+          try {
+            if (!selectedSite) { setAnatomyCodes(new Set()); return; }
+            const ecl = "<" + IMG_SCT + ":405813007=<<" + selectedSite;
+            const codes = await expandEclToCodes(txBase, ecl);
+            if (!cancelled) setAnatomyCodes(codes);
+          } catch (e) {
+            if (!cancelled) { setAnatomyErr(String(e && (e.message || e))); setAnatomyCodes(new Set()); }
+          } finally { if (!cancelled) setAnatomyLoading(false); }
+        }
+        run();
+        return () => { cancelled = true; };
+      }, [txBase, selectedSite]);
+
+      // Derived views -----------------------------------------------------------
+      const allIncomingRows = React.useMemo(() => {
         const rows = srList.map((sr) => {
           const pref = normalizePatientRef(srPatientRef(sr));
           const p = patientMap[pref];
@@ -280,15 +425,33 @@
             patientRef: pref,
             patientName: getHumanName(p),
             testName: srCodeText(sr),
-            category: srCategoryText(sr),
+            categoryText: srCategoryText(sr),
             status: sr.status || "",
+            categorySct: snomedCodesFromCC(sr.category && sr.category[0]),
+            testSct: snomedCodesFromCC(sr.code),
           };
         });
         rows.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
         return rows;
       }, [srList, patientMap]);
 
-      const patientRows = useMemo(() => {
+      const filteredIncomingRows = React.useMemo(() => {
+        let out = allIncomingRows;
+        if (categoryFilter === "lab") {
+          out = out.filter(r => r.categorySct && r.categorySct.indexOf(LAB_SCT) !== -1);
+        } else if (categoryFilter === "imaging") {
+          out = out.filter(r => r.categorySct && r.categorySct.indexOf(IMG_SCT) !== -1);
+        }
+        if (modalityCodes && modalityCodes.size > 0) {
+          out = out.filter(r => (r.testSct || []).some(c => modalityCodes.has(c)));
+        }
+        if (anatomyCodes && anatomyCodes.size > 0) {
+          out = out.filter(r => (r.testSct || []).some(c => anatomyCodes.has(c)));
+        }
+        return out;
+      }, [allIncomingRows, categoryFilter, modalityCodes, anatomyCodes]);
+
+      const patientRows = React.useMemo(() => {
         const map = new Map();
         for (let i = 0; i < srList.length; i++) {
           const sr = srList[i];
@@ -323,14 +486,14 @@
       }, [srList, patientMap, patientSearch, last7Only]);
 
       const selectedPatient = patientMap[selectedPatientRef];
-      const selectedPatientSRs = useMemo(
-        () => incomingRows.filter((r) => r.patientRef === selectedPatientRef),
-        [incomingRows, selectedPatientRef]
+      const selectedPatientSRs = React.useMemo(
+        () => allIncomingRows.filter((r) => r.patientRef === selectedPatientRef),
+        [allIncomingRows, selectedPatientRef]
       );
 
       const selectedPhotoSrc = getPatientPhotoSrc(selectedPatient, baseUrl);
 
-      // UI
+      // UI ----------------------------------------------------------------------
       return (
         <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
           <div className="max-w-7xl mx-auto space-y-6">
@@ -341,12 +504,12 @@
                 <p className="text-slate-300">Browse ServiceRequests from your target FHIR server.</p>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
-                {/* Server combobox (presets + free-typed) */}
+                {/* FHIR server combobox */}
                 <label className="flex flex-col gap-1">
                   <span className="text-sm text-slate-300">FHIR Server</span>
                   <input
                     list="fhir-presets"
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[36rem] max-w-full"
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[30rem] max-w-full"
                     placeholder="https://server.fire.ly"
                     value={baseUrl}
                     onChange={(e) => setBaseUrl(e.target.value)}
@@ -355,6 +518,22 @@
                     {serverOptions.map((u) => (<option key={u} value={u}>{u}</option>))}
                   </datalist>
                 </label>
+
+                {/* Terminology server combobox */}
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm text-slate-300">Terminology Server</span>
+                  <input
+                    list="tx-presets"
+                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[28rem] max-w-full"
+                    placeholder={DEFAULT_TX}
+                    value={txBase}
+                    onChange={(e) => setTxBase(e.target.value)}
+                  />
+                  <datalist id="tx-presets">
+                    {TX_PRESETS.map((u) => (<option key={u} value={u}>{u}</option>))}
+                  </datalist>
+                </label>
+
                 <button
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 transition disabled:opacity-50"
                   disabled={!canSearch || loading}
@@ -378,8 +557,62 @@
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold">All ServiceRequests</h2>
-                  <div className="text-sm text-slate-400">{incomingRows.length} shown</div>
+                  <div className="text-sm text-slate-400">{filteredIncomingRows.length} shown</div>
                 </div>
+
+                {/* Filters */}
+                <div className="flex flex-col gap-3 bg-slate-900/40 border border-slate-800 rounded-2xl p-3">
+                  {/* Category */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-sm text-slate-300 w-28">Category</div>
+                    <div className="inline-flex rounded-xl overflow-hidden border border-slate-700">
+                      <button className={`px-3 py-1 text-sm ${categoryFilter==="all"?"bg-slate-800":"bg-slate-900 hover:bg-slate-800"}`} onClick={()=>setCategoryFilter("all")}>All</button>
+                      <button className={`px-3 py-1 text-sm ${categoryFilter==="lab"?"bg-slate-800":"bg-slate-900 hover:bg-slate-800"}`} onClick={()=>setCategoryFilter("lab")}>Laboratory</button>
+                      <button className={`px-3 py-1 text-sm ${categoryFilter==="imaging"?"bg-slate-800":"bg-slate-900 hover:bg-slate-800"}`} onClick={()=>setCategoryFilter("imaging")}>Imaging</button>
+                    </div>
+                  </div>
+
+                  {/* Modality (ECL) */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-sm text-slate-300 w-28">Modality</div>
+                    <select
+                      className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 min-w-[18rem]"
+                      value={selectedModality}
+                      onChange={(e)=>setSelectedModality(e.target.value)}
+                    >
+                      <option value="">All modalities</option>
+                      {MODALITY_OPTIONS.map(opt => (
+                        <option key={opt.code} value={opt.code}>{opt.display}</option>
+                      ))}
+                    </select>
+                    {modalityLoading && <span className="text-xs text-slate-400">loading…</span>}
+                    {modalityErr && <span className="text-xs text-red-300">ECL error: {modalityErr}</span>}
+                    {selectedModality && (
+                      <button className="text-xs underline underline-offset-2 hover:text-indigo-300" onClick={()=>setSelectedModality("")}>Clear</button>
+                    )}
+                  </div>
+
+                  {/* Anatomy / Site (combobox search) */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-sm text-slate-300 w-28">Anatomy</div>
+                    <input
+                      list="site-suggestions"
+                      className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 min-w-[22rem] max-w-[36rem]"
+                      placeholder="Type ≥ 3 characters to search AU Body Site"
+                      value={siteQuery}
+                      onChange={(e)=>setSiteQuery(e.target.value)}
+                    />
+                    <datalist id="site-suggestions">
+                      {siteOptions.slice(0,5).map(opt => (<option key={opt.code} value={opt.display}>{opt.display}</option>))}
+                    </datalist>
+                    {siteLoading && <span className="text-xs text-slate-400">searching…</span>}
+                    {siteErr && <span className="text-xs text-red-300">VS error: {siteErr}</span>}
+                    {selectedSite && (
+                      <button className="text-xs underline underline-offset-2 hover:text-indigo-300" onClick={()=>{ setSelectedSite(""); setSiteQuery(""); }}>Clear</button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="overflow-auto rounded-2xl border border-slate-800">
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-900/60">
@@ -392,7 +625,7 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {incomingRows.map((r) => (
+                      {filteredIncomingRows.map((r) => (
                         <tr
                           key={r.id}
                           className="border-t border-slate-800 hover:bg-slate-900/50 cursor-pointer"
@@ -403,7 +636,7 @@
                           <td className="px-4 py-2 whitespace-nowrap">{formatDateTime(r.date)}</td>
                           <td className="px-4 py-2">{r.patientName}</td>
                           <td className="px-4 py-2">{r.testName}</td>
-                          <td className="px-4 py-2">{r.category}</td>
+                          <td className="px-4 py-2">{r.categoryText}</td>
                           <td className="px-4 py-2 uppercase tracking-wide text-slate-300">{r.status}</td>
                         </tr>
                       ))}
@@ -503,7 +736,7 @@
                           {selectedPatientSRs.map((r) => (
                             <li key={r.id} className="bg-slate-900/40 border border-slate-800 rounded-xl p-2">
                               <div className="text-sm font-medium">{r.testName}</div>
-                              <div className="text-xs text-slate-400">{formatDateTime(r.date)} — {r.category || ""}</div>
+                              <div className="text-xs text-slate-400">{formatDateTime(r.date)} — {r.categoryText || ""}</div>
                               <div className="text-xs uppercase text-slate-300">{r.status}</div>
                             </li>
                           ))}
@@ -531,11 +764,17 @@
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                 <div className="bg-slate-900/40 p-2 rounded-xl border border-slate-800">
                   <div className="font-semibold">State</div>
-                  <pre className="whitespace-pre-wrap">{JSON.stringify({ mode, baseUrl, nextLink, counts: { srs: srList.length, patients: Object.keys(patientMap).length }, polling }, null, 2)}</pre>
+                  <pre className="whitespace-pre-wrap">{JSON.stringify({
+                    mode, baseUrl, txBase, nextLink,
+                    counts: { srs: srList.length, patients: Object.keys(patientMap).length },
+                    filters: { categoryFilter, selectedModality, modalityCodes: modalityCodes.size, selectedSite, anatomyCodes: anatomyCodes.size },
+                  }, null, 2)}</pre>
                 </div>
                 <div className="bg-slate-900/40 p-2 rounded-xl border border-slate-800">
-                  <div className="font-semibold">Example query</div>
-                  <pre className="whitespace-pre-wrap">{`GET ${baseUrl.replace(/\/$/, "")}/ServiceRequest?_count=50&_include=ServiceRequest:subject&_sort=-authoredon,-_lastUpdated`}</pre>
+                  <div className="font-semibold">Example queries</div>
+                  <pre className="whitespace-pre-wrap">{`FHIR GET ${baseUrl.replace(/\/$/, "")}/ServiceRequest?_count=50&_include=ServiceRequest:subject&_sort=-authoredon,-_lastUpdated
+$expand (ECL) ${txBase.replace(/\/$/, "")}/ValueSet/$expand?url=http://snomed.info/sct?fhir_vs=ecl/%3C%3C{SCTID}
+$expand (site) ${txBase.replace(/\/$/, "")}/ValueSet/$expand?url=${AU_BODY_SITE_VS}`}</pre>
                 </div>
               </div>
             </details>
@@ -546,13 +785,16 @@
       );
     }
 
-    // Mount
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(
-      <ErrorBoundary>
-        <AppInner />
-      </ErrorBoundary>
-    );
+    function App() {
+      return (
+        <ErrorBoundary>
+          <AppInner />
+        </ErrorBoundary>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
   </script>
 </body>
 </html>
