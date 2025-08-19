@@ -1,18 +1,73 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Web Apps Monorepo</title>
-<link rel="preconnect" href="https://cdn.tailwindcss.com">
-<script src="https://cdn.tailwindcss.com"></script>
-<body class="bg-gray-50 text-gray-900">
-  <main class="max-w-3xl mx-auto p-8 space-y-6">
-    <h1 class="text-2xl font-bold">Web Apps</h1>
-    <ul class="list-disc pl-6 space-y-2">
-      <li><a class="text-blue-600 underline" href="eRequest-demonstrator/">eRequesting Demo</a></li>
-      <!-- Add more apps here -->
-    </ul>
-    <p class="text-sm text-gray-500">Tip: If you use client-side routing, add a 404.html for SPA routing.</p>
-  </main>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Callistemon Apps</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <style>
+    body {
+      background: url("callistemon.png") no-repeat center center fixed;
+      background-size: cover;
+    }
+    .overlay {
+      background-color: rgba(255, 255, 255, 0.85);
+      min-height: 100vh;
+    }
+  </style>
+</head>
+<body class="text-gray-800">
+  <div class="overlay">
+    <header class="bg-red-700 text-white shadow">
+      <div class="max-w-5xl mx-auto px-6 py-6">
+        <h1 class="text-3xl font-bold">Callistemon</h1>
+        <p class="text-sm mt-2">A collection of FHIR and SNOMED CT tools and demos.</p>
+      </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-10">
+      <section>
+        <h2 class="text-2xl font-semibold mb-6">Available Apps</h2>
+        <div class="grid gap-6 md:grid-cols-2">
+
+          <a href="patient-reception/" class="block bg-white rounded-2xl shadow hover:shadow-lg transition p-6">
+            <h3 class="text-xl font-bold text-red-700">Patient Reception</h3>
+            <p class="mt-2 text-gray-600">
+              A demo reception app built with React + Vite showcasing patient registration and workflow features.
+            </p>
+          </a>
+
+          <a href="erequest-dashboard/" class="block bg-white rounded-2xl shadow hover:shadow-lg transition p-6">
+            <h3 class="text-xl font-bold text-red-700">eRequest Dashboard</h3>
+            <p class="mt-2 text-gray-600">
+              Dashboard to explore service requests, with advanced filters using SNOMED CT and FHIR terminology services.
+            </p>
+          </a>
+
+          <a href="erequest-demonstrator/" class="block bg-white rounded-2xl shadow hover:shadow-lg transition p-6">
+            <h3 class="text-xl font-bold text-red-700">eRequest Demonstrator</h3>
+            <p class="mt-2 text-gray-600">
+              A demonstration tool for electronic request workflows, showcasing how FHIR and SNOMED CT can be applied in practice.
+            </p>
+          </a>
+
+          <a href="https://github.com/MattCordell/callistemon/tree/main/DataGenerators" target="_blank"
+             class="block bg-white rounded-2xl shadow hover:shadow-lg transition p-6">
+            <h3 class="text-xl font-bold text-red-700">Data Generators</h3>
+            <p class="mt-2 text-gray-600">
+              A set of scripts and utilities to generate test datasets for FHIR and SNOMED CT experimentation.
+            </p>
+          </a>
+
+        </div>
+      </section>
+    </main>
+
+    <footer class="bg-gray-100 border-t">
+      <div class="max-w-5xl mx-auto px-6 py-6 text-sm text-gray-500">
+        <p>&copy; 2025 Matt Cordell · Hosted on GitHub Pages</p>
+      </div>
+    </footer>
+  </div>
 </body>
 </html>
