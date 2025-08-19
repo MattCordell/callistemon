@@ -9,6 +9,9 @@
   <!-- JSON Viewer -->
   <link rel="stylesheet" href="https://unpkg.com/json-viewer-js@latest/dist/json-viewer.css" />
   <script src="https://unpkg.com/json-viewer-js@latest/dist/json-viewer.umd.js"></script>
+  <!-- QR code library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
   <style>
     .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
     /* Segmented toggle next to Name */
@@ -17,6 +20,9 @@
     .seg-thumb{position:absolute;inset:.25rem auto .25rem .25rem;width:calc(50% - .25rem);border-radius:9999px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08);transition:transform .18s ease}
     .chip{display:inline-flex;align-items:center;gap:.4rem;border:1px solid #d1fae5;background:#ecfdf5;color:#065f46;border-radius:9999px;padding:.25rem .5rem;font-size:.75rem}
     .chip button{line-height:1}
+    /* Modal */
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
+    .modal{background:#fff;border-radius:1rem;max-width:28rem;width:calc(100% - 2rem);box-shadow:0 10px 30px rgba(0,0,0,.2)}
   </style>
 </head>
 <body class="bg-gray-100 text-gray-900">
@@ -138,15 +144,30 @@
     <div id="error-box" class="hidden p-2 border border-red-400 bg-red-100 text-red-800 rounded"></div>
     <div id="status-box" class="hidden p-2 border border-amber-400 bg-amber-50 text-amber-800 rounded"></div>
 
-    <!-- Bundle + Send -->
+    <!-- Bundle + Send (with collapsible Request/Response) -->
     <section class="bg-white p-4 rounded-2xl shadow">
       <h3 class="font-semibold mb-2">FHIR Bundle Preview</h3>
       <div class="flex flex-wrap gap-3 mb-3">
         <button id="build-bundle" class="px-4 py-2 bg-blue-600 text-white rounded">Build FHIR Bundle</button>
         <button id="send-btn" class="px-4 py-2 bg-emerald-600 text-white rounded">Send to FHIR Server</button>
       </div>
-      <div id="json-viewer" class="border rounded p-2 bg-gray-50"></div>
-      <pre id="server-response" class="mt-3 text-sm text-gray-800 whitespace-pre-wrap"></pre>
+
+      <!-- Collapsible request -->
+      <details>
+        <summary class="cursor-pointer px-2 py-1 rounded bg-gray-100 text-sm font-medium">
+          Request Bundle (click to expand)
+        </summary>
+        <div id="json-viewer" class="border rounded p-2 bg-gray-50 mt-2"></div>
+      </details>
+
+      <!-- Collapsible response -->
+      <details class="mt-3">
+        <summary class="cursor-pointer px-2 py-1 rounded bg-gray-100 text-sm font-medium">
+          Server Response (click to expand)
+        </summary>
+        <pre id="server-response" class="mt-2 text-sm text-gray-800 whitespace-pre-wrap"></pre>
+      </details>
+
       <p class="text-xs text-gray-500 mt-2">Tip: run via a local server (<span class="mono">python3 -m http.server 8000</span>) instead of opening as <span class="mono">file://</span>.</p>
     </section>
   </main>
@@ -167,6 +188,30 @@
         <div id="last-expand-url" class="text-[11px] break-all bg-yellow-50 border border-yellow-200 rounded p-2"></div>
         <div class="text-xs text-yellow-900 mt-3 mb-1">History (most recent first):</div>
         <ul id="expand-history" class="text-[11px] space-y-1 max-h-[22vh] overflow-auto pr-1"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Modal -->
+  <div id="qr-backdrop" class="backdrop">
+    <div class="modal p-4">
+      <div class="flex items-start justify-between gap-4 border-b pb-3">
+        <div>
+          <h3 class="text-lg font-semibold">Resource Location</h3>
+          <p class="text-sm text-gray-500">Scan to open the created resource.</p>
+        </div>
+        <button id="qr-close" class="rounded-full p-2 hover:bg-gray-100" aria-label="Close">✕</button>
+      </div>
+      <div class="p-4 flex flex-col items-center gap-3">
+        <div id="qrcode"></div>
+        <div class="w-full">
+          <div class="text-xs text-gray-500 mb-1">Primary location (encoded in QR):</div>
+          <div id="qr-url" class="mono text-[12px] break-all bg-gray-50 border rounded p-2"></div>
+        </div>
+        <div class="flex gap-2">
+          <button id="qr-open" class="px-3 py-1.5 bg-emerald-600 text-white rounded">Open link</button>
+          <button id="qr-copy" class="px-3 py-1.5 border rounded">Copy link</button>
+        </div>
       </div>
     </div>
   </div>
@@ -196,7 +241,7 @@
         {code:"26958001",display:"Liver function test"},
         {code:"252150008",display:"Fasting lipid profile"},
         {code:"843441000168103",display:"Respiratory pathogen nucleic acid assay"},
-        {code:"395142003",display:"Allergy screening test"},
+        {code:"395142003",display:"Allergy screening test"}
       ],
       radiology: [
         {code:"399208008",display:"Chest X-ray"},
@@ -204,7 +249,7 @@
         {code:"3831000087105",display:"Plain X-ray of right wrist"},
         {code:"446522006",display:"Ultrasound scan in first trimester"},
         {code:"33367005",display:"Coronary angiography"},
-        {code:"241601008",display:"MRI of head"},
+        {code:"241601008",display:"MRI of head"}
       ]
     },
     "Dr K. Oala": {
@@ -214,7 +259,7 @@
         {code:"113076002",display:"Glucose tolerance test"},
         {code:"252409009",display:"Rubella virus antibody screening"},
         {code:"44608003",display:"Blood group typing"},
-        {code:"395144002",display:"B12/folate level"},
+        {code:"395144002",display:"B12/folate level"}
       ],
       radiology: [
         {code:"446522006",display:"Ultrasound scan in first trimester"},
@@ -222,7 +267,7 @@
         {code:"446353007",display:"Ultrasound scan in third trimester"},
         {code:"433235006",display:"Fetal echocardiography"},
         {code:"414880004",display:"Nuchal ultrasound scan"},
-        {code:"433153009",display:"Chorionic villus sampling using obstetric ultrasound guidance"},
+        {code:"433153009",display:"Chorionic villus sampling using obstetric ultrasound guidance"}
       ]
     }
   };
@@ -259,61 +304,332 @@
 
   // ---------- Patient mode + Name autocomplete ----------
   const ptThumb=$("#ptThumb"), btnSearch=$("#ptBtnSearch"), btnNew=$("#ptBtnNew"), nameInp=$("#patient-name"), ac=$("#pt-ac"), help=$("#pt-mode-help");
-  function setPtMode(mode){ ptMode=mode; if(mode==='search'){ ptThumb.style.transform='translateX(0%)'; btnSearch.classList.add('text-gray-900','font-medium'); btnNew.classList.remove('text-gray-900','font-medium'); btnNew.classList.add('text-gray-500'); help.textContent='(Search mode: autocomplete)'; } else { ptThumb.style.transform='translateX(100%)'; btnNew.classList.add('text-gray-900','font-medium'); btnSearch.classList.remove('text-gray-900','font-medium'); btnSearch.classList.add('text-gray-500'); help.textContent='(New Patient: manual entry)'; hidePtAC(); clearPatientForm(); } }
+  function setPtMode(mode){
+    ptMode=mode;
+    if(mode==='search'){
+      ptThumb.style.transform='translateX(0%)';
+      btnSearch.classList.add('text-gray-900','font-medium');
+      btnNew.classList.remove('text-gray-900','font-medium');
+      btnNew.classList.add('text-gray-500');
+      help.textContent='(Search mode: autocomplete)';
+    } else {
+      ptThumb.style.transform='translateX(100%)';
+      btnNew.classList.add('text-gray-900','font-medium');
+      btnSearch.classList.remove('text-gray-900','font-medium');
+      btnSearch.classList.add('text-gray-500');
+      help.textContent='(New Patient: manual entry)';
+      hidePtAC(); clearPatientForm();
+    }
+  }
   btnSearch.addEventListener('click', ()=> setPtMode('search'));
   btnNew.addEventListener('click', ()=> setPtMode('new'));
   setPtMode('search');
 
   function clearPatientForm(){ fillPatientForm({ nameText:'', birthDate:'', gender:'unknown', photoUrl:'defaultProfile.jpg', addressText:'—' }); patientAddress=null; }
-  function fillPatientForm({ nameText, birthDate, gender, photoUrl, addressText }){ nameInp.value=nameText||''; $("#patient-dob").value=birthDate||''; $("#patient-gender").value=gender||'unknown'; $("#patient-photo").src=photoUrl||'defaultProfile.jpg'; $("#patient-address").textContent=addressText||'—'; }
+  function fillPatientForm({ nameText, birthDate, gender, photoUrl, addressText }){
+    nameInp.value=nameText||''; $("#patient-dob").value=birthDate||''; $("#patient-gender").value=gender||'unknown';
+    $("#patient-photo").src=photoUrl||'defaultProfile.jpg'; $("#patient-address").textContent=addressText||'—';
+  }
   function hidePtAC(){ ac.classList.add('hidden'); ac.innerHTML=''; }
 
-  async function searchPatientsByName(q){ if(!q||q.trim().length<2) { hidePtAC(); return; } try{ const url=new URL(FHIR_BASE+"/Patient"); url.searchParams.set('name', q.trim()); url.searchParams.set('_count','20'); const r=await fetch(url.toString(),{headers:{Accept:'application/fhir+json'}}); if(!r.ok) throw new Error('FHIR '+r.status); const j=await r.json(); const pats=(j.entry||[]).map(e=>e.resource).filter(r=>r.resourceType==='Patient'); renderPtAC(pats.slice(0,10)); }catch(e){ console.warn(e); hidePtAC(); showError('Could not search Patient on FHIR server.'); }}
-  function renderPtAC(pats){ ac.innerHTML=''; if(!pats.length){ hidePtAC(); return; } pats.forEach(p=>{ const li=document.createElement('li'); li.className='px-3 py-2 hover:bg-gray-100 cursor-pointer'; const nm=(p.name?.[0]?.text)||[...(p.name?.[0]?.given||[]),p.name?.[0]?.family].filter(Boolean).join(' ')||'(no name)'; const dob=p.birthDate||'—'; const gender=p.gender||'—'; li.innerHTML=`<div class='font-medium'>${nm}</div><div class='text-xs text-gray-500'>DOB: ${dob} • Gender: ${gender}</div>`; li.addEventListener('click',()=>{ fillPatientFormFromResource(p); hidePtAC(); }); ac.appendChild(li); }); ac.classList.remove('hidden'); }
-  function fillPatientFormFromResource(p){ const name=p.name?.[0]?.text || [ ...(p.name?.[0]?.given||[]), p.name?.[0]?.family ].filter(Boolean).join(' ') || ''; let photoUrl=''; if(p.photo&&p.photo.length>0){ const ph=p.photo[0]; if(ph.url) photoUrl=ph.url; else if(ph.data && ph.contentType) photoUrl=`data:${ph.contentType};base64,${ph.data}`; } patientAddress=(Array.isArray(p.address)&&p.address.length)?p.address[0]:null; fillPatientForm({ nameText:name, birthDate:p.birthDate||'', gender:p.gender||'unknown', photoUrl:photoUrl||'defaultProfile.jpg', addressText: patientAddress?formatAddress(patientAddress):'—' }); }
+  async function searchPatientsByName(q){
+    if(!q||q.trim().length<2) { hidePtAC(); return; }
+    try{
+      const url=new URL(FHIR_BASE+"/Patient"); url.searchParams.set('name', q.trim()); url.searchParams.set('_count','20');
+      const r=await fetch(url.toString(),{headers:{Accept:'application/fhir+json'}});
+      if(!r.ok) throw new Error('FHIR '+r.status);
+      const j=await r.json();
+      const pats=(j.entry||[]).map(e=>e.resource).filter(r=>r.resourceType==='Patient');
+      renderPtAC(pats.slice(0,10));
+    }catch(e){ console.warn(e); hidePtAC(); showError('Could not search Patient on FHIR server.'); }
+  }
+  function renderPtAC(pats){
+    ac.innerHTML=''; if(!pats.length){ hidePtAC(); return; }
+    pats.forEach(p=>{
+      const li=document.createElement('li'); li.className='px-3 py-2 hover:bg-gray-100 cursor-pointer';
+      const nm=(p.name?.[0]?.text)||[...(p.name?.[0]?.given||[]),p.name?.[0]?.family].filter(Boolean).join(' ')||'(no name)';
+      const dob=p.birthDate||'—'; const gender=p.gender||'—';
+      li.innerHTML=`<div class='font-medium'>${nm}</div><div class='text-xs text-gray-500'>DOB: ${dob} • Gender: ${gender}</div>`;
+      li.addEventListener('click',()=>{ fillPatientFormFromResource(p); hidePtAC(); });
+      ac.appendChild(li);
+    });
+    ac.classList.remove('hidden');
+  }
+  function fillPatientFormFromResource(p){
+    const name=p.name?.[0]?.text || [ ...(p.name?.[0]?.given||[]), p.name?.[0]?.family ].filter(Boolean).join(' ') || '';
+    let photoUrl=''; if(p.photo&&p.photo.length>0){ const ph=p.photo[0]; if(ph.url) photoUrl=ph.url; else if(ph.data && ph.contentType) photoUrl=`data:${ph.contentType};base64,${ph.data}`; }
+    patientAddress=(Array.isArray(p.address)&&p.address.length)?p.address[0]:null;
+    fillPatientForm({ nameText:name, birthDate:p.birthDate||'', gender:p.gender||'unknown', photoUrl:photoUrl||'defaultProfile.jpg', addressText: patientAddress?formatAddress(patientAddress):'—' });
+  }
 
   nameInp.addEventListener('input', ()=>{ if(ptMode==='search'){ searchPatientsByName(nameInp.value); } else { hidePtAC(); }});
   document.addEventListener('click', (e)=>{ if(!ac.contains(e.target) && e.target!==nameInp) hidePtAC(); });
 
   // ---------- Notes reason tags (live after 4+ chars, top 8, count=20) ----------
-  function renderReasonTags(){ const wrap=$("#notes-tags"); wrap.innerHTML=''; reasonTags.forEach((t,idx)=>{ const chip=document.createElement('span'); chip.className='chip'; chip.innerHTML=`<span>${t.display}</span>`; const x=document.createElement('button'); x.type='button'; x.textContent='✕'; x.onclick=()=>{ reasonTags.splice(idx,1); renderReasonTags(); }; chip.appendChild(x); wrap.appendChild(chip); }); }
-  function showReasonSuggestions(items){ const box=$("#notes-suggestions"), list=$("#notes-suggestion-list"); list.innerHTML=''; const top=items.slice(0,MAX_NOTE_SUG); if(!top.length){ box.classList.add('hidden'); return; } top.forEach(it=>{ const btn=document.createElement('button'); btn.type='button'; btn.className='px-2 py-1 rounded border text-xs hover:bg-gray-50'; btn.textContent=it.display||it.code||'—'; btn.onclick=()=>{ const code=it.code, system=it.system||'http://snomed.info/sct', display=it.display||it.code; if(!reasonTags.some(t=>t.code===code && t.system===system)){ reasonTags.push({system,code,display}); renderReasonTags(); } const notes=$("#clinical-notes"); notesAnchor=(notes.value||'').length; box.classList.add('hidden'); }; list.appendChild(btn); }); box.classList.remove('hidden'); }
-  async function fetchReasonSuggestions(filter){ if(!filter||filter.length<4) return []; try{ const url = `${ONTO_BASE}?url=${encodeURIComponent(VS.REASON)}&count=20&filter=${encodeURIComponent(filter)}`; setDebugUrl(url); const r=await fetch(url,{headers:{Accept:'application/fhir+json'}}); if(!r.ok) throw new Error(r.status); const j=await r.json(); return j?.expansion?.contains||[]; }catch(e){ console.warn(e); return []; }}
-  (function wireNotes(){ const notes=$("#clinical-notes"); let debounce=null; notes.addEventListener('input', ()=>{ const text=notes.value||''; const caret=notes.selectionStart??text.length; const since=(text.slice(notesAnchor, caret)||'').trim(); if(debounce) clearTimeout(debounce); debounce=setTimeout(async ()=>{ if(since.length<4){ $("#notes-suggestions").classList.add('hidden'); return; } const items=await fetchReasonSuggestions(since); showReasonSuggestions(items); }, 0); }); })();
-  function buildReasonCodeArray(){ if(!reasonTags.length) return undefined; return reasonTags.map(t=>({ coding:[{system:t.system||'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display })); }
-  function buildCombinedNoteText(){ const notes=($("#clinical-notes").value||'').trim(); const tagDisplays=(reasonTags||[]).map(t=>t.display).filter(Boolean); if(!tagDisplays.length) return notes; const tagLine=`Reason tags: ${Array.from(new Set(tagDisplays)).join('; ')}`; return notes ? `${notes}\n${tagLine}` : tagLine; }
+  function renderReasonTags(){
+    const wrap=$("#notes-tags"); wrap.innerHTML='';
+    reasonTags.forEach((t,idx)=>{
+      const chip=document.createElement('span'); chip.className='chip'; chip.innerHTML=`<span>${t.display}</span>`;
+      const x=document.createElement('button'); x.type='button'; x.textContent='✕';
+      x.onclick=()=>{ reasonTags.splice(idx,1); renderReasonTags(); }; chip.appendChild(x);
+      wrap.appendChild(chip);
+    });
+  }
+  function showReasonSuggestions(items){
+    const box=$("#notes-suggestions"), list=$("#notes-suggestion-list"); list.innerHTML='';
+    const top=items.slice(0,MAX_NOTE_SUG); if(!top.length){ box.classList.add('hidden'); return; }
+    top.forEach(it=>{
+      const btn=document.createElement('button'); btn.type='button'; btn.className='px-2 py-1 rounded border text-xs hover:bg-gray-50';
+      btn.textContent=it.display||it.code||'—';
+      btn.onclick=()=>{
+        const code=it.code, system=it.system||'http://snomed.info/sct', display=it.display||it.code;
+        if(!reasonTags.some(t=>t.code===code && t.system===system)){ reasonTags.push({system,code,display}); renderReasonTags(); }
+        const notes=$("#clinical-notes"); notesAnchor=(notes.value||'').length; box.classList.add('hidden');
+      };
+      list.appendChild(btn);
+    });
+    box.classList.remove('hidden');
+  }
+  async function fetchReasonSuggestions(filter){
+    if(!filter||filter.length<4) return [];
+    try{
+      const url = `${ONTO_BASE}?url=${encodeURIComponent(VS.REASON)}&count=20&filter=${encodeURIComponent(filter)}`;
+      setDebugUrl(url);
+      const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
+      if(!r.ok) throw new Error(r.status);
+      const j=await r.json();
+      return j?.expansion?.contains||[];
+    }catch(e){ console.warn(e); return []; }
+  }
+  (function wireNotes(){
+    const notes=$("#clinical-notes"); let debounce=null;
+    notes.addEventListener('input', ()=>{
+      const text=notes.value||''; const caret=notes.selectionStart??text.length; const since=(text.slice(notesAnchor, caret)||'').trim();
+      if(debounce) clearTimeout(debounce);
+      debounce=setTimeout(async ()=>{
+        if(since.length<4){ $("#notes-suggestions").classList.add('hidden'); return; }
+        const items=await fetchReasonSuggestions(since); showReasonSuggestions(items);
+      }, 0);
+    });
+  })();
+  function buildReasonCodeArray(){ if(!reasonTags.length) return undefined;
+    return reasonTags.map(t=>({ coding:[{system:t.system||'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display }));
+  }
+  function buildCombinedNoteText(){
+    const notes=($("#clinical-notes").value||'').trim();
+    const tagDisplays=(reasonTags||[]).map(t=>t.display).filter(Boolean);
+    if(!tagDisplays.length) return notes;
+    const tagLine=`Reason tags: ${Array.from(new Set(tagDisplays)).join('; ')}`;
+    return notes ? `${notes}\n${tagLine}` : tagLine;
+  }
 
   // ---------- Favourites (two columns) ----------
-  function renderFavColumn(items, kind){ const col=document.createElement('div'); col.className='flex flex-col space-y-2'; items.forEach(f=>{ const row=document.createElement('label'); row.className='flex items-center space-x-2'; row.innerHTML=`<input type="checkbox" class="fav" data-kind="${kind}" data-code="${f.code}" data-display="${f.display}" data-system="http://snomed.info/sct"> <span>${f.display}</span>`; col.appendChild(row); }); return col; }
-  function renderFavsForUser(user){ const def=userFavourites[user]; const renderSet=(containerId, favs, kind)=>{ const container=document.getElementById(containerId); container.innerHTML=''; const half=Math.ceil(favs.length/2); const grid=document.createElement('div'); grid.className='grid grid-cols-2 gap-4'; grid.appendChild(renderFavColumn(favs.slice(0,half),kind)); grid.appendChild(renderFavColumn(favs.slice(half),kind)); container.appendChild(grid); }; renderSet('pathology-favs', def.pathology, 'PATH'); renderSet('radiology-favs', def.radiology, 'IMAG'); document.querySelectorAll('.fav').forEach(cb=>{ cb.addEventListener('change', e=>{ const { code, system, display, kind } = e.target.dataset; if(e.target.checked) addSelectedTest({code,system,display,kind}); else removeSelectedTestByCode(code); }); }); document.querySelectorAll('.fav').forEach(cb=>{ const code=cb.dataset.code; cb.checked=selectedTests.some(t=>t.code===code); }); }
+  function renderFavColumn(items, kind){
+    const col=document.createElement('div'); col.className='flex flex-col space-y-2';
+    items.forEach(f=>{
+      const row=document.createElement('label'); row.className='flex items-center space-x-2';
+      row.innerHTML=`<input type="checkbox" class="fav" data-kind="${kind}" data-code="${f.code}" data-display="${f.display}" data-system="http://snomed.info/sct"> <span>${f.display}</span>`;
+      col.appendChild(row);
+    });
+    return col;
+  }
+  function renderFavsForUser(user){
+    const def=userFavourites[user];
+    const renderSet=(containerId, favs, kind)=>{
+      const container=document.getElementById(containerId); container.innerHTML='';
+      const half=Math.ceil(favs.length/2);
+      const grid=document.createElement('div'); grid.className='grid grid-cols-2 gap-4';
+      grid.appendChild(renderFavColumn(favs.slice(0,half),kind));
+      grid.appendChild(renderFavColumn(favs.slice(half),kind));
+      container.appendChild(grid);
+    };
+    renderSet('pathology-favs', def.pathology, 'PATH');
+    renderSet('radiology-favs', def.radiology, 'IMAG');
+    document.querySelectorAll('.fav').forEach(cb=>{
+      cb.addEventListener('change', e=>{
+        const { code, system, display, kind } = e.target.dataset;
+        if(e.target.checked) addSelectedTest({code,system,display,kind}); else removeSelectedTestByCode(code);
+      });
+    });
+    document.querySelectorAll('.fav').forEach(cb=>{
+      const code=cb.dataset.code; cb.checked=selectedTests.some(t=>t.code===code);
+    });
+  }
 
   // ---------- Selected tests UI ----------
-  function addSelectedTest(test){ if(!selectedTests.find(t=>t.code===test.code && t.display===test.display)){ selectedTests.push(test); renderSelectedTests(); document.querySelectorAll(`.fav[data-code="${test.code}"]`).forEach(cb=>cb.checked=true); } }
-  function removeSelectedTestByCode(code){ selectedTests = selectedTests.filter(t=>t.code!==code); renderSelectedTests(); document.querySelectorAll(`.fav[data-code="${code}"]`).forEach(cb=>cb.checked=false); }
-  function renderSelectedTests(){ const ul=$("#selected-tests"); ul.innerHTML=''; selectedTests.forEach(t=>{ const li=document.createElement('li'); li.className='flex items-center justify-between py-1'; li.innerHTML=`<span>${t.display}</span>`; const btn=document.createElement('button'); btn.textContent='Remove'; btn.className='text-red-600 text-sm'; btn.onclick=()=>removeSelectedTestByCode(t.code); ul.appendChild(li); li.appendChild(btn); }); }
+  function addSelectedTest(test){
+    if(!selectedTests.find(t=>t.code===test.code && t.display===test.display)){
+      selectedTests.push(test); renderSelectedTests();
+      document.querySelectorAll(`.fav[data-code="${test.code}"]`).forEach(cb=>cb.checked=true);
+    }
+  }
+  function removeSelectedTestByCode(code){
+    selectedTests = selectedTests.filter(t=>t.code!==code); renderSelectedTests();
+    document.querySelectorAll(`.fav[data-code="${code}"]`).forEach(cb=>cb.checked=false);
+  }
+  function renderSelectedTests(){
+    const ul=$("#selected-tests"); ul.innerHTML='';
+    selectedTests.forEach(t=>{
+      const li=document.createElement('li'); li.className='flex items-center justify-between py-1';
+      li.innerHTML=`<span>${t.display}</span>`;
+      const btn=document.createElement('button'); btn.textContent='Remove'; btn.className='text-red-600 text-sm';
+      btn.onclick=()=>removeSelectedTestByCode(t.code); ul.appendChild(li); li.appendChild(btn);
+    });
+  }
 
   // ---------- Tabs ----------
-  $("#pathology-tab").addEventListener('click', ()=>{ $("#pathology-tab").classList.add('border-b-2','border-blue-600','font-semibold'); $("#radiology-tab").classList.remove('border-b-2','border-blue-600','font-semibold'); $("#pathology-panel").classList.remove('hidden'); $("#radiology-panel").classList.add('hidden'); });
-  $("#radiology-tab").addEventListener('click', ()=>{ $("#radiology-tab").classList.add('border-b-2','border-blue-600','font-semibold'); $("#pathology-tab").classList.remove('border-b-2','border-blue-600','font-semibold'); $("#radiology-panel").classList.remove('hidden'); $("#pathology-panel").classList.add('hidden'); });
+  $("#pathology-tab").addEventListener('click', ()=>{
+    $("#pathology-tab").classList.add('border-b-2','border-blue-600','font-semibold');
+    $("#radiology-tab").classList.remove('border-b-2','border-blue-600','font-semibold');
+    $("#pathology-panel").classList.remove('hidden'); $("#radiology-panel").classList.add('hidden');
+  });
+  $("#radiology-tab").addEventListener('click', ()=>{
+    $("#radiology-tab").classList.add('border-b-2','border-blue-600','font-semibold');
+    $("#pathology-tab").classList.remove('border-b-2','border-blue-600','font-semibold');
+    $("#radiology-panel").classList.remove('hidden'); $("#pathology-panel").classList.add('hidden');
+  });
   $("#doctor-select").addEventListener('change',(e)=>renderFavsForUser(e.target.value));
 
   // ---------- Ontoserver helper (count=20 only) ----------
-  async function expandFromOntoserver(vsCanonicalUrl, filter){ if(!filter||filter.trim().length<2) return []; try{ const url=`${ONTO_BASE}?url=${encodeURIComponent(vsCanonicalUrl)}&count=20&filter=${encodeURIComponent(filter)}`; setDebugUrl(url); const r=await fetch(url,{headers:{Accept:'application/fhir+json'}}); if(!r.ok) throw new Error(`Ontoserver ${r.status}`); const j=await r.json(); return j?.expansion?.contains||[]; }catch(e){ console.warn(e); showError('Could not fetch ValueSet from Ontoserver.'); return []; }}
-  function setupSearch(inputSel, listSel, vsCanonicalUrl, kind){ const inp=$(inputSel), list=$(listSel); let to=null; inp.addEventListener('input', ()=>{ if(to) clearTimeout(to); list.innerHTML=''; const q=inp.value; if(!q||q.length<2) return; list.innerHTML=`<li class='p-2 text-gray-400 italic'>Loading…</li>`; to=setTimeout(async ()=>{ const items=await expandFromOntoserver(vsCanonicalUrl,q); list.innerHTML=''; const top=items.slice(0,5); if(!top.length){ list.innerHTML=`<li class='p-2 text-gray-500'>No matches</li>`; return; } top.forEach(it=>{ const li=document.createElement('li'); li.className='p-2 hover:bg-gray-100 cursor-pointer'; li.textContent=it.display||it.code||'—'; li.onclick=()=>{ addSelectedTest({system:it.system, code:it.code, display:it.display||it.code, kind}); list.innerHTML=''; inp.value=''; }; list.appendChild(li); }); }, 250); }); }
+  async function expandFromOntoserver(vsCanonicalUrl, filter){
+    if(!filter||filter.trim().length<2) return [];
+    try{
+      const url=`${ONTO_BASE}?url=${encodeURIComponent(vsCanonicalUrl)}&count=20&filter=${encodeURIComponent(filter)}`;
+      setDebugUrl(url);
+      const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
+      if(!r.ok) throw new Error(`Ontoserver ${r.status}`);
+      const j=await r.json();
+      return j?.expansion?.contains||[];
+    }catch(e){ console.warn(e); showError('Could not fetch ValueSet from Ontoserver.'); return []; }
+  }
+  function setupSearch(inputSel, listSel, vsCanonicalUrl, kind){
+    const inp=$(inputSel), list=$(listSel); let to=null;
+    inp.addEventListener('input', ()=>{
+      if(to) clearTimeout(to);
+      list.innerHTML=''; const q=inp.value; if(!q||q.length<2) return;
+      list.innerHTML=`<li class='p-2 text-gray-400 italic'>Loading…</li>`;
+      to=setTimeout(async ()=>{
+        const items=await expandFromOntoserver(vsCanonicalUrl,q); list.innerHTML='';
+        const top=items.slice(0,5);
+        if(!top.length){ list.innerHTML=`<li class='p-2 text-gray-500'>No matches</li>`; return; }
+        top.forEach(it=>{
+          const li=document.createElement('li'); li.className='p-2 hover:bg-gray-100 cursor-pointer';
+          li.textContent=it.display||it.code||'—';
+          li.onclick=()=>{ addSelectedTest({system:it.system, code:it.code, display:it.display||it.code, kind}); list.innerHTML=''; inp.value=''; };
+          list.appendChild(li);
+        });
+      }, 250);
+    });
+  }
   setupSearch('#pathology-search','#pathology-results',VS.PATH,'PATH');
   setupSearch('#radiology-search','#radiology-results',VS.IMAG,'IMAG');
 
   // ---------- Build & Send Bundle ----------
-  function buildPatientResource(){ const name=(nameInp.value||'').trim()||'John Citizen'; const parts=name.split(/\s+/); const given=parts[0]||'John'; const family=parts.length>1?parts[parts.length-1]:'Citizen'; const imgSrc=$("#patient-photo").src||'defaultProfile.jpg'; const patient={ resourceType:'Patient', name:[{use:'official', family, given:[given]}], gender:$("#patient-gender").value||'unknown', birthDate:$("#patient-dob").value||''}; if(imgSrc && !imgSrc.includes('defaultProfile.jpg')){ if(imgSrc.startsWith('data:')){ const [meta,base64]=imgSrc.split(','); const contentType=meta.match(/data:(.*);base64/)[1]; patient.photo=[{contentType,data:base64}]; } else { patient.photo=[{url:imgSrc}]; } } if(patientAddress){ patient.address=[patientAddress]; } return patient; }
-  function buildBundle(){ const patient=buildPatientResource(); const practitioner={ resourceType:'Practitioner', name:[{text:$("#doctor-select").value||'Dr P. Latypus'}] }; const uPt=uuidURN(), uPrac=uuidURN(); const entries=[ {fullUrl:uPt, resource:patient, request:{method:'POST', url:'Patient'}}, {fullUrl:uPrac, resource:practitioner, request:{method:'POST', url:'Practitioner'}} ]; const combinedNote=buildCombinedNoteText(); selectedTests.forEach(t=>{ const category=(t.kind==='IMAG')?CAT.IMAG:CAT.PATH; entries.push({ fullUrl:uuidURN(), resource:{ resourceType:'ServiceRequest', status:'active', intent:'order', category:[category], code:{ coding:[{system:t.system, code:t.code, display:t.display}], text:t.display }, subject:{reference:uPt}, requester:{reference:uPrac}, reasonCode:buildReasonCodeArray(), note: combinedNote ? [{text:combinedNote}] : [] }, request:{method:'POST', url:'ServiceRequest'} }); }); const bundle={ resourceType:'Bundle', type:'transaction', entry:entries }; viewer.show(bundle); return bundle; }
-  $("#build-bundle").addEventListener('click', ()=>{ buildBundle(); });
-  $("#send-btn").addEventListener('click', async ()=>{ const out=$("#server-response"); out.textContent='Sending…'; const bundle=buildBundle(); try{ const r=await fetch(FHIR_BASE, { method:'POST', headers:{'Content-Type':'application/fhir+json','Accept':'application/fhir+json'}, body: JSON.stringify(bundle)}); const text=await r.text(); out.textContent=`Response ${r.status}:\n`+text; }catch(e){ console.error(e); out.textContent='Network error: '+e.message; } });
+  function buildPatientResource(){
+    const name=(nameInp.value||'').trim()||'John Citizen';
+    const parts=name.split(/\s+/); const given=parts[0]||'John'; const family=parts.length>1?parts[parts.length-1]:'Citizen';
+    const imgSrc=$("#patient-photo").src||'defaultProfile.jpg';
+    const patient={ resourceType:'Patient', name:[{use:'official', family, given:[given]}], gender:$("#patient-gender").value||'unknown', birthDate:$("#patient-dob").value||''};
+    if(imgSrc && !imgSrc.includes('defaultProfile.jpg')){
+      if(imgSrc.startsWith('data:')){ const [meta,base64]=imgSrc.split(','); const contentType=meta.match(/data:(.*);base64/)[1]; patient.photo=[{contentType,data:base64}]; }
+      else { patient.photo=[{url:imgSrc}]; }
+    }
+    if(patientAddress){ patient.address=[patientAddress]; }
+    return patient;
+  }
+  function buildBundle(){
+    const patient=buildPatientResource();
+    const practitioner={ resourceType:'Practitioner', name:[{text:$("#doctor-select").value||'Dr P. Latypus'}] };
+    const uPt=uuidURN(), uPrac=uuidURN();
+    const entries=[
+      {fullUrl:uPt, resource:patient, request:{method:'POST', url:'Patient'}},
+      {fullUrl:uPrac, resource:practitioner, request:{method:'POST', url:'Practitioner'}}
+    ];
+    const combinedNote=buildCombinedNoteText();
+    selectedTests.forEach(t=>{
+      const category=(t.kind==='IMAG')?CAT.IMAG:CAT.PATH;
+      entries.push({
+        fullUrl:uuidURN(),
+        resource:{
+          resourceType:'ServiceRequest',
+          status:'active',
+          intent:'order',
+          category:[category],
+          code:{ coding:[{system:t.system, code:t.code, display:t.display}], text:t.display },
+          subject:{reference:uPt},
+          requester:{reference:uPrac},
+          reasonCode:buildReasonCodeArray(),
+          note: combinedNote ? [{text:combinedNote}] : []
+        },
+        request:{method:'POST', url:'ServiceRequest'}
+      });
+    });
+    const bundle={ resourceType:'Bundle', type:'transaction', entry:entries };
+    viewer.show(bundle);
+    return bundle;
+  }
+  document.getElementById('build-bundle').addEventListener('click', ()=>{ buildBundle(); });
+
+  // ---- QR helpers (primary only) ----
+  const qrBackdrop = $("#qr-backdrop");
+  const qrClose = $("#qr-close");
+  const qrOpen = $("#qr-open");
+  const qrCopy = $("#qr-copy");
+  const qrUrlEl = $("#qr-url");
+  function showQr(url){
+    qrUrlEl.textContent = url || '';
+    const box = $("#qrcode"); box.innerHTML='';
+    new QRCode(box, { text: url || '', width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+    qrBackdrop.style.display = 'flex';
+  }
+  qrClose?.addEventListener('click', ()=> qrBackdrop.style.display='none');
+  qrOpen?.addEventListener('click', ()=> { const u = qrUrlEl.textContent.trim(); if(u) window.open(u, "_blank"); });
+  qrCopy?.addEventListener('click', async ()=> { try{ await navigator.clipboard.writeText(qrUrlEl.textContent.trim()); const b=qrCopy; const t=b.textContent; b.textContent='Copied!'; setTimeout(()=>b.textContent=t,1200);}catch{} });
+
+  document.getElementById('send-btn').addEventListener('click', async ()=>{
+    const out=$("#server-response");
+    out.textContent='Sending…';
+    const bundle=buildBundle();
+    try{
+      const r=await fetch(FHIR_BASE, {
+        method:'POST',
+        headers:{'Content-Type':'application/fhir+json','Accept':'application/fhir+json'},
+        body: JSON.stringify(bundle)
+      });
+      const text=await r.text();
+      out.textContent=`Response ${r.status}:\n`+text;
+
+      // If 200: show QR for first entry.response.location only
+      if(r.status===200){
+        try{
+          const j = JSON.parse(text);
+          const entries = Array.isArray(j?.entry) ? j.entry : [];
+          let primary = null;
+          for(const e of entries){
+            const loc = e?.response?.location || e?.location || null;
+            if(loc){ primary = loc; break; }
+          }
+          if(primary){ showQr(primary); }
+        }catch(e){ console.warn('Could not parse response JSON for location', e); }
+      }
+    }catch(e){
+      console.error(e);
+      out.textContent='Network error: '+e.message;
+    }
+  });
 
   // ---------- Boot ----------
   renderFavsForUser($("#doctor-select").value||'Dr P. Latypus');
   if(location.protocol==='file:') showStatus('Running as file:// — some browsers block fetch. Use a local server for full functionality.');
   // quick Ontoserver ping
-  (async ()=>{ try{ const pingUrl = `${ONTO_BASE}?url=${encodeURIComponent(VS.PATH)}&count=20&filter=${encodeURIComponent('glucose')}`; setDebugUrl(pingUrl); const ping=await fetch(pingUrl,{headers:{Accept:'application/fhir+json'}}); if(!ping.ok) throw new Error(ping.status); }catch(e){ showError('Cannot reach Ontoserver. See console for details.'); } })();
+  (async ()=>{
+    try{
+      const pingUrl = `${ONTO_BASE}?url=${encodeURIComponent(VS.PATH)}&count=20&filter=${encodeURIComponent('glucose')}`;
+      setDebugUrl(pingUrl);
+      const ping=await fetch(pingUrl,{headers:{Accept:'application/fhir+json'}});
+      if(!ping.ok) throw new Error(ping.status);
+    }catch(e){ showError('Cannot reach Ontoserver. See console for details.'); }
+  })();
 })();
 </script>
 </body>
