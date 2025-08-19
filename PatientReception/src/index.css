@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* Small global tweaks so it looks good even without custom themes */
+html, body, #root { height: 100%; }
+body { @apply bg-slate-50 text-slate-900 dark:bg-zinc-900 dark:text-slate-100; }
