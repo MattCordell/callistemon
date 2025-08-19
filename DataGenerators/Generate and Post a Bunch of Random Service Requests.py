@@ -20,7 +20,7 @@ PersonGenerator = Random_FHIR_Person()
 ServiceGenerator = Random_FHIR_ServiceRequest()
 
 #loop through as many times as you want to generate and post randomised data
-for _ in range(1):
+for _ in range(18):
     #generate some randomised data
     patient = PersonGenerator.NewPatient()
     practioner = PersonGenerator.NewPractitioner()
@@ -32,13 +32,14 @@ for _ in range(1):
                 entry=[{'resource': patient, 'request': {'method': 'PUT', 'url': 'Patient/'+patient.id}}
                        #{'resource': practioner, 'request': {'method': 'PUT', 'url': 'Practitioner/'+practioner.id}},
                        #{'resource': referral, 'request': {'method': 'PUT', 'url': 'ServiceRequest/'+referral.id}}
-                       ])
+                       ])        
+    print(patient.name[0].text)
     
     payload = bundle.json()
-    print(payload)
+    #print(payload)
 
 
     response = requests.post(fhir_server_url, data=payload, headers=headers)
-    print(response.text)
+    #print(response.text)
 
 print('Done')
