@@ -23,6 +23,7 @@
      * - Filters: Category (All/Lab/Imaging), Modality (ECL), Anatomy (AU body-site-1 combobox, ≥3 chars, first 5)
      * - Patient list, row-click selection, photos, 42s polling
      * - Dropdowns show display text only; no code counts or "selected:" labels
+     * - Anatomy results are now a styled dropdown to match Modality’s look & feel (without changing functionality)
      */
 
     // ----------------------------- Error Boundary ------------------------------
@@ -284,6 +285,8 @@
       const [anatomyLoading, setAnatomyLoading] = useState(false);
       const [anatomyErr, setAnatomyErr] = useState("");
       const siteDebounceRef = useRef(null);
+      const [siteMenuOpen, setSiteMenuOpen] = useState(false);
+      const siteInputRef = useRef(null);
 
       // Polling
       const [polling] = useState(true);
@@ -377,13 +380,14 @@
       // -------- Anatomy search suggestions (VS filter; only when ≥3 chars) ------
       useEffect(() => {
         if (siteDebounceRef.current) clearTimeout(siteDebounceRef.current);
-        if (!siteQuery || siteQuery.trim().length < 3) { setSiteOptions([]); return; }
+        if (!siteQuery || siteQuery.trim().length < 3) { setSiteOptions([]); setSiteMenuOpen(false); return; }
         siteDebounceRef.current = setTimeout(async () => {
           setSiteErr(""); setSiteLoading(true);
           try {
             const opts = await expandValueSetFiltered(txBase, AU_BODY_SITE_VS, siteQuery.trim(), 5);
             setSiteOptions(opts);
-          } catch (e) { setSiteErr(String(e && (e.message || e))); setSiteOptions([]); }
+            setSiteMenuOpen(opts.length > 0);
+          } catch (e) { setSiteErr(String(e && (e.message || e))); setSiteOptions([]); setSiteMenuOpen(false); }
           finally { setSiteLoading(false); }
         }, 300);
         return () => { if (siteDebounceRef.current) clearTimeout(siteDebounceRef.current); };
@@ -413,6 +417,18 @@
         run();
         return () => { cancelled = true; };
       }, [txBase, selectedSite]);
+
+      // Close site menu on outside click
+      useEffect(() => {
+        function onDocClick(e) {
+          if (!siteInputRef.current) return;
+          if (!siteInputRef.current.parentElement.contains(e.target)) {
+            setSiteMenuOpen(false);
+          }
+        }
+        document.addEventListener("click", onDocClick);
+        return () => document.removeEventListener("click", onDocClick);
+      }, []);
 
       // Derived views -----------------------------------------------------------
       const allIncomingRows = React.useMemo(() => {
@@ -592,23 +608,53 @@
                     )}
                   </div>
 
-                  {/* Anatomy / Site (combobox search) */}
-                  <div className="flex flex-wrap items-center gap-2">
+                  {/* Anatomy / Site (styled combobox: type to search, 1–5 results dropdown) */}
+                  <div className="flex flex-wrap items-center gap-2 relative">
                     <div className="text-sm text-slate-300 w-28">Anatomy</div>
-                    <input
-                      list="site-suggestions"
-                      className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 min-w-[22rem] max-w-[36rem]"
-                      placeholder="Type ≥ 3 characters to search AU Body Site"
-                      value={siteQuery}
-                      onChange={(e)=>setSiteQuery(e.target.value)}
-                    />
-                    <datalist id="site-suggestions">
-                      {siteOptions.slice(0,5).map(opt => (<option key={opt.code} value={opt.display}>{opt.display}</option>))}
-                    </datalist>
+
+                    <div className="relative">
+                      <input
+                        ref={siteInputRef}
+                        className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 min-w-[22rem] max-w-[36rem]"
+                        placeholder="Search for anatomy to filter by"
+                        value={siteQuery}
+                        onFocus={() => setSiteMenuOpen(siteOptions.length > 0 && siteQuery.trim().length >= 3)}
+                        onChange={(e)=>{ setSiteQuery(e.target.value); setSiteMenuOpen(false); }}
+                      />
+
+                      {/* Styled dropdown menu for results (looks consistent with select) */}
+                      {siteMenuOpen && siteOptions.length > 0 && (
+                        <div className="absolute z-20 mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-lg overflow-hidden">
+                          <ul className="max-h-64 overflow-auto">
+                            {siteOptions.slice(0,5).map(opt => (
+                              <li
+                                key={opt.code}
+                                className="px-3 py-2 hover:bg-slate-800 cursor-pointer"
+                                onClick={() => {
+                                  setSiteQuery(opt.display);
+                                  setSelectedSite(opt.code);
+                                  setSiteMenuOpen(false);
+                                  // keep focus for quick edits
+                                  requestAnimationFrame(() => siteInputRef.current && siteInputRef.current.focus());
+                                }}
+                              >
+                                {opt.display}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
                     {siteLoading && <span className="text-xs text-slate-400">searching…</span>}
                     {siteErr && <span className="text-xs text-red-300">VS error: {siteErr}</span>}
                     {selectedSite && (
-                      <button className="text-xs underline underline-offset-2 hover:text-indigo-300" onClick={()=>{ setSelectedSite(""); setSiteQuery(""); }}>Clear</button>
+                      <button
+                        className="text-xs underline underline-offset-2 hover:text-indigo-300"
+                        onClick={()=>{ setSelectedSite(""); setSiteQuery(""); setSiteMenuOpen(false); }}
+                      >
+                        Clear
+                      </button>
                     )}
                   </div>
                 </div>

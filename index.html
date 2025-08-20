@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Callistemon Apps</title>
+  <title>Callistemon</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
   <style>
     body {
@@ -11,7 +11,7 @@
       background-size: cover;
     }
     .overlay {
-      background-color: rgba(255, 255, 255, 0.85);
+      background-color: rgba(255, 255, 255, 0.5);
       min-height: 100vh;
     }
   </style>
@@ -21,41 +21,37 @@
     <header class="bg-red-700 text-white shadow">
       <div class="max-w-5xl mx-auto px-6 py-6">
         <h1 class="text-3xl font-bold">Callistemon</h1>
-        <p class="text-sm mt-2">A collection of FHIR and SNOMED CT tools and demos.</p>
+        <p class="text-sm mt-2">A collection of tools and demos leveraging HL7 FHIR and SNOMED CT.</p>
+        <p class="text-sm mt-2">Currently focused on Sparked eRquesting IG <a href="https://build.fhir.org/ig/hl7au/au-fhir-erequesting/" class="underline text-white hover:text-gray-200" target="_blank">https://build.fhir.org/ig/hl7au/au-fhir-erequesting/</a>  
+        </p>
       </div>
     </header>
 
     <main class="max-w-5xl mx-auto px-6 py-12 space-y-10">
       <section>
-        <h2 class="text-2xl font-semibold mb-6">Available Apps</h2>
+        <h2 class="text-2xl font-semibold mb-6">Available toys</h2>
         <div class="grid gap-6 md:grid-cols-2">
 
-          <a href="patient-reception/" class="block bg-white rounded-2xl shadow hover:shadow-lg transition p-6">
-            <h3 class="text-xl font-bold text-red-700">Patient Reception</h3>
-            <p class="mt-2 text-gray-600">
-              A demo reception app built with React + Vite showcasing patient registration and workflow features.
-            </p>
+          <a href="/erequest-filler-reception/" class="block bg-white rounded-2xl shadow hover:shadow-lg transition p-6">
+            <h3 class="text-xl font-bold text-red-700">eRequest Filler Reception</h3>
+            <p class="mt-2 text-gray-600">A demonstration patient reception app that allows staff to quickly look up a presenting patient by name or QR code, and view any associated requests submitted by their provider.</p>
           </a>
 
-          <a href="erequest-dashboard/" class="block bg-white rounded-2xl shadow hover:shadow-lg transition p-6">
+          <a href="/eRequest-dashboard/" class="block bg-white rounded-2xl shadow hover:shadow-lg transition p-6">
             <h3 class="text-xl font-bold text-red-700">eRequest Dashboard</h3>
-            <p class="mt-2 text-gray-600">
-              Dashboard to explore service requests, with advanced filters using SNOMED CT and FHIR terminology services.
-            </p>
+            <p class="mt-2 text-gray-600">An interactive dashboard for exploring service requests with advanced filters powered by SNOMED CT and FHIR terminology services. The dashboard updates in real time as new requests arrive and existing ones change.</p>
           </a>
 
-          <a href="erequest-demonstrator/" class="block bg-white rounded-2xl shadow hover:shadow-lg transition p-6">
-            <h3 class="text-xl font-bold text-red-700">eRequest Demonstrator</h3>
-            <p class="mt-2 text-gray-600">
-              A demonstration tool for electronic request workflows, showcasing how FHIR and SNOMED CT can be applied in practice.
-            </p>
+          <a href="/erequest-placer/" class="block bg-white rounded-2xl shadow hover:shadow-lg transition p-6">
+            <h3 class="text-xl font-bold text-red-700">eRequest Placer</h3>
+            <p class="mt-2 text-gray-600">A tool demonstrating electronic request workflows and the practical use of FHIR and SNOMED CT. Users can switch between two clinician roles (each with their own favourites list), add coded clinical notes, and create both Pathology and Imaging requests.</p>
           </a>
 
           <a href="https://github.com/MattCordell/callistemon/tree/main/DataGenerators" target="_blank"
              class="block bg-white rounded-2xl shadow hover:shadow-lg transition p-6">
             <h3 class="text-xl font-bold text-red-700">Data Generators</h3>
             <p class="mt-2 text-gray-600">
-              A set of scripts and utilities to generate test datasets for FHIR and SNOMED CT experimentation.
+              A collection of scripts and utilities to generate test datasets for FHIR and SNOMED CT experimentation.
             </p>
           </a>
 
