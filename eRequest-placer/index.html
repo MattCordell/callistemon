@@ -333,6 +333,7 @@
 
   // ---------- Utility ----------
   function uuidURN(){return "urn:uuid:" + (crypto?.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(16).slice(2));}
+  function newUUID(){ return (crypto?.randomUUID ? crypto.randomUUID() : (Date.now()+"-"+Math.random().toString(16).slice(2))); }
   function formatAddress(addr){ if(!addr) return ''; if(addr.text) return addr.text; const parts=[]; if(Array.isArray(addr.line)&&addr.line.length) parts.push(addr.line.join(', ')); if(addr.city) parts.push(addr.city); if(addr.state) parts.push(addr.state); if(addr.postalCode) parts.push(addr.postalCode); if(addr.country) parts.push(addr.country); return parts.filter(Boolean).join(', '); }
 
   // ---------- Patient mode + Name autocomplete ----------
@@ -642,27 +643,66 @@
     entries.push(practitionerEntry);
     entries.push(roleEntry);
 
+    const now = new Date().toISOString();
+
+    // ---- AU eRequesting Task Group ----
+    const requisitionId = newUUID(); // unique requisition ID
+    const groupIdentifier = {
+      value: requisitionId,
+      type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'PGN', display: 'Placer group number' }] }
+    };
+    const groupTaskFullUrl = uuidURN();
+    const groupTask = {
+      resourceType: 'Task',
+      identifier: [{ value: requisitionId }],
+      groupIdentifier,
+      status: 'requested',
+      intent: 'order',
+      for: { reference: uPt },
+      authoredOn: now,
+      requester: { reference: roleRef }
+    };
+    entries.push({ fullUrl: groupTaskFullUrl, resource: groupTask, request: { method: 'POST', url: 'Task' } });
+
     const combinedNote=buildCombinedNoteText();
+
     selectedTests.forEach(t=>{
       const category=(t.kind==='IMAG')?CAT.IMAG:CAT.PATH;
-      entries.push({
-        fullUrl:uuidURN(),
-        resource:{
-          resourceType:'ServiceRequest',
-          status:'active',
-          intent:'order',
-          // http://hl7.org/fhir/ValueSet/request-priority
-          priority: (t.priority || 'routine'),
-          category:[category],
-          code:{ coding:[{system:t.system, code:t.code, display:t.display}], text:t.display },
-          subject:{reference:uPt},
-          requester:{ reference: roleRef }, // PractitionerRole as requester (AU Core)
-          reasonCode:buildReasonCodeArray(),
-          note: combinedNote ? [{text:combinedNote}] : []
-        },
-        request:{method:'POST', url:'ServiceRequest'}
-      });
+
+      // ServiceRequest for the test
+      const srFullUrl = uuidURN();
+      const srResource = {
+        resourceType:'ServiceRequest',
+        status:'active',
+        intent:'order',
+        // http://hl7.org/fhir/ValueSet/request-priority
+        priority: (t.priority || 'routine'),
+        category:[category],
+        code:{ coding:[{system:t.system, code:t.code, display:t.display}], text:t.display },
+        subject:{reference:uPt},
+        requester:{ reference: roleRef }, // PractitionerRole as requester (AU Core)
+        reasonCode:buildReasonCodeArray(),
+        note: combinedNote ? [{text:combinedNote}] : []
+      };
+      entries.push({ fullUrl: srFullUrl, resource: srResource, request:{method:'POST', url:'ServiceRequest'} });
+
+      // AU eRequesting Task Diagnostic Request for this test
+      const diagTaskFullUrl = uuidURN();
+      const diagTask = {
+        resourceType: 'Task',
+        identifier: [{ value: newUUID() }],
+        groupIdentifier, // copy details from group
+        partOf: [{ reference: groupTaskFullUrl }],
+        status: 'requested',
+        intent: 'order',
+        priority: (t.priority || 'routine'),
+        focus: { reference: srFullUrl },
+        for: { reference: uPt },
+        authoredOn: now
+      };
+      entries.push({ fullUrl: diagTaskFullUrl, resource: diagTask, request: { method: 'POST', url: 'Task' } });
     });
+
     const bundle={ resourceType:'Bundle', type:'transaction', entry:entries };
     viewer.show(bundle);
     return bundle;
