@@ -83,9 +83,10 @@
     <section class="bg-white p-4 rounded-2xl shadow">
       <label class="block text-sm font-medium mb-1">Requesting Clinician</label>
       <select id="doctor-select" class="border rounded w-full p-2 max-w-md">
-        <option>Dr P. Latypus</option>
-        <option>Dr K. Oala</option>
+        <option>Dr Confident Cane Toad</option>
+        <option>Dr Compassionate Quoll</option>
       </select>
+      <div id="doctor-specialty" class="mt-2 text-sm text-gray-600"></div>
     </section>
 
     <!-- Clinical Notes + reason tags -->
@@ -227,14 +228,46 @@
     REASON: "https://healthterminologies.gov.au/fhir/ValueSet/reason-for-procedure-1"
   };
   const MAX_NOTE_SUG = 8; // top 8
+  // Request priority (ValueSet: http://hl7.org/fhir/ValueSet/request-priority)
+  const PRIORITIES = ['routine','urgent','asap','stat'];
 
   const CAT = {
     PATH: { coding: [{ system: "http://snomed.info/sct", code: "108252007", display: "Laboratory procedure" }] },
     IMAG: { coding: [{ system: "http://snomed.info/sct", code: "363679005", display: "Imaging" }] }
   };
 
+  // ---- Practitioner resources (from user) ----
+  const practitionerResources = {
+    "Dr Confident Cane Toad": {
+      resourceType: "Practitioner",
+      id: "J855592470710578",
+      meta: { profile: ["http://hl7.org.au/fhir/StructureDefinition/au-practitioner"] },
+      name: [{ text: "Dr Confident Cane Toad", family: "Cane Toad", given: ["Confident"], prefix: ["Dr"] }],
+      address: [{
+        text: "45 Wattle Rise, Kensington, TAS 6497",
+        line: ["45 Wattle Rise"], city: "Kensington", state: "TAS", postalCode: "6497", country: "Australia"
+      }]
+    },
+    "Dr Compassionate Quoll": {
+      resourceType: "Practitioner",
+      id: "W855592487843004",
+      meta: { profile: ["http://hl7.org.au/fhir/StructureDefinition/au-practitioner"] },
+      name: [{ text: "Dr Compassionate Quoll", family: "Quoll", given: ["Compassionate"], prefix: ["Dr"] }],
+      address: [{
+        text: "136 Allocasuarina Ln, Geelong, NSW 5600",
+        line: ["136 Allocasuarina Ln"], city: "Geelong", state: "NSW", postalCode: "5600", country: "Australia"
+      }]
+    }
+  };
+
+  // Role specialties per clinician (SNOMED CT)
+  const roleSpecialties = {
+    "Dr Confident Cane Toad": { system: "http://snomed.info/sct", code: "408443003", display: "General medical practice" },
+    "Dr Compassionate Quoll": { system: "http://snomed.info/sct", code: "394585009", display: "Obstetrics and gynaecology" }
+  };
+
   const userFavourites = {
-    "Dr P. Latypus": {
+    "Dr Confident Cane Toad": {
       pathology: [
         {code:"26604007",display:"Full blood count"},
         {code:"401324008",display:"Urine MCS"},
@@ -252,7 +285,7 @@
         {code:"241601008",display:"MRI of head"}
       ]
     },
-    "Dr K. Oala": {
+    "Dr Compassionate Quoll": {
       pathology: [
         {code:"26604007",display:"Full blood count"},
         {code:"401324008",display:"Serum pregnancy test (B-HCG)"},
@@ -292,7 +325,7 @@
   dbg.copy.addEventListener('click', async ()=>{ const t=dbg.last.textContent||''; if(!t) return; try{ await navigator.clipboard.writeText(t); dbg.copy.textContent='Copied!'; setTimeout(()=>dbg.copy.textContent='Copy last',1200);}catch{} });
 
   // ---------- State ----------
-  let selectedTests=[]; // {system, code, display, kind}
+  let selectedTests=[]; // {system, code, display, kind, priority}
   let patientAddress=null; // keep address from search
   let reasonTags=[]; // [{system, code, display}]
   let notesAnchor=0;
@@ -428,7 +461,7 @@
     const col=document.createElement('div'); col.className='flex flex-col space-y-2';
     items.forEach(f=>{
       const row=document.createElement('label'); row.className='flex items-center space-x-2';
-      row.innerHTML=`<input type="checkbox" class="fav" data-kind="${kind}" data-code="${f.code}" data-display="${f.display}" data-system="http://snomed.info/sct"> <span>${f.display}</span>`;
+      row.innerHTML=`<input type=\"checkbox\" class=\"fav\" data-kind=\"${kind}\" data-code=\"${f.code}\" data-display=\"${f.display}\" data-system=\"http://snomed.info/sct\"> <span>${f.display}</span>`;
       col.appendChild(row);
     });
     return col;
@@ -458,22 +491,52 @@
 
   // ---------- Selected tests UI ----------
   function addSelectedTest(test){
-    if(!selectedTests.find(t=>t.code===test.code && t.display===test.display)){
-      selectedTests.push(test); renderSelectedTests();
-      document.querySelectorAll(`.fav[data-code="${test.code}"]`).forEach(cb=>cb.checked=true);
+    const existing = selectedTests.find(t=>t.code===test.code && t.display===test.display);
+    if(!existing){
+      if(!test.priority) test.priority = 'routine';
+      selectedTests.push(test);
     }
+    renderSelectedTests();
+    document.querySelectorAll(`.fav[data-code="${test.code}"]`).forEach(cb=>cb.checked=true);
   }
   function removeSelectedTestByCode(code){
     selectedTests = selectedTests.filter(t=>t.code!==code); renderSelectedTests();
     document.querySelectorAll(`.fav[data-code="${code}"]`).forEach(cb=>cb.checked=false);
   }
   function renderSelectedTests(){
-    const ul=$("#selected-tests"); ul.innerHTML='';
-    selectedTests.forEach(t=>{
-      const li=document.createElement('li'); li.className='flex items-center justify-between py-1';
-      li.innerHTML=`<span>${t.display}</span>`;
-      const btn=document.createElement('button'); btn.textContent='Remove'; btn.className='text-red-600 text-sm';
-      btn.onclick=()=>removeSelectedTestByCode(t.code); ul.appendChild(li); li.appendChild(btn);
+    const ul = document.querySelector('#selected-tests');
+    ul.innerHTML = '';
+    selectedTests.forEach(t => {
+      const li = document.createElement('li');
+      li.className = 'flex items-center justify-between py-1 gap-3';
+
+      const left = document.createElement('span');
+      left.textContent = t.display;
+
+      const controls = document.createElement('div');
+      controls.className = 'flex items-center gap-2';
+
+      const pBtn = document.createElement('button');
+      pBtn.className = 'text-xs px-2 py-1 rounded border';
+      pBtn.title = 'Toggle priority';
+      pBtn.textContent = `priority: ${t.priority || 'routine'}`;
+      pBtn.onclick = () => {
+        const idx = PRIORITIES.indexOf(t.priority || 'routine');
+        t.priority = PRIORITIES[(idx + 1) % PRIORITIES.length];
+        pBtn.textContent = `priority: ${t.priority}`;
+      };
+
+      const rm = document.createElement('button');
+      rm.textContent = 'Remove';
+      rm.className = 'text-red-600 text-sm';
+      rm.onclick = () => removeSelectedTestByCode(t.code);
+
+      controls.appendChild(pBtn);
+      controls.appendChild(rm);
+
+      li.appendChild(left);
+      li.appendChild(controls);
+      ul.appendChild(li);
     });
   }
 
@@ -488,7 +551,7 @@
     $("#pathology-tab").classList.remove('border-b-2','border-blue-600','font-semibold');
     $("#radiology-panel").classList.remove('hidden'); $("#pathology-panel").classList.add('hidden');
   });
-  $("#doctor-select").addEventListener('change',(e)=>renderFavsForUser(e.target.value));
+  $("#doctor-select").addEventListener('change',(e)=>{ renderFavsForUser(e.target.value); updateSpecialtyDisplay(e.target.value); });
 
   // ---------- Ontoserver helper (count=20 only) ----------
   async function expandFromOntoserver(vsCanonicalUrl, filter){
@@ -525,6 +588,13 @@
   setupSearch('#radiology-search','#radiology-results',VS.IMAG,'IMAG');
 
   // ---------- Build & Send Bundle ----------
+  function updateSpecialtyDisplay(name){
+    const sp = roleSpecialties[name];
+    const el = document.getElementById('doctor-specialty');
+    if(!el) return;
+    el.textContent = sp ? `Specialty: ${sp.display}` : '';
+  }
+
   function buildPatientResource(){
     const name=(nameInp.value||'').trim()||'John Citizen';
     const parts=name.split(/\s+/); const given=parts[0]||'John'; const family=parts.length>1?parts[parts.length-1]:'Citizen';
@@ -537,14 +607,41 @@
     if(patientAddress){ patient.address=[patientAddress]; }
     return patient;
   }
+
+  function buildPractitionerAndRoleEntries(selectedName){
+    const pracRes = practitionerResources[selectedName];
+    const pracFullUrl = uuidURN();
+    const roleFullUrl = uuidURN();
+
+    const s = roleSpecialties[selectedName];
+
+    // AU Core PractitionerRole linking to Practitioner + specialty
+    const practitionerRole = {
+      resourceType: 'PractitionerRole',
+      meta: { profile: ["http://hl7.org.au/fhir/StructureDefinition/au-practitionerrole"] },
+      active: true,
+      practitioner: { reference: pracFullUrl },
+      specialty: s ? [{ coding: [{ system: s.system, code: s.code, display: s.display }], text: s.display }] : undefined
+    };
+
+    const practitionerEntry = { fullUrl: pracFullUrl, resource: pracRes, request: { method: 'POST', url: 'Practitioner' } };
+    const roleEntry = { fullUrl: roleFullUrl, resource: practitionerRole, request: { method: 'POST', url: 'PractitionerRole' } };
+
+    return { practitionerEntry, roleEntry, roleRef: roleFullUrl };
+  }
+
   function buildBundle(){
     const patient=buildPatientResource();
-    const practitioner={ resourceType:'Practitioner', name:[{text:$("#doctor-select").value||'Dr P. Latypus'}] };
-    const uPt=uuidURN(), uPrac=uuidURN();
-    const entries=[
-      {fullUrl:uPt, resource:patient, request:{method:'POST', url:'Patient'}},
-      {fullUrl:uPrac, resource:practitioner, request:{method:'POST', url:'Practitioner'}}
-    ];
+    const doctorName = $("#doctor-select").value || 'Dr Confident Cane Toad';
+
+    const uPt=uuidURN();
+    const entries=[ {fullUrl:uPt, resource:patient, request:{method:'POST', url:'Patient'}} ];
+
+    // Practitioner + PractitionerRole (AU Core) and use PractitionerRole as requester
+    const { practitionerEntry, roleEntry, roleRef } = buildPractitionerAndRoleEntries(doctorName);
+    entries.push(practitionerEntry);
+    entries.push(roleEntry);
+
     const combinedNote=buildCombinedNoteText();
     selectedTests.forEach(t=>{
       const category=(t.kind==='IMAG')?CAT.IMAG:CAT.PATH;
@@ -554,10 +651,12 @@
           resourceType:'ServiceRequest',
           status:'active',
           intent:'order',
+          // http://hl7.org/fhir/ValueSet/request-priority
+          priority: (t.priority || 'routine'),
           category:[category],
           code:{ coding:[{system:t.system, code:t.code, display:t.display}], text:t.display },
           subject:{reference:uPt},
-          requester:{reference:uPrac},
+          requester:{ reference: roleRef }, // PractitionerRole as requester (AU Core)
           reasonCode:buildReasonCodeArray(),
           note: combinedNote ? [{text:combinedNote}] : []
         },
@@ -619,7 +718,8 @@
   });
 
   // ---------- Boot ----------
-  renderFavsForUser($("#doctor-select").value||'Dr P. Latypus');
+  renderFavsForUser($("#doctor-select").value||'Dr Confident Cane Toad');
+  updateSpecialtyDisplay($("#doctor-select").value||'Dr Confident Cane Toad');
   if(location.protocol==='file:') showStatus('Running as file:// — some browsers block fetch. Use a local server for full functionality.');
   // quick Ontoserver ping
   (async ()=>{
