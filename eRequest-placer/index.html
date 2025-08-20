@@ -103,6 +103,13 @@
       </div>
     </section>
 
+    <!-- Suggested Tests -->
+    <section class="bg-white p-4 rounded-2xl shadow">
+      <h3 class="font-semibold mb-2">Suggested Tests</h3>
+      <div id="suggested-tests" class="flex flex-wrap gap-2"></div>
+      <div id="suggested-tests-empty" class="text-sm text-gray-500">No suggestions yet — add Reason tags to see recommendations.</div>
+    </section>
+
     <!-- Tabs: Pathology/Radiology -->
     <section class="bg-white rounded-2xl shadow">
       <div class="flex border-b">
@@ -175,10 +182,10 @@
 
   <!-- Floating Debug -->
   <button id="debug-toggle" class="fixed bottom-4 right-4 z-40 px-3 py-2 rounded-full shadow bg-yellow-500 text-white text-sm">Debug</button>
-  <div id="debug-panel" class="fixed bottom-16 right-4 z-40 w-[min(90vw,42rem)] max-h-[50vh] overflow-hidden hidden">
+  <div id="debug-panel" class="fixed bottom-16 right-4 z-40 w-[min(90vw,42rem)] max-height-[50vh] overflow-hidden hidden">
     <div class="bg-yellow-100 border border-yellow-300 rounded shadow">
       <div class="flex items-center justify-between px-3 py-2 border-b border-yellow-300">
-        <div class="font-semibold text-yellow-900 text-sm">Ontoserver $expand — Last calls</div>
+        <div class="font-semibold text-yellow-900 text-sm">Terminology calls — Last $expand / $subsumes</div>
         <div class="flex items-center gap-2">
           <button id="debug-copy" class="text-xs px-2 py-1 rounded border border-yellow-400 bg-white">Copy last</button>
           <button id="debug-close" class="text-xs px-2 py-1 rounded border border-yellow-400 bg-white">Close</button>
@@ -222,6 +229,7 @@
   // ---------- Config ----------
   const FHIR_BASE = "https://server.fire.ly"; // demo default
   const ONTO_BASE = "https://tx.ontoserver.csiro.au/fhir/ValueSet/$expand";
+  const TERM_BASE = "https://tx.ontoserver.csiro.au/fhir"; // for $subsumes
   const VS = {
     PATH: "https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3",
     IMAG: "https://ranzcr.com/fhir/ValueSet/radiology-referral-1",
@@ -235,6 +243,26 @@
     PATH: { coding: [{ system: "http://snomed.info/sct", code: "108252007", display: "Laboratory procedure" }] },
     IMAG: { coding: [{ system: "http://snomed.info/sct", code: "363679005", display: "Imaging" }] }
   };
+
+  // Suggested tests metadata (display + kind)
+  const SUGGESTED_TESTS_META = {
+    "269820002": { display: "Serum iron tests", kind: 'PATH' },
+    "313440008": { display: "Serum TSH measurement", kind: 'PATH' },
+    "26604007": { display: "Full blood count", kind: 'PATH' },
+    "166434005": { display: "Serum pregnancy test (B-HCG)", kind: 'PATH' },
+    "45036003": { display: "Ultrasound of abdomen", kind: 'IMAG' },
+    "241601008": { display: "MRI of head", kind: 'IMAG' },
+    "3621000087107": { display: "Plain X-ray of left hand", kind: 'IMAG' },
+    "3631000087109": { display: "Plain X-ray of right hand", kind: 'IMAG' }
+  };
+
+  // Rule parents (SNOMED concepts) -> suggested test code arrays
+  const SUGGESTION_RULES = [
+    { parents: ['359752005'], tests: ['269820002','313440008','26604007'] },
+    { parents: ['276319003','609624008'], tests: ['166434005','45036003'] },
+    { parents: ['82271004'], tests: ['241601008'] },
+    { parents: ['125599006'], tests: ['3621000087107','3631000087109'] }
+  ];
 
   // ---- Practitioner resources (from user) ----
   const practitionerResources = {
@@ -401,13 +429,15 @@
 
   // ---------- Notes reason tags (live after 4+ chars, top 8, count=20) ----------
   function renderReasonTags(){
-    const wrap=$("#notes-tags"); wrap.innerHTML='';
+    const wrap=document.querySelector("#notes-tags"); wrap.innerHTML='';
     reasonTags.forEach((t,idx)=>{
       const chip=document.createElement('span'); chip.className='chip'; chip.innerHTML=`<span>${t.display}</span>`;
       const x=document.createElement('button'); x.type='button'; x.textContent='✕';
-      x.onclick=()=>{ reasonTags.splice(idx,1); renderReasonTags(); }; chip.appendChild(x);
+      x.onclick=()=>{ reasonTags.splice(idx,1); renderReasonTags(); };
+      chip.appendChild(x);
       wrap.appendChild(chip);
     });
+    computeAndRenderSuggestions();
   }
   function showReasonSuggestions(items){
     const box=$("#notes-suggestions"), list=$("#notes-suggestion-list"); list.innerHTML='';
@@ -450,12 +480,96 @@
     return reasonTags.map(t=>({ coding:[{system:t.system||'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display }));
   }
   function buildCombinedNoteText(){
-    const notes=($("#clinical-notes").value||'').trim();
+    const notes=(document.querySelector("#clinical-notes").value||'').trim();
     const tagDisplays=(reasonTags||[]).map(t=>t.display).filter(Boolean);
     if(!tagDisplays.length) return notes;
     const tagLine=`Reason tags: ${Array.from(new Set(tagDisplays)).join('; ')}`;
     return notes ? `${notes}\n${tagLine}` : tagLine;
   }
+
+  // ---- Suggested tests engine ----
+  const subsumesCache = new Map();
+  function readOutcomeFromParameters(j){
+    try{
+      if(j?.resourceType==='Parameters' && Array.isArray(j.parameter)){
+        const outParam=j.parameter.find(p=>p.name==='outcome');
+        const resParam=j.parameter.find(p=>p.name==='result');
+        if(outParam){
+          const val = outParam.valueCode || outParam.valueString || (outParam.value && outParam.value.code);
+          if(typeof val==='string') return { outcome: val };
+        }
+        if(resParam && typeof resParam.valueBoolean==='boolean'){
+          return { result: !!resParam.valueBoolean };
+        }
+      }
+      if(typeof j?.outcome==='string') return { outcome: j.outcome };
+      if(typeof j?.result==='boolean') return { result: j.result };
+    }catch{}
+    return {};
+  }
+  async function callSubsumes(codeA, codeB){
+    const url = `${TERM_BASE}/CodeSystem/$subsumes?system=http://snomed.info/sct&codeA=${encodeURIComponent(codeA)}&codeB=${encodeURIComponent(codeB)}`;
+    setDebugUrl(url);
+    const r = await fetch(url, { headers: { Accept: 'application/fhir+json' } });
+    if(!r.ok) throw new Error('subsumes '+r.status);
+    const j = await r.json();
+    return readOutcomeFromParameters(j);
+  }
+  async function snomedSubsumes(parent, child){
+    const key = parent+'|'+child; if(subsumesCache.has(key)) return subsumesCache.get(key);
+    try{
+      let { outcome, result } = await callSubsumes(parent, child);
+      let match = (outcome==='subsumes' || outcome==='equivalent' || result===true);
+      if(!match){
+        ({ outcome, result } = await callSubsumes(child, parent));
+        match = (outcome==='specializes' || outcome==='equivalent' || result===true);
+      }
+      subsumesCache.set(key, !!match);
+      return !!match;
+    }catch(e){ console.warn('subsumes',e); subsumesCache.set(key,false); return false; }
+  }
+
+  async function computeSuggestions(){
+    const codes = (reasonTags||[]).filter(t=> (t.system||'http://snomed.info/sct').includes('snomed')).map(t=>t.code);
+    if(!codes.length) return [];
+    const suggestions = new Set();
+    for(const rule of SUGGESTION_RULES){
+      let match=false;
+      for(const parent of rule.parents){
+        for(const c of codes){
+          if(await snomedSubsumes(parent, c)){ match=true; break; }
+        }
+        if(match) break;
+      }
+      if(match){ rule.tests.forEach(tc=> suggestions.add(tc)); }
+    }
+    const selectedCodes = new Set(selectedTests.map(t=>t.code));
+    return Array.from(suggestions).filter(c=> !selectedCodes.has(c));
+  }
+
+  async function renderSuggestedTests(){
+    const cont = document.getElementById('suggested-tests');
+    const empty = document.getElementById('suggested-tests-empty');
+    if(!cont||!empty) return;
+    cont.innerHTML='';
+    const list = await computeSuggestions();
+    if(!list.length){ empty.classList.remove('hidden'); return; }
+    empty.classList.add('hidden');
+    list.forEach(code=>{
+      const meta = SUGGESTED_TESTS_META[code] || { display: code, kind: 'PATH' };
+      const chip = document.createElement('span');
+      chip.className='chip';
+      const label = document.createElement('span');
+      label.textContent = meta.display;
+      const add = document.createElement('button');
+      add.type='button'; add.textContent='＋';
+      add.title='Add test';
+      add.onclick=()=>{ addSelectedTest({ system:'http://snomed.info/sct', code, display: meta.display, kind: meta.kind }); renderSuggestedTests(); };
+      chip.appendChild(label); chip.appendChild(add); cont.appendChild(chip);
+    });
+  }
+
+  function computeAndRenderSuggestions(){ renderSuggestedTests(); }
 
   // ---------- Favourites (two columns) ----------
   function renderFavColumn(items, kind){
@@ -499,10 +613,12 @@
     }
     renderSelectedTests();
     document.querySelectorAll(`.fav[data-code="${test.code}"]`).forEach(cb=>cb.checked=true);
+    computeAndRenderSuggestions();
   }
   function removeSelectedTestByCode(code){
     selectedTests = selectedTests.filter(t=>t.code!==code); renderSelectedTests();
     document.querySelectorAll(`.fav[data-code="${code}"]`).forEach(cb=>cb.checked=false);
+    computeAndRenderSuggestions();
   }
   function renderSelectedTests(){
     const ul = document.querySelector('#selected-tests');
@@ -579,7 +695,7 @@
         top.forEach(it=>{
           const li=document.createElement('li'); li.className='p-2 hover:bg-gray-100 cursor-pointer';
           li.textContent=it.display||it.code||'—';
-          li.onclick=()=>{ addSelectedTest({system:it.system, code:it.code, display:it.display||it.code, kind}); list.innerHTML=''; inp.value=''; };
+          li.onclick=()=>{ addSelectedTest({system:it.system||'http://snomed.info/sct', code:it.code, display:it.display||it.code, kind}); list.innerHTML=''; inp.value=''; };
           list.appendChild(li);
         });
       }, 250);
@@ -678,7 +794,7 @@
         // http://hl7.org/fhir/ValueSet/request-priority
         priority: (t.priority || 'routine'),
         category:[category],
-        code:{ coding:[{system:t.system, code:t.code, display:t.display}], text:t.display },
+        code:{ coding:[{system:'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display },
         subject:{reference:uPt},
         requester:{ reference: roleRef }, // PractitionerRole as requester (AU Core)
         reasonCode:buildReasonCodeArray(),
@@ -760,6 +876,7 @@
   // ---------- Boot ----------
   renderFavsForUser($("#doctor-select").value||'Dr Confident Cane Toad');
   updateSpecialtyDisplay($("#doctor-select").value||'Dr Confident Cane Toad');
+  computeAndRenderSuggestions();
   if(location.protocol==='file:') showStatus('Running as file:// — some browsers block fetch. Use a local server for full functionality.');
   // quick Ontoserver ping
   (async ()=>{
