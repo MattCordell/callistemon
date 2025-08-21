@@ -61,6 +61,16 @@
             <option value="unknown" selected>unknown</option>
           </select>
         </label>
+
+        <!-- Pregnancy Status -->
+        <label class="block md:col-span-2">
+          <span class="block text-sm font-medium">Pregnancy Status</span>
+          <select id="pregnancy-status" class="border rounded w-full p-2">
+            <option value="">— Select pregnancy status —</option>
+          </select>
+          <p class="text-xs text-gray-500 mt-1">Values from IPS ValueSet; left empty by default.</p>
+        </label>
+
         <div class="md:col-span-2 border rounded p-3">
           <div class="text-sm font-medium mb-1">Address</div>
           <div id="patient-address" class="text-sm text-gray-700 whitespace-pre-line">—</div>
@@ -191,8 +201,8 @@
   <div class="modal p-4">
     <div class="flex items-start justify-between gap-4 border-b pb-3">
       <div>
-        <h3 class="text-lg font-semibold">Resource Location</h3>
-        <p class="text-sm text-gray-500">Scan to open the created resource.</p>
+        <h3 class="text-lg font-semibold">Task Group Location</h3>
+        <p class="text-sm text-gray-500">Scan to open the created Task Group (requisition).</p>
       </div>
       <button id="qr-close" class="rounded-full p-2 hover:bg-gray-100" aria-label="Close">✕</button>
     </div>
@@ -216,13 +226,21 @@
   const FHIR_BASE = "https://server.fire.ly"; // Change to your FHIR endpoint
   const ONTO_BASE = "https://tx.ontoserver.csiro.au/fhir/ValueSet/$expand";
   const TERM_BASE = "https://tx.ontoserver.csiro.au/fhir"; // for $subsumes
+
   const VS = {
     PATH: "https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3",
     IMAG: "https://ranzcr.com/fhir/ValueSet/radiology-referral-1",
-    REASON: "https://healthterminologies.gov.au/fhir/ValueSet/reason-for-procedure-1"
+    REASON: "https://healthterminologies.gov.au/fhir/ValueSet/reason-for-procedure-1",
+    PREGNANCY: "http://hl7.org/fhir/uv/ips/ValueSet/pregnancy-status-uv-ips"
   };
+
+  const AU_PROFILES = {
+    TASK_GROUP: "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-task-group",
+    TASK_DIAG:  "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-task-diagnosticrequest",
+    SR_DIAG:    "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-diagnosticrequest"
+  };
+
   const MAX_NOTE_SUG = 8;
-  const PRIORITIES = ['routine','urgent','asap','stat'];
   const XRAY_PARENT = '363680008'; // Radiographic imaging procedure
 
   const CAT = {
@@ -230,7 +248,7 @@
     IMAG: { coding: [{ system: "http://snomed.info/sct", code: "363679005", display: "Imaging" }] }
   };
 
-  // Suggested tests metadata
+  // Suggested tests metadata (demo only)
   const SUGGESTED_TESTS_META = {
     "269820002": { display: "Serum iron tests", kind: 'PATH' },
     "313440008": { display: "Serum TSH measurement", kind: 'PATH' },
@@ -242,7 +260,6 @@
     "3631000087109": { display: "Plain X-ray of right hand", kind: 'IMAG' }
   };
 
-  // Rules: parents -> tests
   const SUGGESTION_RULES = [
     { parents: ['359752005'], tests: ['269820002','313440008','26604007'] },
     { parents: ['276319003','609624008'], tests: ['166434005','45036003'] },
@@ -329,12 +346,28 @@
   catch(e){ console.warn("JSONViewer fallback",e); viewer={ show:(o)=>{ $("#json-viewer").innerHTML=`<pre class='mono text-xs whitespace-pre-wrap'></pre>`; $("#json-viewer pre").textContent=JSON.stringify(o,null,2);} }; }
 
   // ----- Debug strip -----
-  const dbg = { panel:$("#debug-panel"), toggle:$("#debug-toggle"), close:$("#debug-close"), copy:$("#debug-copy"), last:$("#last-expand-url"), list:$("#expand-history"), history:[], max:50 };
-  function setDebugUrl(url){ if(!url) return; dbg.last.textContent=url; dbg.history.unshift({url,ts:new Date()}); if(dbg.history.length>dbg.max) dbg.history.pop(); renderDebugHistory(); }
-  function renderDebugHistory(){ const ul=dbg.list; ul.innerHTML=''; dbg.history.forEach(i=>{ const li=document.createElement('li'); li.className='break-all'; li.textContent=`[${i.ts.toLocaleTimeString()}] ${i.url}`; ul.appendChild(li); }); }
+  const dbg = { panel:$("#debug-panel"), toggle:$("#debug-toggle"), close:$("#debug-close"), copy:$("#debug-copy"), last:"#last-expand-url", list:"#expand-history", history:[], max:50 };
+  function setDebugUrl(url){
+    if(!url) return;
+    const last = document.querySelector(dbg.last);
+    last.textContent=url;
+    dbg.history.unshift({url,ts:new Date()});
+    if(dbg.history.length>dbg.max) dbg.history.pop();
+    const ul=document.querySelector(dbg.list); ul.innerHTML='';
+    dbg.history.forEach(i=>{
+      const li=document.createElement('li');
+      li.className='break-all';
+      li.textContent=`[${i.ts.toLocaleTimeString()}] ${i.url}`;
+      ul.appendChild(li);
+    });
+  }
   dbg.toggle.addEventListener('click', ()=>dbg.panel.classList.toggle('hidden'));
   $("#debug-close").addEventListener('click', ()=>dbg.panel.classList.add('hidden'));
-  dbg.copy.addEventListener('click', async ()=>{ const t=dbg.last.textContent||''; if(!t) return; try{ await navigator.clipboard.writeText(t); dbg.copy.textContent='Copied!'; setTimeout(()=>dbg.copy.textContent='Copy last',1200);}catch{} });
+  $("#debug-copy").addEventListener('click', async ()=>{
+    const t=document.querySelector(dbg.last).textContent||'';
+    if(!t) return;
+    try{ await navigator.clipboard.writeText(t); const btn=$("#debug-copy"); const old=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=old,1200);}catch{}
+  });
 
   // ----- State -----
   let selectedTests=[]; // {system, code, display, kind, priority, warnSet:Set<string>}
@@ -342,13 +375,26 @@
   let reasonTags=[];
   let notesAnchor=0;
   let ptMode='search';
-  let currentPatientResource=null; // set when selecting existing patient
+  let currentPatientResource=null;
   let suggestedRenderToken=0;
+
+  // Keep requisition id to resolve Task Group URL post-transaction
+  let lastRequisitionId = null; // PGN value
 
   // ----- Utils -----
   function uuidURN(){return "urn:uuid:" + (crypto?.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(16).slice(2));}
   function newUUID(){ return (crypto?.randomUUID ? crypto.randomUUID() : (Date.now()+"-"+Math.random().toString(16).slice(2))); }
-  function formatAddress(addr){ if(!addr) return ''; if(addr.text) return addr.text; const parts=[]; if(Array.isArray(addr.line)&&addr.line.length) parts.push(addr.line.join(', ')); if(addr.city) parts.push(addr.city); if(addr.state) parts.push(addr.state); if(addr.postalCode) parts.push(addr.postalCode); if(addr.country) parts.push(addr.country); return parts.filter(Boolean).join(', '); }
+  function formatAddress(addr){
+    if(!addr) return '';
+    if(addr.text) return addr.text;
+    const parts=[];
+    if(Array.isArray(addr.line)&&addr.line.length) parts.push(addr.line.join(', '));
+    if(addr.city) parts.push(addr.city);
+    if(addr.state) parts.push(addr.state);
+    if(addr.postalCode) parts.push(addr.postalCode);
+    if(addr.country) parts.push(addr.country);
+    return parts.filter(Boolean).join(', ');
+  }
 
   // ----- Patient mode + Autocomplete -----
   const ptThumb=$("#ptThumb"), btnSearch=$("#ptBtnSearch"), btnNew=$("#ptBtnNew"), nameInp=$("#patient-name"), ac=$("#pt-ac"), help=$("#pt-mode-help");
@@ -519,7 +565,7 @@
     }catch(e){ console.warn('subsumes',e); subsumesCache.set(key,false); return false; }
   }
 
-  // ----- Suggestions engine (tokenized to avoid dupes) -----
+  // ----- Suggestions engine -----
   async function computeSuggestions(){
     const codes = (reasonTags||[]).filter(t=> (t.system||'http://snomed.info/sct').includes('snomed')).map(t=>t.code);
     if(!codes.length) return [];
@@ -595,11 +641,10 @@
     });
   }
 
-  // ----- History checks (SNOMED subsumption for XR) -----
+  // ----- History checks -----
   function isoDateMonthsAgo(m){ const d=new Date(); d.setMonth(d.getMonth()-m); return d.toISOString(); }
   function isoDateDaysAgo(dy){ const d=new Date(Date.now()-dy*24*60*60*1000); return d.toISOString(); }
 
-  // Generic _summary=count with fallbacks for date param and SNOMED param
   async function fhirCount(resourceType, params){
     const tryDateParams = params.tryDateParams || ['authored','date','issued','effective','_lastUpdated'];
     const codeParamOrder = [];
@@ -628,7 +673,6 @@
     return 0;
   }
 
-  // Manual fallback: fetch entries and test codes via $subsumes
   async function manualCountSRSubsumed(patientId, sinceISO){
     try{
       const url=new URL(`${FHIR_BASE}/ServiceRequest`);
@@ -642,7 +686,6 @@
       const j=await r.json();
       const entries = Array.isArray(j.entry) ? j.entry : [];
       let cnt=0;
-      // sequential to respect servers; cache reduces repeated calls
       for(const e of entries){
         const res=e.resource;
         const codings=(res?.code?.coding||[]).filter(c=> (c.system||'').includes('snomed') && c.code);
@@ -660,7 +703,6 @@
     const since = isoDateDaysAgo(30);
     const base = { subject: `Patient/${patientId}` };
 
-    // 1) ServiceRequest by SNOMED (preferred)
     let n = await fhirCount('ServiceRequest', {
       base, sinceISO: since,
       codeBelow: 'http://snomed.info/sct|'+XRAY_PARENT,
@@ -668,12 +710,10 @@
       tryDateParams:['authored','date','_lastUpdated']
     });
     if(n===0){
-      // manual subsumption fallback if no server-side SNOMED filtering
       n = await manualCountSRSubsumed(patientId, since);
     }
     if(n>=3) return n;
 
-    // 2) DiagnosticReport as a backup (server-side SNOMED filter only)
     n += await fhirCount('DiagnosticReport', {
       base, sinceISO: since,
       codeBelow: 'http://snomed.info/sct|'+XRAY_PARENT,
@@ -695,14 +735,12 @@
     try{
       const pid = currentPatientResource?.id; if(!pid) return false;
       let changed=false;
-      // HbA1c within 6 months
       if(test.code==='43396009'){
         const since = isoDateMonthsAgo(6);
         const base = { subject: `Patient/${pid}` };
         const n = await fhirCount('ServiceRequest', { base, sinceISO: since, code: 'http://snomed.info/sct|43396009', tryDateParams:['authored','date','_lastUpdated'] });
         changed = setWarn(test, 'Patient has already had a HbA1c recently', n>0) || changed;
       }
-      // X-ray burden in last month (>=3), using subsumption to XRAY_PARENT
       const isXray = await snomedSubsumes(XRAY_PARENT, test.code);
       if(isXray){
         const cnt = await countRecentXRays(pid);
@@ -713,7 +751,6 @@
   }
 
   async function applyRadiationGroupWarning(){
-    // Count selected tests that are XRAY_PARENT descendants
     const codes = selectedTests.map(t=>t.code);
     let xrayCount = 0;
     for(const c of codes){
@@ -732,7 +769,6 @@
       if(!test.priority) test.priority = 'routine';
       ensureWarnSet(test);
       selectedTests.push(test);
-      // async history warning + group warning
       checkTestHistoryWarning(test).then(changed=>{ if(changed) renderSelectedTests(); });
       applyRadiationGroupWarning();
     }
@@ -820,16 +856,18 @@
 
   // ----- Ontoserver $expand -----
   async function expandFromOntoserver(vsCanonicalUrl, filter){
-    if(!filter||filter.trim().length<2) return [];
     try{
-      const url=`${ONTO_BASE}?url=${encodeURIComponent(vsCanonicalUrl)}&count=20&filter=${encodeURIComponent(filter)}`;
+      const url = filter && filter.trim().length
+        ? `${ONTO_BASE}?url=${encodeURIComponent(vsCanonicalUrl)}&count=20&filter=${encodeURIComponent(filter)}`
+        : `${ONTO_BASE}?url=${encodeURIComponent(vsCanonicalUrl)}&count=50`;
       setDebugUrl(url);
       const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
       if(!r.ok) throw new Error(`Ontoserver ${r.status}`);
       const j=await r.json();
       return j?.expansion?.contains||[];
-    }catch(e){ console.warn(e); showError('Could not fetch ValueSet from Ontoserver.'); return []; }
+    }catch(e){ console.warn('Ontoserver expand failed', e); return []; }
   }
+
   function setupSearch(inputSel, listSel, vsCanonicalUrl, kind){
     const inp=$(inputSel), list=$(listSel); let to=null;
     inp.addEventListener('input', ()=>{
@@ -861,6 +899,28 @@
     el.textContent = sp ? `Specialty: ${sp.display}` : '';
   }
 
+  // ----- Pregnancy status dropdown population -----
+  async function populatePregnancyStatus(){
+    const sel = document.getElementById('pregnancy-status');
+    // Try dynamic expand from IPS ValueSet; fall back to known SNOMED codes if needed
+    const items = await expandFromOntoserver(VS.PREGNANCY);
+    let options = items;
+    if(!options.length){
+      options = [
+        { system: 'http://snomed.info/sct', code: '77386006', display: 'Pregnant (finding)' },
+        { system: 'http://snomed.info/sct', code: '60001007', display: 'Not pregnant (finding)' },
+        { system: 'http://snomed.info/sct', code: '261665006', display: 'Unknown (qualifier value)' }
+      ];
+    }
+    options.forEach(o=>{
+      const opt = document.createElement('option');
+      opt.value = o.code;
+      opt.textContent = o.display || o.code;
+      opt.dataset.system = o.system || 'http://snomed.info/sct';
+      sel.appendChild(opt);
+    });
+  }
+
   // ----- Build Practitioner/Role entries -----
   function buildPractitionerAndRoleEntries(selectedName){
     const pracRes = practitionerResources[selectedName];
@@ -879,7 +939,7 @@
     return { practitionerEntry, roleEntry, roleRef: roleFullUrl };
   }
 
-  // ----- Build Patient (reuse existing if selected) -----
+  // ----- Build Patient -----
   function buildPatientResourceFromForm(){
     const name=(nameInp.value||'').trim()||'John Citizen';
     const parts=name.split(/\s+/); const given=parts[0]||'John'; const family=parts.length>1?parts[parts.length-1]:'Citizen';
@@ -901,7 +961,7 @@
     return { patientRef: full, entry: { fullUrl: full, resource: newPat, request:{method:'POST', url:'Patient'} } };
   }
 
-  // ----- Build Bundle -----
+  // ----- Build Bundle (AU eRequesting grouping + pregnancy status) -----
   function buildBundle(){
     const { patientRef, entry: patientEntry } = providePatientRefAndEntry();
     const doctorName = $("#doctor-select").value || 'Dr Confident Cane Toad';
@@ -914,15 +974,20 @@
 
     const now = new Date().toISOString();
 
-    // AU eRequesting Task Group
+    // Placer Group Number shared across group
     const requisitionId = newUUID();
+    lastRequisitionId = requisitionId;
+
     const groupIdentifier = {
       value: requisitionId,
       type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'PGN', display: 'Placer group number' }] }
     };
+
+    // AU eRequesting Task Group
     const groupTaskFullUrl = uuidURN();
     const groupTask = {
       resourceType: 'Task',
+      meta: { profile: [AU_PROFILES.TASK_GROUP] },
       identifier: [{ value: requisitionId }],
       groupIdentifier,
       status: 'requested',
@@ -933,6 +998,26 @@
     };
     entries.push({ fullUrl: groupTaskFullUrl, resource: groupTask, request: { method: 'POST', url: 'Task' } });
 
+    // Pregnancy status Observation (if chosen)
+    const pregSel = document.getElementById('pregnancy-status');
+    const pregCode = pregSel?.value || '';
+    let pregObsFullUrl = null;
+    if(pregCode){
+      pregObsFullUrl = uuidURN();
+      const sys = pregSel.selectedOptions[0].dataset.system || 'http://snomed.info/sct';
+      const disp = pregSel.selectedOptions[0].textContent;
+      const pregObs = {
+        resourceType: 'Observation',
+        meta: { profile: ["http://hl7.org/fhir/uv/ips/StructureDefinition/Observation-pregnancy-status-uv-ips"] },
+        status: 'final',
+        code: { coding:[{system:'http://loinc.org',code:'82810-3',display:'Pregnancy status'}], text: 'Pregnancy status' },
+        subject: { reference: patientRef },
+        effectiveDateTime: now,
+        valueCodeableConcept: { coding:[{system: sys, code: pregCode, display: disp}], text: disp }
+      };
+      entries.push({ fullUrl: pregObsFullUrl, resource: pregObs, request:{method:'POST', url:'Observation'} });
+    }
+
     const combinedNote=buildCombinedNoteText();
 
     selectedTests.forEach(t=>{
@@ -940,6 +1025,7 @@
       const srFullUrl = uuidURN();
       const srResource = {
         resourceType:'ServiceRequest',
+        meta: { profile: [AU_PROFILES.SR_DIAG] },
         status:'active',
         intent:'order',
         priority: (t.priority || 'routine'),
@@ -947,15 +1033,22 @@
         code:{ coding:[{system:'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display },
         subject:{reference:patientRef},
         requester:{ reference: roleRef },
+        requisition: groupIdentifier, // share PGN on each SR
         reasonCode:buildReasonCodeArray(),
         note: combinedNote ? [{text:combinedNote}] : []
       };
+      if(pregObsFullUrl){
+        // add supportingInfo (pregnancyStatus slice in the profile)
+        srResource.supportingInfo = (srResource.supportingInfo||[]);
+        srResource.supportingInfo.push({ reference: pregObsFullUrl });
+      }
       entries.push({ fullUrl: srFullUrl, resource: srResource, request:{method:'POST', url:'ServiceRequest'} });
 
-      // AU eRequesting Task Diagnostic Request
+      // AU eRequesting Task Diagnostic Request (per SR)
       const diagTaskFullUrl = uuidURN();
       const diagTask = {
         resourceType: 'Task',
+        meta: { profile: [AU_PROFILES.TASK_DIAG] },
         identifier: [{ value: newUUID() }],
         groupIdentifier,
         partOf: [{ reference: groupTaskFullUrl }],
@@ -964,14 +1057,15 @@
         priority: (t.priority || 'routine'),
         focus: { reference: srFullUrl },
         for: { reference: patientRef },
-        authoredOn: now
+        authoredOn: now,
+        requester: { reference: roleRef }
       };
       entries.push({ fullUrl: diagTaskFullUrl, resource: diagTask, request: { method: 'POST', url: 'Task' } });
     });
 
     const bundle={ resourceType:'Bundle', type:'transaction', entry:entries };
     viewer.show(bundle);
-    return bundle;
+    return { bundle, requisitionId };
   }
   document.getElementById('build-bundle').addEventListener('click', ()=>{ buildBundle(); });
 
@@ -991,11 +1085,38 @@
   qrOpen?.addEventListener('click', ()=> { const u = qrUrlEl.textContent.trim(); if(u) window.open(u, "_blank"); });
   qrCopy?.addEventListener('click', async ()=> { try{ await navigator.clipboard.writeText(qrUrlEl.textContent.trim()); const b=qrCopy; const t=b.textContent; b.textContent='Copied!'; setTimeout(()=>b.textContent=t,1200);}catch{} });
 
+  // Resolve Task Group absolute URL via PGN search
+  async function resolveTaskGroupUrlFromServer(){
+    try{
+      if(!lastRequisitionId) return null;
+      const url = new URL(`${FHIR_BASE}/Task`);
+      url.searchParams.set('identifier', lastRequisitionId);
+      url.searchParams.set('_count','5');
+      const r = await fetch(url.toString(), { headers: { Accept: 'application/fhir+json' } });
+      if(!r.ok) return null;
+      const j = await r.json();
+      const entries = Array.isArray(j.entry) ? j.entry : [];
+      let group = null;
+      // Prefer Task with AU Task Group profile
+      for(const e of entries){
+        const res = e.resource;
+        const profiles = res?.meta?.profile || [];
+        if(profiles.includes(AU_PROFILES.TASK_GROUP)) { group = res; break; }
+      }
+      // Fallback: pick a Task without focus (typical for group task)
+      if(!group){
+        for(const e of entries){ const res = e.resource; if(res && !res.focus) { group = res; break; } }
+      }
+      if(!group || !group.id) return null;
+      return `${FHIR_BASE.replace(/\/$/,'')}/Task/${group.id}`;
+    }catch(e){ console.warn('resolveTaskGroupUrlFromServer', e); return null; }
+  }
+
   // ----- Send to server -----
   document.getElementById('send-btn').addEventListener('click', async ()=>{
     const out=$("#server-response");
     out.textContent='Sending…';
-    const bundle=buildBundle();
+    const { bundle } = buildBundle();
     try{
       const r=await fetch(FHIR_BASE, {
         method:'POST',
@@ -1006,16 +1127,25 @@
       out.textContent=`Response ${r.status}:\n`+text;
 
       if(r.status===200){
-        try{
-          const j = JSON.parse(text);
-          const entries = Array.isArray(j?.entry) ? j.entry : [];
-          let primary = null;
-          for(const e of entries){
-            const loc = e?.response?.location || e?.location || null;
-            if(loc){ primary = loc; break; }
-          }
-          if(primary){ showQr(primary); }
-        }catch(e){ console.warn('Could not parse response JSON for location', e); }
+        // Best-effort: resolve the absolute URL of the Task Group and display QR
+        let groupUrl = await resolveTaskGroupUrlFromServer();
+
+        // Fallback: parse the transaction-response for a Task location
+        if(!groupUrl){
+          try{
+            const j = JSON.parse(text);
+            const entries = Array.isArray(j?.entry) ? j.entry : [];
+            for(const e of entries){
+              const loc = e?.response?.location || e?.location || null;
+              if(loc && /\/Task\/.+/.test(loc)){
+                groupUrl = loc.startsWith('http') ? loc : `${FHIR_BASE.replace(/\/$/,'')}/${loc.replace(/^\//,'')}`;
+                break;
+              }
+            }
+          }catch(e){ console.warn('Could not parse response JSON for location', e); }
+        }
+
+        if(groupUrl){ showQr(groupUrl); }
       }
     }catch(e){
       console.error(e);
@@ -1027,6 +1157,7 @@
   renderFavsForUser($("#doctor-select").value||'Dr Confident Cane Toad');
   updateSpecialtyDisplay($("#doctor-select").value||'Dr Confident Cane Toad');
   computeAndRenderSuggestions();
+  populatePregnancyStatus();
   if(location.protocol==='file:') showStatus('Running as file:// — some browsers block fetch. Use a local server for full functionality.');
   (async ()=>{
     try{
