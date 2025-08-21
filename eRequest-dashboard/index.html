@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>eRequest Dashboard — v6.3</title>
+  <title>eRequest Dashboard — v6.5</title>
   <!-- Tailwind Play CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <meta name="description" content="FHIR ServiceRequest dashboard" />
@@ -18,12 +18,12 @@
 
   <script type="text/babel" data-presets="react">
     /**
-     * eRequest Dashboard — v6.3 (single-file)
-     * - Keeps tx.ontoserver as default terminology server
-     * - Filters: Category (All/Lab/Imaging), Modality (ECL), Anatomy (AU body-site-1 combobox, ≥3 chars, first 5)
-     * - Patient list, row-click selection, photos, 42s polling
-     * - Dropdowns show display text only; no code counts or "selected:" labels
-     * - Anatomy results are now a styled dropdown to match Modality’s look & feel (without changing functionality)
+     * eRequest Dashboard — v6.5 (single-file)
+     * - Incoming Services additions:
+     *    • Task column now shows: Task.status — Task.businessStatus.text (if present)
+     *    • Priority (ServiceRequest.priority)
+     *    • Since Authored (live, only when priority !== "routine")
+     * - Uses _revinclude=Task:based-on to fetch Tasks linked to SRs.
      */
 
     // ----------------------------- Error Boundary ------------------------------
@@ -97,13 +97,15 @@
     function refKey(ref) { return (ref || "").trim(); }
     function formatDateTime(dtStr) { if (!dtStr) return ""; const d = new Date(dtStr); if (Number.isNaN(d.getTime())) return dtStr; return d.toLocaleString(); }
 
-    // Normalize any absolute or versioned reference to canonical "Patient/{id}"
-    function normalizePatientRef(ref) {
+    // Normalize any absolute or versioned reference to canonical "Patient/{id}" or "ServiceRequest/{id}"
+    function normalizeRef(ref, type) {
       const s = refKey(ref);
       if (!s) return "";
-      const m = s.match(/Patient\/([^\/#?]+)/);
-      return m ? ("Patient/" + m[1]) : s;
+      const m = s.match(new RegExp(type + "\\/([^\\/#?]+)"));
+      return m ? (type + "/" + m[1]) : s;
     }
+    function normalizePatientRef(ref){ return normalizeRef(ref, "Patient"); }
+    function normalizeServiceRequestRef(ref){ return normalizeRef(ref, "ServiceRequest"); }
 
     // Build absolute URL from base + path (handles slashes)
     function absUrl(base, path) {
@@ -187,7 +189,7 @@
       const vsUrl = "http://snomed.info/sct?fhir_vs=ecl/" + encodeURIComponent(ecl);
       const url = txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=" + encodeURIComponent(vsUrl) + "&count=2000";
       const { ok, status, data, text } = await fetchJson(url);
-      if (!ok) throw new Error("$expand ECL failed: " + status + (text ? " — " + text : ""));
+      if (!ok) throw new Error("$expand ECL failed: " + status + (text ? " — " + text : "")); // hyphen only
       const contains = (data && data.expansion && data.expansion.contains) || [];
       const set = new Set();
       for (let i = 0; i < contains.length; i++) {
@@ -218,7 +220,7 @@
         } catch (e) { /* ignore */ }
       }
       const msg = resp && (resp.text || (resp.data && resp.data.issue && JSON.stringify(resp.data.issue)) || "");
-      throw new Error("$expand ValueSet failed: " + (resp ? resp.status : "?") + (msg ? " — " + msg : ""));
+      throw new Error("$expand ValueSet failed: " + (resp ? resp.status : "?") + (msg ? " — " + msg : "")); // hyphen only
     }
 
     // ------------------------------ Component ---------------------------------
@@ -240,8 +242,9 @@
       const [error, setError] = useState("");
 
       // Data
-      const [srList, setSrList] = useState([]); // ServiceRequest[]
-      const [patientMap, setPatientMap] = useState({}); // ref -> Patient
+      const [srList, setSrList] = useState([]);            // ServiceRequest[]
+      const [patientMap, setPatientMap] = useState({});    // ref -> Patient
+      const [taskBySrId, setTaskBySrId] = useState({});    // "ServiceRequest/{id}" -> Task
       const [nextLink, setNextLink] = useState("");
 
       // Patient view state
@@ -292,6 +295,13 @@
       const [polling] = useState(true);
       const pollingRef = useRef(null);
 
+      // Tick to refresh "Since Authored" every 60s
+      const [, setNowTick] = useState(Date.now());
+      useEffect(() => {
+        const t = setInterval(() => setNowTick(Date.now()), 60000);
+        return () => clearInterval(t);
+      }, []);
+
       // persist selections
       useEffect(() => { try { if (baseUrl && typeof localStorage !== "undefined") localStorage.setItem("fhirBase", baseUrl); } catch {} }, [baseUrl]);
       useEffect(() => { try { if (txBase && typeof localStorage !== "undefined") localStorage.setItem("txBase", txBase); } catch {} }, [txBase]);
@@ -306,7 +316,12 @@
         if (!canSearch) return;
         setError(""); setLoading(true);
         try {
-          const query = new URLSearchParams({ _count: "50", _include: "ServiceRequest:subject", _sort: "-authoredon,-_lastUpdated" });
+          const query = new URLSearchParams({
+            _count: "50",
+            _include: "ServiceRequest:subject",
+            _revinclude: "Task:based-on",
+            _sort: "-authoredon,-_lastUpdated"
+          });
           const bundle = await fhirGET(baseUrl, "ServiceRequest?" + query.toString());
           applyBundle(bundle, /*reset*/ true);
           if (resetSelection) setSelectedPatientRef("");
@@ -332,16 +347,34 @@
         const entries = (bundle && bundle.entry) || [];
         const nextPatients = reset ? {} : { ...patientMap };
         const nextSRsMap = new Map(((reset ? [] : srList)).map((r) => [r.id, r]));
+        const nextTaskBySrId = reset ? {} : { ...taskBySrId };
 
         for (let i = 0; i < entries.length; i++) {
           const r = entries[i] && entries[i].resource;
           if (!r) continue;
           if (r.resourceType === "ServiceRequest") nextSRsMap.set(r.id, r);
           if (r.resourceType === "Patient") nextPatients["Patient/" + r.id] = r;
+          if (r.resourceType === "Task" && Array.isArray(r.basedOn)) {
+            for (const ref of r.basedOn) {
+              const srRef = normalizeServiceRequestRef(ref && ref.reference);
+              if (srRef) {
+                // Keep the most recently updated task if multiples appear
+                const existing = nextTaskBySrId[srRef];
+                if (!existing) {
+                  nextTaskBySrId[srRef] = r;
+                } else {
+                  const a = new Date((r.meta && r.meta.lastUpdated) || 0).getTime();
+                  const b = new Date((existing.meta && existing.meta.lastUpdated) || 0).getTime();
+                  if (a >= b) nextTaskBySrId[srRef] = r;
+                }
+              }
+            }
+          }
         }
 
         setPatientMap(nextPatients);
         setSrList(Array.from(nextSRsMap.values()));
+        setTaskBySrId(nextTaskBySrId);
 
         const links = (bundle && bundle.link) || [];
         let nxt = "";
@@ -430,11 +463,36 @@
         return () => document.removeEventListener("click", onDocClick);
       }, []);
 
+      // "Since authored" pretty duration
+      function formatSince(ts) {
+        if (!ts) return "";
+        const then = new Date(ts).getTime();
+        if (Number.isNaN(then)) return "";
+        let ms = Date.now() - then;
+        if (ms < 0) ms = 0;
+        const min = Math.floor(ms / 60000);
+        const d = Math.floor(min / 1440);
+        const h = Math.floor((min % 1440) / 60);
+        const m = min % 60;
+        if (d > 0) return `${d}d ${h}h`;
+        if (h > 0) return `${h}h ${m}m`;
+        return `${m}m`;
+      }
+
       // Derived views -----------------------------------------------------------
       const allIncomingRows = React.useMemo(() => {
         const rows = srList.map((sr) => {
           const pref = normalizePatientRef(srPatientRef(sr));
           const p = patientMap[pref];
+          const srRef = "ServiceRequest/" + sr.id;
+          const task = taskBySrId[srRef];
+          const priority = sr && sr.priority ? String(sr.priority) : "";
+          const since = priority && priority.toLowerCase() !== "routine" ? formatSince(srAuthoredOn(sr)) : "";
+
+          // NEW: capture Task.businessStatus.text
+          const businessStatus =
+            (task && task.businessStatus && (task.businessStatus.text || (task.businessStatus.coding && task.businessStatus.coding[0] && task.businessStatus.coding[0].display))) || "";
+
           return {
             id: sr.id,
             date: srAuthoredOn(sr),
@@ -445,11 +503,15 @@
             status: sr.status || "",
             categorySct: snomedCodesFromCC(sr.category && sr.category[0]),
             testSct: snomedCodesFromCC(sr.code),
+            taskStatus: (task && task.status) ? String(task.status) : "",
+            taskBusinessStatus: businessStatus ? String(businessStatus) : "",
+            priority,
+            sinceAuthored: since,
           };
         });
         rows.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
         return rows;
-      }, [srList, patientMap]);
+      }, [srList, patientMap, taskBySrId]);
 
       const filteredIncomingRows = React.useMemo(() => {
         let out = allIncomingRows;
@@ -608,7 +670,7 @@
                     )}
                   </div>
 
-                  {/* Anatomy / Site (styled combobox: type to search, 1–5 results dropdown) */}
+                  {/* Anatomy / Site (styled combobox) */}
                   <div className="flex flex-wrap items-center gap-2 relative">
                     <div className="text-sm text-slate-300 w-28">Anatomy</div>
 
@@ -622,7 +684,7 @@
                         onChange={(e)=>{ setSiteQuery(e.target.value); setSiteMenuOpen(false); }}
                       />
 
-                      {/* Styled dropdown menu for results (looks consistent with select) */}
+                      {/* results dropdown */}
                       {siteMenuOpen && siteOptions.length > 0 && (
                         <div className="absolute z-20 mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-lg overflow-hidden">
                           <ul className="max-h-64 overflow-auto">
@@ -634,7 +696,6 @@
                                   setSiteQuery(opt.display);
                                   setSelectedSite(opt.code);
                                   setSiteMenuOpen(false);
-                                  // keep focus for quick edits
                                   requestAnimationFrame(() => siteInputRef.current && siteInputRef.current.focus());
                                 }}
                               >
@@ -668,6 +729,9 @@
                         <th className="px-4 py-3 font-medium">Test Name</th>
                         <th className="px-4 py-3 font-medium">Category</th>
                         <th className="px-4 py-3 font-medium">Status</th>
+                        <th className="px-4 py-3 font-medium">Task</th>
+                        <th className="px-4 py-3 font-medium">Priority</th>
+                        <th className="px-4 py-3 font-medium">Since Authored</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -684,6 +748,12 @@
                           <td className="px-4 py-2">{r.testName}</td>
                           <td className="px-4 py-2">{r.categoryText}</td>
                           <td className="px-4 py-2 uppercase tracking-wide text-slate-300">{r.status}</td>
+                          <td className="px-4 py-2 text-slate-200">
+                            <span className="uppercase tracking-wide">{r.taskStatus || ""}</span>
+                            {r.taskBusinessStatus ? <span>{` — ${r.taskBusinessStatus}`}</span> : null}
+                          </td>
+                          <td className="px-4 py-2 capitalize">{r.priority || ""}</td>
+                          <td className="px-4 py-2">{r.sinceAuthored || ""}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -812,13 +882,13 @@
                   <div className="font-semibold">State</div>
                   <pre className="whitespace-pre-wrap">{JSON.stringify({
                     mode, baseUrl, txBase, nextLink,
-                    counts: { srs: srList.length, patients: Object.keys(patientMap).length },
+                    counts: { srs: srList.length, patients: Object.keys(patientMap).length, tasks: Object.keys(taskBySrId).length },
                     filters: { categoryFilter, selectedModality, modalityCodes: modalityCodes.size, selectedSite, anatomyCodes: anatomyCodes.size },
                   }, null, 2)}</pre>
                 </div>
                 <div className="bg-slate-900/40 p-2 rounded-xl border border-slate-800">
                   <div className="font-semibold">Example queries</div>
-                  <pre className="whitespace-pre-wrap">{`FHIR GET ${baseUrl.replace(/\/$/, "")}/ServiceRequest?_count=50&_include=ServiceRequest:subject&_sort=-authoredon,-_lastUpdated
+                  <pre className="whitespace-pre-wrap">{`FHIR GET ${baseUrl.replace(/\/$/, "")}/ServiceRequest?_count=50&_include=ServiceRequest:subject&_revinclude=Task:based-on&_sort=-authoredon,-_lastUpdated
 $expand (ECL) ${txBase.replace(/\/$/, "")}/ValueSet/$expand?url=http://snomed.info/sct?fhir_vs=ecl/%3C%3C{SCTID}
 $expand (site) ${txBase.replace(/\/$/, "")}/ValueSet/$expand?url=${AU_BODY_SITE_VS}`}</pre>
                 </div>
