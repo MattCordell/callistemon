@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>eRequest Dashboard — v6.7</title>
-  <!-- Tailwind Play CDN -->
+  <title>eRequest Dashboard — v6.9</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <meta name="description" content="FHIR ServiceRequest dashboard" />
 </head>
@@ -19,27 +18,14 @@
   <!-- Use env+react so modern JS and JSX both transpile -->
   <script type="text/babel" data-presets="env,react">
     /**
-     * eRequest Dashboard — v6.7 (single-file)
-     * Incoming Services columns:
-     *  • Date
-     *  • Patient
-     *  • Test Name
-     *  • Category
-     *  • Status
-     *  • Task (Task.status — Task.businessStatus.text)
-     *  • Priority
-     *  • Since Authored (only if priority !== "routine")
-     *  • Performer (resolved names from ServiceRequest.performer)
-     *
-     * Fetch strategy:
-     *  - _include=ServiceRequest:subject (Patient)
-     *  - _include=ServiceRequest:performer (Practitioner/Organization/etc/PractitionerRole)
-     *  - _include:iterate=PractitionerRole:practitioner
-     *  - _include:iterate=PractitionerRole:organization
-     *  - _revinclude=Task:based-on
+     * eRequest Dashboard — v6.9
+     * Columns: Date, Patient, Test Name, Category, Status, Task (Task.status — Task.businessStatus.text),
+     *          Priority, Since Authored (if priority !== 'routine'), Performer.
+     * Fetch: _include=ServiceRequest:subject, _include=ServiceRequest:performer,
+     *        _include:iterate=PractitionerRole:practitioner, _include:iterate=PractitionerRole:organization,
+     *        _revinclude=Task:based-on, _revinclude=Task:focus
      */
 
-    // ----------------------------- Error Boundary ------------------------------
     class ErrorBoundary extends React.Component {
       constructor(props) { super(props); this.state = { error: null }; }
       static getDerivedStateFromError(error) { return { error }; }
@@ -62,7 +48,6 @@
       }
     }
 
-    // ----------------------------- React Hooks alias ---------------------------
     const { useEffect, useMemo, useRef, useState } = React;
 
     // ----------------------------- Helpers ------------------------------------
@@ -77,12 +62,7 @@
       const built = parts.join(", ").trim();
       return built || "";
     }
-
-    function patientName(patient) {
-      const s = humanName(patient);
-      return s || "(no name)";
-    }
-
+    function patientName(patient) { return humanName(patient) || "(no name)"; }
     function calcAge(birthDate) {
       if (!birthDate) return "";
       const dob = new Date(birthDate);
@@ -93,7 +73,6 @@
       if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
       return String(age);
     }
-
     function formatAddress(address) {
       if (!address) return "";
       const a = Array.isArray(address) ? address[0] : address;
@@ -107,7 +86,6 @@
       if (a.country) parts.push(a.country);
       return parts.filter(Boolean).join(", ");
     }
-
     function srAuthoredOn(sr) { return (sr && sr.authoredOn) || (sr && sr.meta && sr.meta.lastUpdated) || null; }
     function srCodeText(sr) {
       const t = sr && sr.code && sr.code.text;
@@ -126,8 +104,6 @@
       if (Number.isNaN(d.getTime())) return dtStr;
       return d.toLocaleString();
     }
-
-    // Normalize "ResourceType/{id}" from Reference string
     function normalizeRefStr(ref) {
       const s = String(ref || "").trim();
       const m = s.match(/^([A-Za-z]+)\/([^\/#?]+)/);
@@ -140,15 +116,11 @@
     }
     function normalizePatientRef(ref){ return normalizeRef(ref, "Patient"); }
     function normalizeServiceRequestRef(ref){ return normalizeRef(ref, "ServiceRequest"); }
-
-    // Build absolute URL from base + path (handles slashes)
     function absUrl(base, path) {
       const b = String(base || "").replace(/\/$/, "");
       const p = String(path || "").replace(/^\//, "");
       return b + "/" + p;
     }
-
-    // Resolve a FHIR Attachment to an <img src>
     function attachmentToImgSrc(att, baseUrl) {
       if (!att) return "";
       const data = att.data;
@@ -164,7 +136,6 @@
       }
       return "";
     }
-
     function getPatientPhotoSrc(patient, baseUrl) {
       if (!patient || !patient.photo || !Array.isArray(patient.photo) || patient.photo.length === 0) return "";
       for (let i = 0; i < patient.photo.length; i++) {
@@ -174,18 +145,23 @@
       return "";
     }
 
+    // Safe coding extraction
     function codingsFromCC(cc) {
       const arr = [];
       if (!cc) return arr;
       if (Array.isArray(cc)) {
         for (let i = 0; i < cc.length; i++) {
           const c = cc[i] && cc[i].coding;
-          if (Array.isArray(c)) { for (let j = 0; j < c.length; j++) { if (c[j]) arr.push(c[j]); } }
+          if (Array.isArray(c)) {
+            for (let j = 0; j < c.length; j++) { if (c[j]) arr.push(c[j]); }
+          }
         }
         return arr;
       }
       const coding = cc.coding;
-      if (Array.isArray(coding)) { for (let j = 0; j < coding.length; j++) { if (c[j]) arr.push(c[j]); } }
+      if (Array.isArray(coding)) {
+        for (let j = 0; j < coding.length; j++) { if (coding[j]) arr.push(coding[j]); }
+      }
       return arr;
     }
     function snomedCodesFromCC(cc) {
@@ -209,7 +185,6 @@
       "https://r4.ontoserver.csiro.au/fhir",
       "https://healthterminologies.gov.au/fhir"
     ];
-
     async function fetchJson(url) {
       const res = await fetch(url, { headers: { Accept: "application/fhir+json" } });
       const text = await res.text();
@@ -217,8 +192,6 @@
       try { data = text ? JSON.parse(text) : null; } catch { data = null; }
       return { ok: res.ok, status: res.status, data, text };
     }
-
-    // ECL -> Set of SNOMED codes via implicit VS
     async function expandEclToCodes(txBase, ecl) {
       const vsUrl = "http://snomed.info/sct?fhir_vs=ecl/" + encodeURIComponent(ecl);
       const url = txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=" + encodeURIComponent(vsUrl) + "&count=2000";
@@ -232,8 +205,6 @@
       }
       return set;
     }
-
-    // ValueSet $expand with filter and optional canonical fallback on 404
     async function expandValueSetFiltered(txBase, canonicalUrl, filter, count) {
       const base = txBase.replace(/\/$/, "");
       const qs = "?url=" + encodeURIComponent(canonicalUrl) + (filter ? "&filter=" + encodeURIComponent(filter) : "") + (count ? "&count=" + String(count) : "");
@@ -264,33 +235,29 @@
         "https://hapi.fhir.org/baseR4",
         "https://r4.smarthealthit.org",
         "https://demo.pathling.app/fhir",
-        "http://fhir.oridashi.com.au" // May be blocked by browsers when served over HTTPS (mixed content)
+        "http://fhir.oridashi.com.au"
       ];
 
-      // FHIR + Terminology servers
       const [baseUrl, setBaseUrl] = useState(() => (typeof localStorage !== "undefined" && localStorage.getItem("fhirBase")) || serverOptions[0]);
       const [txBase, setTxBase] = useState(() => (typeof localStorage !== "undefined" && localStorage.getItem("txBase")) || DEFAULT_TX);
 
-      const [mode, setMode] = useState("incoming"); // "incoming" | "patients"
+      const [mode, setMode] = useState("incoming");
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState("");
 
-      // Data
-      const [srList, setSrList] = useState([]);            // ServiceRequest[]
-      const [patientMap, setPatientMap] = useState({});    // "Patient/{id}" -> Patient
-      const [taskBySrId, setTaskBySrId] = useState({});    // "ServiceRequest/{id}" -> Task
-      const [resByRef, setResByRef] = useState({});        // "ResourceType/id" -> Resource (performers etc.)
+      const [srList, setSrList] = useState([]);
+      const [patientMap, setPatientMap] = useState({});
+      const [taskBySrId, setTaskBySrId] = useState({});
+      const [resByRef, setResByRef] = useState({});
       const [nextLink, setNextLink] = useState("");
 
-      // Patient view state
       const [patientSearch, setPatientSearch] = useState("");
       const [last7Only, setLast7Only] = useState(false);
       const [selectedPatientRef, setSelectedPatientRef] = useState("");
 
-      // Incoming filters
-      const [categoryFilter, setCategoryFilter] = useState("all"); // all | lab | imaging
-      const LAB_SCT = "108252007"; // Laboratory procedure
-      const IMG_SCT = "363679005"; // Imaging procedure
+      const [categoryFilter, setCategoryFilter] = useState("all");
+      const LAB_SCT = "108252007";
+      const IMG_SCT = "363679005";
 
       const MODALITY_OPTIONS = [
         { code: "34945008", display: "Angiocardiography" },
@@ -310,12 +277,11 @@
       const [selectedModality, setSelectedModality] = useState("");
       const [modalityCodes, setModalityCodes] = useState(new Set());
       const [modalityLoading, setModalityLoading] = useState(false);
-      const [modalityErr, setModalityErr] = useState("");
+      const [modalityErr, setModalityErr] = useState(false);
 
-      // Anatomy (AU VS: body-site-1)
       const AU_BODY_SITE_VS = "https://healthterminologies.gov.au/fhir/ValueSet/body-site-1";
       const [siteQuery, setSiteQuery] = useState("");
-      const [siteOptions, setSiteOptions] = useState([]); // {code, display}
+      const [siteOptions, setSiteOptions] = useState([]);
       const [siteLoading, setSiteLoading] = useState(false);
       const [siteErr, setSiteErr] = useState("");
       const [selectedSite, setSelectedSite] = useState("");
@@ -326,38 +292,34 @@
       const [siteMenuOpen, setSiteMenuOpen] = useState(false);
       const siteInputRef = useRef(null);
 
-      // Polling
       const [polling] = useState(true);
       const pollingRef = useRef(null);
 
-      // Tick to refresh "Since Authored" every 60s
       const [, setNowTick] = useState(Date.now());
       useEffect(() => {
         const t = setInterval(() => setNowTick(Date.now()), 60000);
         return () => clearInterval(t);
       }, []);
 
-      // persist selections
       useEffect(() => { try { if (baseUrl && typeof localStorage !== "undefined") localStorage.setItem("fhirBase", baseUrl); } catch {} }, [baseUrl]);
       useEffect(() => { try { if (txBase && typeof localStorage !== "undefined") localStorage.setItem("txBase", txBase); } catch {} }, [txBase]);
 
       const canSearch = !!(baseUrl && /^https?:\/\//i.test(baseUrl));
 
-      // Auto-fetch on mount and whenever the baseUrl changes
       useEffect(() => { if (canSearch) { fetchFirstPage({ resetSelection: true }); } }, [baseUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      // Core fetch (first page)
       async function fetchFirstPage({ resetSelection } = { resetSelection: true }) {
         if (!canSearch) return;
         setError(""); setLoading(true);
         try {
           const query = new URLSearchParams();
           query.set("_count", "50");
-          query.append("_include", "ServiceRequest:subject");     // Patient
-          query.append("_include", "ServiceRequest:performer");   // Performer refs
+          query.append("_include", "ServiceRequest:subject");
+          query.append("_include", "ServiceRequest:performer");
           query.append("_include:iterate", "PractitionerRole:practitioner");
           query.append("_include:iterate", "PractitionerRole:organization");
           query.append("_revinclude", "Task:based-on");
+          query.append("_revinclude", "Task:focus");
           query.append("_sort", "-authoredon,-_lastUpdated");
 
           const bundle = await fhirGET(baseUrl, "ServiceRequest?" + query.toString());
@@ -368,7 +330,6 @@
         } finally { setLoading(false); }
       }
 
-      // Next page
       async function loadMore() {
         if (!nextLink) return;
         setLoading(true); setError("");
@@ -380,7 +341,12 @@
         } catch (e) { setError(String(e && (e.message || e))); } finally { setLoading(false); }
       }
 
-      // Apply a bundle page to state (with dedupe)
+      function newer(aMeta, bMeta) {
+        const a = new Date((aMeta && aMeta.lastUpdated) || 0).getTime();
+        const b = new Date((bMeta && bMeta.lastUpdated) || 0).getTime();
+        return a >= b;
+      }
+
       function applyBundle(bundle, reset) {
         const entries = (bundle && bundle.entry) || [];
         const nextPatients = reset ? {} : { ...patientMap };
@@ -392,27 +358,32 @@
           const r = entries[i] && entries[i].resource;
           if (!r) continue;
 
-          // Index all resources by "Type/id" for generic lookup
           if (r.resourceType && r.id) {
             nextResByRef[r.resourceType + "/" + r.id] = r;
           }
-
           if (r.resourceType === "ServiceRequest") nextSRsMap.set(r.id, r);
           if (r.resourceType === "Patient") nextPatients["Patient/" + r.id] = r;
 
-          if (r.resourceType === "Task" && Array.isArray(r.basedOn)) {
-            for (let j = 0; j < r.basedOn.length; j++) {
-              const ref = r.basedOn[j];
-              const srRef = normalizeServiceRequestRef(ref && ref.reference);
-              if (srRef) {
-                const existing = nextTaskBySrId[srRef];
-                if (!existing) {
-                  nextTaskBySrId[srRef] = r;
-                } else {
-                  const a = new Date((r.meta && r.meta.lastUpdated) || 0).getTime();
-                  const b = new Date((existing.meta && existing.meta.lastUpdated) || 0).getTime();
-                  if (a >= b) nextTaskBySrId[srRef] = r;
+          if (r.resourceType === "Task") {
+            // 1) basedOn[] -> SR
+            if (Array.isArray(r.basedOn)) {
+              for (let j = 0; j < r.basedOn.length; j++) {
+                const ref = r.basedOn[j];
+                const srRef = normalizeServiceRequestRef(ref && ref.reference);
+                if (srRef) {
+                  const existing = nextTaskBySrId[srRef];
+                  if (!existing || newer(r.meta, existing.meta)) {
+                    nextTaskBySrId[srRef] = r;
+                  }
                 }
+              }
+            }
+            // 2) focus -> SR
+            const focusRef = normalizeServiceRequestRef(r.focus && r.focus.reference);
+            if (focusRef) {
+              const existing = nextTaskBySrId[focusRef];
+              if (!existing || newer(r.meta, existing.meta)) {
+                nextTaskBySrId[focusRef] = r;
               }
             }
           }
@@ -431,35 +402,32 @@
         setNextLink(nxt);
       }
 
-      // Polling every 42s
       useEffect(() => {
         if (!polling) return;
         if (pollingRef.current) clearInterval(pollingRef.current);
         pollingRef.current = setInterval(() => {
-          if (loading) return; // avoid overlapping
+          if (loading) return;
           fetchFirstPage({ resetSelection: false });
         }, 42000);
         return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
       }, [polling, baseUrl, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      // -------- Modality ECL (<<selected) ----------
       useEffect(() => {
         let cancelled = false;
         async function run() {
-          setModalityErr(""); setModalityLoading(true);
+          setModalityErr(false); setModalityLoading(true);
           try {
             if (!selectedModality) { setModalityCodes(new Set()); return; }
             const codes = await expandEclToCodes(txBase, "<<" + selectedModality);
             if (!cancelled) setModalityCodes(codes);
           } catch (e) {
-            if (!cancelled) { setModalityErr(String(e && (e.message || e))); setModalityCodes(new Set()); }
+            if (!cancelled) { setModalityErr(true); setModalityCodes(new Set()); }
           } finally { if (!cancelled) setModalityLoading(false); }
         }
         run();
         return () => { cancelled = true; };
       }, [txBase, selectedModality]);
 
-      // -------- Anatomy search suggestions (VS filter; only when ≥3 chars) ------
       useEffect(() => {
         if (siteDebounceRef.current) clearTimeout(siteDebounceRef.current);
         if (!siteQuery || siteQuery.trim().length < 3) { setSiteOptions([]); setSiteMenuOpen(false); return; }
@@ -475,14 +443,12 @@
         return () => { if (siteDebounceRef.current) clearTimeout(siteDebounceRef.current); };
       }, [txBase, siteQuery]);
 
-      // Map combobox text -> selected site (by exact match)
       useEffect(() => {
         if (!siteQuery) { setSelectedSite(""); return; }
         const match = siteOptions.find(o => o.display === siteQuery || o.code === siteQuery);
         if (match) setSelectedSite(match.code);
       }, [siteQuery, siteOptions]);
 
-      // -------- Anatomy codes from ECL (<363679005:405813007=<<@SITE) ---------
       useEffect(() => {
         let cancelled = false;
         async function run() {
@@ -500,7 +466,6 @@
         return () => { cancelled = true; };
       }, [txBase, selectedSite]);
 
-      // Close site menu on outside click
       useEffect(() => {
         function onDocClick(e) {
           if (!siteInputRef.current) return;
@@ -511,7 +476,6 @@
         return () => document.removeEventListener("click", onDocClick);
       }, []);
 
-      // "Since authored" pretty duration
       function formatSince(ts) {
         if (!ts) return "";
         const then = new Date(ts).getTime();
@@ -527,7 +491,6 @@
         return m + "m";
       }
 
-      // Resolve a Reference -> displayable name using included resources
       function nameFromResource(res) {
         if (!res || !res.resourceType) return "";
         switch (res.resourceType) {
@@ -582,7 +545,6 @@
           const nm = nameFromResource(res) || disp || refStr;
           if (nm) names.push(nm);
         }
-        // de-duplicate while preserving order
         const seen = new Set();
         const uniq = [];
         for (let j = 0; j < names.length; j++) {
@@ -592,7 +554,6 @@
         return uniq.join(", ");
       }
 
-      // Derived views -----------------------------------------------------------
       const allIncomingRows = useMemo(() => {
         const rows = srList.map((sr) => {
           const pref = normalizePatientRef(srPatientRef(sr));
@@ -688,25 +649,21 @@
 
       const selectedPhotoSrc = getPatientPhotoSrc(selectedPatient, baseUrl);
 
-      // Example queries text (avoid nested template pitfalls inside JSX)
       const exampleQueries =
         "FHIR GET " + baseUrl.replace(/\/$/, "") +
-        "/ServiceRequest?_count=50&_include=ServiceRequest:subject&_include=ServiceRequest:performer&_include:iterate=PractitionerRole:practitioner&_include:iterate=PractitionerRole:organization&_revinclude=Task:based-on&_sort=-authoredon,-_lastUpdated\n" +
+        "/ServiceRequest?_count=50&_include=ServiceRequest:subject&_include=ServiceRequest:performer&_include:iterate=PractitionerRole:practitioner&_include:iterate=PractitionerRole:organization&_revinclude=Task:based-on&_revinclude=Task:focus&_sort=-authoredon,-_lastUpdated\n" +
         "$expand (ECL) " + txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=http://snomed.info/sct?fhir_vs=ecl/%3C%3CSCTID\n" +
         "$expand (site) " + txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=" + "https://healthterminologies.gov.au/fhir/ValueSet/body-site-1";
 
-      // UI ----------------------------------------------------------------------
       return (
         <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
           <div className="max-w-7xl mx-auto space-y-6">
-            {/* Header */}
             <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight">eRequest Dashboard</h1>
                 <p className="text-slate-300">Browse ServiceRequests from your target FHIR server.</p>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
-                {/* FHIR server combobox */}
                 <label className="flex flex-col gap-1">
                   <span className="text-sm text-slate-300">FHIR Server</span>
                   <input
@@ -717,11 +674,10 @@
                     onChange={(e) => setBaseUrl(e.target.value)}
                   />
                   <datalist id="fhir-presets">
-                    {serverOptions.map((u) => (<option key={u} value={u}>{u}</option>))}
+                    {["https://server.fire.ly","https://hapi.fhir.org/baseR4","https://r4.smarthealthit.org","https://demo.pathling.app/fhir","http://fhir.oridashi.com.au"].map(u => (<option key={u} value={u}>{u}</option>))}
                   </datalist>
                 </label>
 
-                {/* Terminology server combobox */}
                 <label className="flex flex-col gap-1">
                   <span className="text-sm text-slate-300">Terminology Server</span>
                   <input
@@ -732,7 +688,7 @@
                     onChange={(e) => setTxBase(e.target.value)}
                   />
                   <datalist id="tx-presets">
-                    {TX_PRESETS.map((u) => (<option key={u} value={u}>{u}</option>))}
+                    {TX_PRESETS.map(u => (<option key={u} value={u}>{u}</option>))}
                   </datalist>
                 </label>
 
@@ -746,7 +702,6 @@
               </div>
             </header>
 
-            {/* Mode Toggle */}
             <div className="flex gap-2">
               <button onClick={() => setMode("incoming")} className={"px-4 py-2 rounded-xl border " + (mode === "incoming" ? "bg-slate-800 border-slate-700" : "bg-slate-900 border-slate-800 hover:bg-slate-800")}>Incoming Services</button>
               <button onClick={() => setMode("patients")} className={"px-4 py-2 rounded-xl border " + (mode === "patients" ? "bg-slate-800 border-slate-700" : "bg-slate-900 border-slate-800 hover:bg-slate-800")}>Patient Listing</button>
@@ -754,7 +709,6 @@
 
             {error && <div className="bg-red-950/40 border border-red-800 text-red-200 p-3 rounded-xl">{error}</div>}
 
-            {/* Incoming Services */}
             {mode === "incoming" && (
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -762,9 +716,7 @@
                   <div className="text-sm text-slate-400">{filteredIncomingRows.length} shown</div>
                 </div>
 
-                {/* Filters */}
                 <div className="flex flex-col gap-3 bg-slate-900/40 border border-slate-800 rounded-2xl p-3">
-                  {/* Category */}
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="text-sm text-slate-300 w-28">Category</div>
                     <div className="inline-flex rounded-xl overflow-hidden border border-slate-700">
@@ -774,7 +726,6 @@
                     </div>
                   </div>
 
-                  {/* Modality (ECL) */}
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="text-sm text-slate-300 w-28">Modality</div>
                     <select
@@ -788,16 +739,14 @@
                       ))}
                     </select>
                     {modalityLoading && <span className="text-xs text-slate-400">loading…</span>}
-                    {modalityErr && <span className="text-xs text-red-300">ECL error: {modalityErr}</span>}
+                    {modalityErr && <span className="text-xs text-red-300">ECL error</span>}
                     {selectedModality && (
                       <button className="text-xs underline underline-offset-2 hover:text-indigo-300" onClick={()=>setSelectedModality("")}>Clear</button>
                     )}
                   </div>
 
-                  {/* Anatomy / Site (styled combobox) */}
                   <div className="flex flex-wrap items-center gap-2 relative">
                     <div className="text-sm text-slate-300 w-28">Anatomy</div>
-
                     <div className="relative">
                       <input
                         ref={siteInputRef}
@@ -807,8 +756,6 @@
                         onFocus={() => setSiteMenuOpen(siteOptions.length > 0 && siteQuery.trim().length >= 3)}
                         onChange={(e)=>{ setSiteQuery(e.target.value); setSiteMenuOpen(false); }}
                       />
-
-                      {/* results dropdown */}
                       {siteMenuOpen && siteOptions.length > 0 && (
                         <div className="absolute z-20 mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-lg overflow-hidden">
                           <ul className="max-h-64 overflow-auto">
@@ -830,7 +777,6 @@
                         </div>
                       )}
                     </div>
-
                     {siteLoading && <span className="text-xs text-slate-400">searching…</span>}
                     {siteErr && <span className="text-xs text-red-300">VS error: {siteErr}</span>}
                     {selectedSite && (
@@ -892,7 +838,6 @@
               </section>
             )}
 
-            {/* Patients */}
             {mode === "patients" && (
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -900,7 +845,6 @@
                   <div className="text-sm text-slate-400">{patientRows.length} patients</div>
                 </div>
 
-                {/* Filters */}
                 <div className="flex flex-col md:flex-row md:items-end gap-3">
                   <label className="flex flex-col gap-1">
                     <span className="text-sm text-slate-300">Search patient</span>
@@ -1000,7 +944,6 @@
               </section>
             )}
 
-            {/* Debug */}
             <details className="mt-4 rounded-2xl border border-slate-800 p-3">
               <summary className="cursor-pointer select-none">Debug</summary>
               <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
