@@ -17,7 +17,6 @@
   .chip button{line-height:1}
   .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
   .modal{background:#fff;border-radius:1rem;max-width:28rem;width:calc(100% - 2rem);box-shadow:0 10px 30px rgba(0,0,0,.2)}
-  /* Send overlay */
   .sending-overlay{position:fixed;inset:0;background:rgba(255,255,255,.6);backdrop-filter:blur(1px);display:none;align-items:center;justify-content:center;z-index:60}
   .spinner{width:44px;height:44px;border-radius:9999px;border:4px solid #d1d5db;border-top-color:#10b981;animation:spin .9s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -26,6 +25,18 @@
 </head>
 <body class="bg-gray-100 text-gray-900">
 <main class="max-w-6xl mx-auto p-6 space-y-6">
+
+  <!-- FHIR Server selector -->
+  <section class="bg-white p-4 rounded-2xl shadow">
+    <div class="flex flex-col md:flex-row md:items-end gap-3">
+      <label class="block w-full md:w-auto flex-1">
+        <span class="block text-sm font-medium">FHIR Server URL</span>
+        <input id="fhir-base" class="border rounded w-full p-2 mono" value="https://server.fire.ly" placeholder="https://your.fhir.server"/>
+      </label>
+      <button id="apply-fhir-base" class="h-10 px-4 bg-blue-600 text-white rounded">Use this server</button>
+    </div>
+    <div class="mt-2 text-xs text-gray-600">All queries and transaction POSTs will use this base. Default is shown above.</div>
+  </section>
 
   <!-- Patient -->
   <section class="bg-white p-4 rounded-2xl shadow space-y-4">
@@ -67,7 +78,7 @@
           </select>
         </label>
 
-        <!-- Pregnancy Status -->
+        <!-- Pregnancy Status (always editable) -->
         <label class="block md:col-span-2">
           <span class="block text-sm font-medium">Pregnancy Status</span>
           <select id="pregnancy-status" class="border rounded w-full p-2">
@@ -235,8 +246,18 @@
 
 <script>
 (function(){
-  // ----- Config -----
-  const FHIR_BASE = "https://server.fire.ly"; // Change to your FHIR endpoint
+  // ----- Config (FHIR base is editable) -----
+  let FHIR_BASE = "https://server.fire.ly"; // default, editable via UI at top
+  const fhirBaseInput = document.getElementById('fhir-base');
+  const fhirBaseApply = document.getElementById('apply-fhir-base');
+  fhirBaseApply.addEventListener('click', ()=>{
+    const v = (fhirBaseInput.value || '').trim();
+    if(!v){ return; }
+    FHIR_BASE = v.replace(/\/+$/,''); // trim trailing slash
+    showStatus(`Using FHIR server: ${FHIR_BASE}`);
+  });
+
+  // Ontoserver + terminology
   const ONTO_BASE = "https://tx.ontoserver.csiro.au/fhir/ValueSet/$expand";
   const TERM_BASE = "https://tx.ontoserver.csiro.au/fhir";
   const VS = {
@@ -432,9 +453,10 @@
   btnNew.addEventListener('click', ()=> setPtMode('new'));
   setPtMode('search');
 
+  // Lock fields if existing patient — BUT leave pregnancy editable
   function setPatientLocked(locked){
-    const fields = ["patient-name","patient-dob","patient-gender","pregnancy-status"];
-    fields.forEach(id=>{
+    const lockIds = ["patient-name","patient-dob","patient-gender"]; // pregnancy-status intentionally excluded
+    lockIds.forEach(id=>{
       const el = document.getElementById(id);
       if(!el) return;
       el.disabled = locked;
@@ -442,6 +464,13 @@
       el.classList.toggle('cursor-not-allowed', locked);
       el.title = locked ? "Loaded from server; editing disabled" : "";
     });
+    // Ensure pregnancy remains enabled
+    const preg = document.getElementById('pregnancy-status');
+    if(preg){
+      preg.disabled = false;
+      preg.classList.remove('bg-gray-50','cursor-not-allowed');
+      preg.title = '';
+    }
   }
 
   function clearPatientForm(){ fillPatientForm({ nameText:'', birthDate:'', gender:'unknown', photoUrl:'defaultProfile.jpg', addressText:'—' }); patientAddress=null; currentPatientResource=null; }
@@ -484,7 +513,7 @@
     patientAddress=(Array.isArray(p.address)&&p.address.length)?p.address[0]:null;
     currentPatientResource = p;
     fillPatientForm({ nameText:name, birthDate:p.birthDate||'', gender:p.gender||'unknown', photoUrl:photoUrl||'defaultProfile.jpg', addressText: patientAddress?formatAddress(patientAddress):'—' });
-    setPatientLocked(true); // lock editing for existing patient
+    setPatientLocked(true); // lock core demographics; pregnancy remains editable
   }
 
   nameInp.addEventListener('input', ()=>{ if(ptMode==='search'){ searchPatientsByName(nameInp.value); } else { hidePtAC(); }});
@@ -865,12 +894,12 @@
       const controls = document.createElement('div');
       controls.className = 'flex items-center gap-2';
 
+      const PRIORITIES = ['routine','urgent','asap','stat'];
       const pBtn = document.createElement('button');
       pBtn.className = 'text-xs px-2 py-1 rounded border';
       pBtn.title = 'Toggle priority';
       pBtn.textContent = `priority: ${t.priority || 'routine'}`;
       pBtn.onclick = () => {
-        const PRIORITIES = ['routine','urgent','asap','stat'];
         const idx = PRIORITIES.indexOf(t.priority || 'routine');
         t.priority = PRIORITIES[(idx + 1) % PRIORITIES.length];
         pBtn.textContent = `priority: ${t.priority}`;
@@ -938,22 +967,30 @@
   // ----- Pregnancy status dropdown -----
   async function populatePregnancyStatus(){
     const sel = document.getElementById('pregnancy-status');
-    const items = await expandFromOntoserver(VS.PREGNANCY);
-    let options = items;
-    if(!options.length){
-      options = [
-        { system: 'http://snomed.info/sct', code: '77386006', display: 'Pregnant (finding)' },
-        { system: 'http://snomed.info/sct', code: '60001007', display: 'Not pregnant (finding)' },
-        { system: 'http://snomed.info/sct', code: '261665006', display: 'Unknown (qualifier value)' }
-      ];
+    try{
+      const url = `${ONTO_BASE}?url=${encodeURIComponent(VS.PREGNANCY)}&count=50`;
+      setDebugUrl(url);
+      const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
+      const j= r.ok ? await r.json() : null;
+      const items = j?.expansion?.contains || [];
+      let options = items;
+      if(!options.length){
+        options = [
+          { system: 'http://snomed.info/sct', code: '77386006', display: 'Pregnant (finding)' },
+          { system: 'http://snomed.info/sct', code: '60001007', display: 'Not pregnant (finding)' },
+          { system: 'http://snomed.info/sct', code: '261665006', display: 'Unknown (qualifier value)' }
+        ];
+      }
+      options.forEach(o=>{
+        const opt = document.createElement('option');
+        opt.value = o.code;
+        opt.textContent = o.display || o.code;
+        opt.dataset.system = o.system || 'http://snomed.info/sct';
+        sel.appendChild(opt);
+      });
+    }catch(e){
+      console.warn('pregnancy status expand failed', e);
     }
-    options.forEach(o=>{
-      const opt = document.createElement('option');
-      opt.value = o.code;
-      opt.textContent = o.display || o.code;
-      opt.dataset.system = o.system || 'http://snomed.info/sct';
-      sel.appendChild(opt);
-    });
   }
 
   // ----- Practitioner/Role entries -----
@@ -1067,7 +1104,7 @@
         code:{ coding:[{system:'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display },
         subject:{reference:patientRef},
         requester:{ reference: roleRef },
-        requisition: groupIdentifier, // shared PGN with system
+        requisition: groupIdentifier,
         reasonCode:buildReasonCodeArray(),
         note: combinedNote ? [{text:combinedNote}] : []
       };
@@ -1085,7 +1122,7 @@
 
       entries.push({ fullUrl: srFullUrl, resource: srResource, request:{method:'POST', url:'ServiceRequest'} });
 
-      // Diagnostic Request Task (AU profile) — identifier has system
+      // Diagnostic Request Task (AU profile)
       const diagTaskFullUrl = uuidURN();
       const diagTask = {
         resourceType: 'Task',
