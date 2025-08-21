@@ -17,6 +17,11 @@
   .chip button{line-height:1}
   .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
   .modal{background:#fff;border-radius:1rem;max-width:28rem;width:calc(100% - 2rem);box-shadow:0 10px 30px rgba(0,0,0,.2)}
+  /* Send overlay */
+  .sending-overlay{position:fixed;inset:0;background:rgba(255,255,255,.6);backdrop-filter:blur(1px);display:none;align-items:center;justify-content:center;z-index:60}
+  .spinner{width:44px;height:44px;border-radius:9999px;border:4px solid #d1d5db;border-top-color:#10b981;animation:spin .9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .btn-disabled{opacity:.6;pointer-events:none}
 </style>
 </head>
 <body class="bg-gray-100 text-gray-900">
@@ -220,28 +225,39 @@
   </div>
 </div>
 
+<!-- Send overlay -->
+<div id="sending-overlay" class="sending-overlay">
+  <div class="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white shadow">
+    <div class="spinner"></div>
+    <div class="text-sm text-gray-600">Submitting order…</div>
+  </div>
+</div>
+
 <script>
 (function(){
   // ----- Config -----
   const FHIR_BASE = "https://server.fire.ly"; // Change to your FHIR endpoint
   const ONTO_BASE = "https://tx.ontoserver.csiro.au/fhir/ValueSet/$expand";
-  const TERM_BASE = "https://tx.ontoserver.csiro.au/fhir"; // for $subsumes
-
+  const TERM_BASE = "https://tx.ontoserver.csiro.au/fhir";
   const VS = {
     PATH: "https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3",
     IMAG: "https://ranzcr.com/fhir/ValueSet/radiology-referral-1",
     REASON: "https://healthterminologies.gov.au/fhir/ValueSet/reason-for-procedure-1",
     PREGNANCY: "http://hl7.org/fhir/uv/ips/ValueSet/pregnancy-status-uv-ips"
   };
-
   const AU_PROFILES = {
     TASK_GROUP: "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-task-group",
     TASK_DIAG:  "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-task-diagnosticrequest",
     SR_DIAG:    "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-diagnosticrequest"
   };
-
+  const PLACER_SYS = "http://callistemon.test/placer/id/";
   const MAX_NOTE_SUG = 8;
   const XRAY_PARENT = '363680008'; // Radiographic imaging procedure
+
+  // ECL for fasting instruction
+  const ECL_FASTING = '^1072351000168102 {{ term = "fasting" }}';
+  const VS_ECL_FASTING = 'http://snomed.info/sct?fhir_vs=ecl/' + encodeURIComponent(ECL_FASTING);
+  const fastingCodeSet = new Set();
 
   const CAT = {
     PATH: { coding: [{ system: "http://snomed.info/sct", code: "108252007", display: "Laboratory procedure" }] },
@@ -375,10 +391,8 @@
   let reasonTags=[];
   let notesAnchor=0;
   let ptMode='search';
-  let currentPatientResource=null;
+  let currentPatientResource=null; // if set & has id -> existing patient
   let suggestedRenderToken=0;
-
-  // Keep requisition id to resolve Task Group URL post-transaction
   let lastRequisitionId = null; // PGN value
 
   // ----- Utils -----
@@ -411,11 +425,24 @@
       btnSearch.classList.remove('text-gray-900','font-medium'); btnSearch.classList.add('text-gray-500');
       help.textContent='(New Patient: manual entry)';
       hidePtAC(); clearPatientForm();
+      setPatientLocked(false);
     }
   }
   btnSearch.addEventListener('click', ()=> setPtMode('search'));
   btnNew.addEventListener('click', ()=> setPtMode('new'));
   setPtMode('search');
+
+  function setPatientLocked(locked){
+    const fields = ["patient-name","patient-dob","patient-gender","pregnancy-status"];
+    fields.forEach(id=>{
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.disabled = locked;
+      el.classList.toggle('bg-gray-50', locked);
+      el.classList.toggle('cursor-not-allowed', locked);
+      el.title = locked ? "Loaded from server; editing disabled" : "";
+    });
+  }
 
   function clearPatientForm(){ fillPatientForm({ nameText:'', birthDate:'', gender:'unknown', photoUrl:'defaultProfile.jpg', addressText:'—' }); patientAddress=null; currentPatientResource=null; }
   function fillPatientForm({ nameText, birthDate, gender, photoUrl, addressText }){
@@ -434,7 +461,6 @@
       const j=await r.json();
       const pats=(j.entry||[]).map(e=>e.resource).filter(r=>r.resourceType==='Patient');
 
-      // De-duplicate by id
       const seen=new Set(); const unique=[];
       for(const p of pats){ if(p.id && !seen.has(p.id)){ seen.add(p.id); unique.push(p); } }
       renderPtAC(unique.slice(0,10));
@@ -458,6 +484,7 @@
     patientAddress=(Array.isArray(p.address)&&p.address.length)?p.address[0]:null;
     currentPatientResource = p;
     fillPatientForm({ nameText:name, birthDate:p.birthDate||'', gender:p.gender||'unknown', photoUrl:photoUrl||'defaultProfile.jpg', addressText: patientAddress?formatAddress(patientAddress):'—' });
+    setPatientLocked(true); // lock editing for existing patient
   }
 
   nameInp.addEventListener('input', ()=>{ if(ptMode==='search'){ searchPatientsByName(nameInp.value); } else { hidePtAC(); }});
@@ -523,7 +550,31 @@
     return notes ? `${notes}\n${tagLine}` : tagLine;
   }
 
-  // ----- $subsumes helper -----
+  // ----- Ontoserver helpers -----
+  async function expandFromOntoserver(vsCanonicalUrl, filter){
+    try{
+      const base = new URL(ONTO_BASE);
+      base.searchParams.set('url', vsCanonicalUrl);
+      if(filter && filter.trim().length) base.searchParams.set('filter', filter);
+      base.searchParams.set('count', '50');
+      const url = base.toString();
+      setDebugUrl(url);
+      const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
+      if(!r.ok) throw new Error(`Ontoserver ${r.status}`);
+      const j=await r.json();
+      return j?.expansion?.contains||[];
+    }catch(e){ console.warn('Ontoserver expand failed', e); return []; }
+  }
+
+  // Preload fasting codes from ECL
+  async function preloadFastingCodes(){
+    try{
+      const items = await expandFromOntoserver(VS_ECL_FASTING);
+      items.forEach(i=>{ if(i.code) fastingCodeSet.add(i.code); });
+    }catch(e){ console.warn('preloadFastingCodes', e); }
+  }
+
+  // SNOMED $subsumes caching (used for some heuristics)
   const subsumesCache = new Map();
   function readOutcomeFromParameters(j){
     try{
@@ -538,8 +589,6 @@
           return { result: !!resParam.valueBoolean };
         }
       }
-      if(typeof j?.outcome==='string') return { outcome: j.outcome };
-      if(typeof j?.result==='boolean') return { result: j.result };
     }catch{}
     return {};
   }
@@ -854,20 +903,7 @@
   });
   $("#doctor-select").addEventListener('change',(e)=>{ renderFavsForUser(e.target.value); updateSpecialtyDisplay(e.target.value); });
 
-  // ----- Ontoserver $expand -----
-  async function expandFromOntoserver(vsCanonicalUrl, filter){
-    try{
-      const url = filter && filter.trim().length
-        ? `${ONTO_BASE}?url=${encodeURIComponent(vsCanonicalUrl)}&count=20&filter=${encodeURIComponent(filter)}`
-        : `${ONTO_BASE}?url=${encodeURIComponent(vsCanonicalUrl)}&count=50`;
-      setDebugUrl(url);
-      const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
-      if(!r.ok) throw new Error(`Ontoserver ${r.status}`);
-      const j=await r.json();
-      return j?.expansion?.contains||[];
-    }catch(e){ console.warn('Ontoserver expand failed', e); return []; }
-  }
-
+  // ----- Search boxes -----
   function setupSearch(inputSel, listSel, vsCanonicalUrl, kind){
     const inp=$(inputSel), list=$(listSel); let to=null;
     inp.addEventListener('input', ()=>{
@@ -899,10 +935,9 @@
     el.textContent = sp ? `Specialty: ${sp.display}` : '';
   }
 
-  // ----- Pregnancy status dropdown population -----
+  // ----- Pregnancy status dropdown -----
   async function populatePregnancyStatus(){
     const sel = document.getElementById('pregnancy-status');
-    // Try dynamic expand from IPS ValueSet; fall back to known SNOMED codes if needed
     const items = await expandFromOntoserver(VS.PREGNANCY);
     let options = items;
     if(!options.length){
@@ -921,7 +956,7 @@
     });
   }
 
-  // ----- Build Practitioner/Role entries -----
+  // ----- Practitioner/Role entries -----
   function buildPractitionerAndRoleEntries(selectedName){
     const pracRes = practitionerResources[selectedName];
     const pracFullUrl = uuidURN();
@@ -939,7 +974,7 @@
     return { practitionerEntry, roleEntry, roleRef: roleFullUrl };
   }
 
-  // ----- Build Patient -----
+  // ----- Patient builders -----
   function buildPatientResourceFromForm(){
     const name=(nameInp.value||'').trim()||'John Citizen';
     const parts=name.split(/\s+/); const given=parts[0]||'John'; const family=parts.length>1?parts[parts.length-1]:'Citizen';
@@ -961,11 +996,10 @@
     return { patientRef: full, entry: { fullUrl: full, resource: newPat, request:{method:'POST', url:'Patient'} } };
   }
 
-  // ----- Build Bundle (AU eRequesting grouping + pregnancy status) -----
+  // ----- Build Bundle (AU grouping + pregnancy + fasting + identifiers) -----
   function buildBundle(){
     const { patientRef, entry: patientEntry } = providePatientRefAndEntry();
     const doctorName = $("#doctor-select").value || 'Dr Confident Cane Toad';
-
     const entries=[];
     if(patientEntry) entries.push(patientEntry);
 
@@ -974,21 +1008,21 @@
 
     const now = new Date().toISOString();
 
-    // Placer Group Number shared across group
+    // Placer Group Number (shared requisition id) with system
     const requisitionId = newUUID();
     lastRequisitionId = requisitionId;
-
     const groupIdentifier = {
+      system: PLACER_SYS,
       value: requisitionId,
       type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'PGN', display: 'Placer group number' }] }
     };
 
-    // AU eRequesting Task Group
+    // Task Group (AU profile)
     const groupTaskFullUrl = uuidURN();
     const groupTask = {
       resourceType: 'Task',
       meta: { profile: [AU_PROFILES.TASK_GROUP] },
-      identifier: [{ value: requisitionId }],
+      identifier: [{ system: PLACER_SYS, value: requisitionId }],
       groupIdentifier,
       status: 'requested',
       intent: 'order',
@@ -998,7 +1032,7 @@
     };
     entries.push({ fullUrl: groupTaskFullUrl, resource: groupTask, request: { method: 'POST', url: 'Task' } });
 
-    // Pregnancy status Observation (if chosen)
+    // Pregnancy Observation (IPS) if selected
     const pregSel = document.getElementById('pregnancy-status');
     const pregCode = pregSel?.value || '';
     let pregObsFullUrl = null;
@@ -1033,23 +1067,30 @@
         code:{ coding:[{system:'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display },
         subject:{reference:patientRef},
         requester:{ reference: roleRef },
-        requisition: groupIdentifier, // share PGN on each SR
+        requisition: groupIdentifier, // shared PGN with system
         reasonCode:buildReasonCodeArray(),
         note: combinedNote ? [{text:combinedNote}] : []
       };
+
+      // Fasting instruction via ECL membership
+      if(fastingCodeSet.has(t.code)){
+        srResource.patientInstruction = "fast of at least 8h, but no more than 16h";
+      }
+
+      // Pregnancy supportingInfo
       if(pregObsFullUrl){
-        // add supportingInfo (pregnancyStatus slice in the profile)
         srResource.supportingInfo = (srResource.supportingInfo||[]);
         srResource.supportingInfo.push({ reference: pregObsFullUrl });
       }
+
       entries.push({ fullUrl: srFullUrl, resource: srResource, request:{method:'POST', url:'ServiceRequest'} });
 
-      // AU eRequesting Task Diagnostic Request (per SR)
+      // Diagnostic Request Task (AU profile) — identifier has system
       const diagTaskFullUrl = uuidURN();
       const diagTask = {
         resourceType: 'Task',
         meta: { profile: [AU_PROFILES.TASK_DIAG] },
-        identifier: [{ value: newUUID() }],
+        identifier: [{ system: PLACER_SYS, value: newUUID() }],
         groupIdentifier,
         partOf: [{ reference: groupTaskFullUrl }],
         status: 'requested',
@@ -1097,13 +1138,11 @@
       const j = await r.json();
       const entries = Array.isArray(j.entry) ? j.entry : [];
       let group = null;
-      // Prefer Task with AU Task Group profile
       for(const e of entries){
         const res = e.resource;
         const profiles = res?.meta?.profile || [];
         if(profiles.includes(AU_PROFILES.TASK_GROUP)) { group = res; break; }
       }
-      // Fallback: pick a Task without focus (typical for group task)
       if(!group){
         for(const e of entries){ const res = e.resource; if(res && !res.focus) { group = res; break; } }
       }
@@ -1112,11 +1151,19 @@
     }catch(e){ console.warn('resolveTaskGroupUrlFromServer', e); return null; }
   }
 
-  // ----- Send to server -----
+  // ----- Send to server (with spinner) -----
+  const sendingOverlay = document.getElementById('sending-overlay');
+  const sendBtn = document.getElementById('send-btn');
+
   document.getElementById('send-btn').addEventListener('click', async ()=>{
     const out=$("#server-response");
     out.textContent='Sending…';
     const { bundle } = buildBundle();
+
+    // show spinner + disable controls
+    sendingOverlay.style.display = 'flex';
+    sendBtn.classList.add('btn-disabled');
+
     try{
       const r=await fetch(FHIR_BASE, {
         method:'POST',
@@ -1127,10 +1174,8 @@
       out.textContent=`Response ${r.status}:\n`+text;
 
       if(r.status===200){
-        // Best-effort: resolve the absolute URL of the Task Group and display QR
         let groupUrl = await resolveTaskGroupUrlFromServer();
 
-        // Fallback: parse the transaction-response for a Task location
         if(!groupUrl){
           try{
             const j = JSON.parse(text);
@@ -1150,6 +1195,10 @@
     }catch(e){
       console.error(e);
       out.textContent='Network error: '+e.message;
+    } finally {
+      // hide spinner + re-enable
+      sendingOverlay.style.display = 'none';
+      sendBtn.classList.remove('btn-disabled');
     }
   });
 
@@ -1158,6 +1207,7 @@
   updateSpecialtyDisplay($("#doctor-select").value||'Dr Confident Cane Toad');
   computeAndRenderSuggestions();
   populatePregnancyStatus();
+  preloadFastingCodes();
   if(location.protocol==='file:') showStatus('Running as file:// — some browsers block fetch. Use a local server for full functionality.');
   (async ()=>{
     try{
