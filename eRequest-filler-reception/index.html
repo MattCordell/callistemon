@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>eRequesting — Patient Reception</title>
   <style>
-    :root {
+    :root{
       --bg:#0f172a; --card:#111827; --muted:#9ca3af; --text:#e5e7eb;
       --accent:#8b5cf6; --accent-2:#22d3ee; --ok:#10b981; --warn:#f59e0b; --err:#ef4444; --ring:rgba(139,92,246,.35);
       --line: rgba(255,255,255,.08);
@@ -21,7 +21,7 @@
       color:var(--text); font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial;
     }
 
-    /* Header with centered right column */
+    /* Header */
     header{
       padding:22px 14px; max-width:1100px; margin:0 auto;
       display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
@@ -29,13 +29,11 @@
     .head-left{min-width:260px}
     header h1{margin:0 0 4px; font-size:22px; font-weight:700; letter-spacing:.2px}
     header p{margin:0; color:var(--muted)}
-    .head-right{
-      margin-left:auto; min-width:360px; display:flex; justify-content:center; align-items:center;
-    }
+    .head-right{margin-left:auto; min-width:360px; display:flex; justify-content:center; align-items:center;}
 
     /* Fancy select with chevron */
     .select{appearance:none; -webkit-appearance:none; -moz-appearance:none;
-      background:#0b1020; color:var(--text); border:1px solid var(--line); border-radius:14px; }
+      background:#0b1020; color:var(--text); border:1px solid var(--line); border-radius:14px;}
     .select-xl{
       font-size:18px; font-weight:800; letter-spacing:.2px;
       padding:12px 44px 12px 14px; min-width:320px; line-height:1.2;
@@ -70,7 +68,7 @@
     .res:hover{background:rgba(139,92,246,.12); cursor:pointer}
     .res .small{color:var(--muted); font-size:12px}
     .qrbox{position:relative; border:1px solid rgba(255,255,255,.12); border-radius:10px; overflow:hidden; background:#000; min-height:200px}
-    .qrbox video{width:100%; height:auto; display:block}
+    .qrbox video{width:100%; display:block}
     .qr-actions{margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; align-items:center}
 
     /* Card */
@@ -140,10 +138,9 @@
   <header>
     <div class="head-left">
       <h1>eRequesting — Patient Reception</h1>
-      <p class="hint">Load a FHIR Bundle to view Patient details and outstanding ServiceRequests.</p>
+      <p class="hint">Paste an <strong>AU eRequesting Task Group</strong> or a Diagnostic Request Task URL.</p>
     </div>
     <div class="head-right">
-      <!-- Bigger, bold, centered select with chevron; no visible label -->
       <div class="select-wrap">
         <select id="orgSelect" class="select select-xl" aria-label="Filler organisation">
           <option value="calli" selected>Callistemon Diagnostic Services</option>
@@ -159,34 +156,33 @@
   <main class="shell u-flex">
     <!-- Ingest -->
     <section class="panel ingest" aria-labelledby="ingest-title">
-      <h2 id="ingest-title">Load Bundle</h2>
+      <h2 id="ingest-title">Load from URL</h2>
 
       <div class="modebar" role="tablist" aria-label="Load mode">
-        <button id="mode-url" role="tab" aria-selected="true" class="mode active">From URL</button>
+        <button id="mode-url" role="tab" aria-selected="true" class="mode active">Task Group URL</button>
         <button id="mode-search" role="tab" aria-selected="false" class="mode">Search Patient</button>
         <button id="mode-qr" role="tab" aria-selected="false" class="mode">Scan QR</button>
       </div>
 
       <!-- From URL -->
       <div id="pane-url" role="tabpanel" aria-labelledby="mode-url" class="pane">
-        <label for="bundleUrl" class="hint">FHIR resource or Bundle URL</label>
-        <input id="bundleUrl" type="url" placeholder="e.g. https://server.fire.ly/Patient/498..." />
+        <label for="bundleUrl" class="hint">Example: <span class="mono">https://server.fire.ly/Task/123</span></label>
+        <input id="bundleUrl" type="url" placeholder="Paste AU eRequesting Task Group or Diagnostic Task URL…" />
         <div class="actions">
           <button id="loadUrlBtn">Load</button>
           <span id="status" class="hint"></span>
         </div>
-        <div class="footer">The server must allow CORS. Accept: <span class="mono">application/fhir+json</span>.</div>
+        <div class="footer">We GET the Task Group (or follow <span class="mono">partOf</span> from a diagnostic task) and load its diagnostic tasks and their <span class="mono">ServiceRequest</span>s.</div>
       </div>
 
-      <!-- Search Patient -->
+      <!-- Search Patient (kept) -->
       <div id="pane-search" role="tabpanel" aria-labelledby="mode-search" class="pane hidden">
         <label for="baseUrl" class="hint">FHIR server base URL</label>
         <input id="baseUrl" type="url" placeholder="e.g. https://server.fire.ly" value="https://server.fire.ly" />
-
         <label for="patientQuery" class="hint" style="margin-top:8px; display:block;">Search patient by name</label>
         <input id="patientQuery" type="text" placeholder="Type at least 3 characters…" autocomplete="off" />
         <div id="results" class="results" role="listbox" aria-label="Patient results"></div>
-        <div class="footer">After selecting a patient, the app fetches <span class="mono">ServiceRequest?subject=Patient/{id}</span> and composes a local Bundle, then fetches related <span class="mono">Task</span> resources by focus.</div>
+        <div class="footer">After selecting a patient, we fetch <span class="mono">ServiceRequest</span> and related <span class="mono">Task</span> resources.</div>
       </div>
 
       <!-- Scan QR -->
@@ -198,7 +194,7 @@
           <input id="qrFile" type="file" accept="image/*" />
         </div>
         <div id="qrStatus" class="hint" style="margin-top:6px"></div>
-        <div class="footer">We’ll read a URL from the QR code and load it as if pasted in the URL field.</div>
+        <div class="footer">We’ll read a URL from the QR code and load it.</div>
       </div>
     </section>
 
@@ -235,12 +231,12 @@
   <div class="toast-wrap" id="toast"></div>
 
   <script>
-    // ---------- Config / constants ----------
+    // ---------- Shortcuts ----------
     const by = sel => document.querySelector(sel);
     const statusEl = by('#status');
     const orgSelect = by('#orgSelect');
 
-    // Two selectable filler organisations
+    // ---------- Filler orgs ----------
     const FILLER_ORGS = {
       calli: {
         display: 'Callistemon Diagnostic Services',
@@ -257,19 +253,40 @@
       return { identifier: org.identifier, display: org.display };
     }
 
+    // ---------- Terminology config ----------
     const TX_BASE = 'https://tx.ontoserver.csiro.au/fhir';
     const SNOMED = 'http://snomed.info/sct';
-    const RADIOGRAPHIC_ANCESTOR = '363680008'; // Radiographic imaging procedure
+    const RADIOGRAPHIC_ANCESTOR = '363680008'; // Radiographic imaging procedure (procedure)
     const NOT_PREGNANT = '60001007';           // Not pregnant
     const FASTING_ECL = '^1072351000168102 {{ term = "fasting" }}';
-    let CURRENT_BASE = '';      // FHIR base URL for updates
-    let CURRENT_BUNDLE = null;  // last rendered bundle
+
+    let CURRENT_BASE = '';     // FHIR base URL for updates
+    let CURRENT_BUNDLE = null; // last rendered bundle
 
     // Caches
     const subsumesCache = new Map(); // `${ancestor}|${code}` -> boolean
     let fastingCodeSet = null;       // Set<string> of SNOMED codes
 
-    // ---------- Util ----------
+    // ---------- URL normalization (auto-strip _history) ----------
+    function normalizeResourceUrl(u){
+      if(!u) return u;
+      try{
+        const url = new URL(u);
+        const parts = url.pathname.split('/').filter(Boolean);
+        const hIdx = parts.indexOf('_history');
+        if(hIdx > 0 && hIdx === parts.length - 2){
+          parts.splice(hIdx, 2);               // remove "_history" and "<vid>"
+          url.pathname = '/' + parts.join('/');
+          url.search = '';
+          url.hash = '';
+        }
+        return url.toString();
+      }catch{
+        return u.replace(/\/_history\/[^\/?#]+(?=[?#]|$)/, '');
+      }
+    }
+
+    // ---------- Utilities ----------
     const fmtDateTime = (s) => { if(!s) return '—'; const d=new Date(s); return isNaN(d)?s:d.toLocaleString(); };
     function fmtName(hn){ if(!hn) return '—'; const g=Array.isArray(hn.given)?hn.given.join(' '):(hn.given||''); const f=hn.family||''; return hn.text||[g,f].filter(Boolean).join(' ')||'—'; }
     function calcAge(dobStr){ if(!dobStr) return '—'; const dob=new Date(dobStr); if(isNaN(dob)) return '—'; const now=new Date(); let age=now.getFullYear()-dob.getFullYear(); const m=now.getMonth()-dob.getMonth(); if(m<0||(m===0&&now.getDate()<dob.getDate())) age--; return age>=0?age:'—'; }
@@ -292,8 +309,15 @@
       }catch{}
       return s;
     }
+    function inferBaseFromUrl(url){
+      try{
+        const u=new URL(url); const parts=u.pathname.split('/').filter(Boolean);
+        const idx=parts.findIndex(p=>['Patient','Bundle','ServiceRequest','Encounter','Observation','Task','Organization','Practitioner','PractitionerRole','Location','RequestGroup','List'].includes(p));
+        return idx>0?`${u.origin}/${parts.slice(0,idx).join('/')}`:`${u.origin}`;
+      }catch{ return ''; }
+    }
 
-    function humanStatus(s){ if(!s) return ['Unknown','err']; const map={draft:['Draft','warn'],active:['Active','ok'],'on-hold':['On hold','warn'],revoked:['Revoked','err'],completed:['Completed','ok'],'entered-in-error':['Entered in error','err'],unknown:['Unknown','err']}; return map[s]||[s,'warn']; }
+    function humanStatus(s){ if(!s) return ['Unknown','err']; const map={draft:['Draft','warn'],active:['Active','ok'],'on-hold':['On hold','warn'],revoked:['Revoked','err'],completed:['Completed','ok'],'entered-in-error':['Entered in error','err'],unknown:['Unknown','err'],requested:['Requested','warn'],'in-progress':['In progress','ok']}; return map[s]||[s,'warn']; }
     function humanPriority(p){ const map={routine:['Routine',''],urgent:['Urgent','warn'],asap:['ASAP','warn'],stat:['STAT','err']}; return map[p]||[p||'Routine','']; }
 
     function srDisplay(sr){ const c=sr.code||{}; if (Array.isArray(c.coding)&&c.coding.length){ const disp=c.coding.find(x=>x.display)?.display||c.coding[0].display||c.coding[0].code; if(disp) return disp; } return c.text||'—'; }
@@ -410,10 +434,6 @@
             }
           }
         }
-        if(res.resourceType==='Condition'){
-          const txt=(res.code?.text||res.code?.coding?.[0]?.display||'').toLowerCase();
-          if(txt.includes('pregnan')) return { code:null, label:'pregnant' };
-        }
       }
       return { code:null, label:'unspecified' };
     }
@@ -445,66 +465,157 @@
         if(!res.ok) throw new Error('HTTP '+res.status);
         const js = await res.json();
         for (const c of (js.expansion?.contains||[])) if (c.code) fastingCodeSet.add(String(c.code));
-      }catch{ /* leave empty; fallback heuristic will trigger */ }
+      }catch{ /* fallback heuristic will still run */ }
       return fastingCodeSet;
     }
 
     // ---------- Networking helpers ----------
-    function inferBaseFromUrl(url){
-      try{
-        const u=new URL(url); const parts=u.pathname.split('/').filter(Boolean);
-        const idx=parts.findIndex(p=>['Patient','Bundle','ServiceRequest','Encounter','Observation','Task','Organization','Practitioner','PractitionerRole','Location'].includes(p));
-        return idx>0?`${u.origin}/${parts.slice(0,idx).join('/')}`:`${u.origin}`;
-      }catch{ return ''; }
-    }
     async function fetchJson(url){ const res=await fetch(url,{headers:{'Accept':'application/fhir+json'}}); if(!res.ok) throw new Error('HTTP '+res.status); return await res.json(); }
 
-    async function postTransaction(base, entries){
-      const url = base.replace(/\/$/,'');
-      const bundle = { resourceType:'Bundle', type:'transaction', entry: entries };
-      const res = await fetch(url, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/fhir+json', 'Accept':'application/fhir+json' },
-        body: JSON.stringify(bundle)
-      });
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      return await res.json();
+    function toTypeId(refOrString){
+      const s = typeof refOrString === 'string' ? refOrString : (refOrString?.reference || '');
+      if(!s) return null;
+      try{
+        if(s.startsWith('http')){
+          const parts = new URL(s).pathname.split('/').filter(Boolean);
+          return `${parts.slice(-2)[0]}/${parts.slice(-1)[0]}`;
+        }
+      }catch{}
+      return s.includes('/') ? s : `Task/${s}`;
     }
 
-    async function putTasksIndividually(base, tasks){
-      for (const t of tasks) {
-        const res = await fetch(`${base.replace(/\/$/,'')}/Task/${encodeURIComponent(t.id)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type':'application/fhir+json', 'Accept':'application/fhir+json' },
-          body: JSON.stringify(t)
-        });
-        if (!res.ok) throw new Error('PUT failed for Task/'+t.id+' HTTP '+res.status);
-      }
-      return true;
+    async function getByRef(base, refOrString){
+      if(!refOrString) return null;
+      const s = typeof refOrString==='string' ? refOrString : refOrString.reference;
+      if(!s) return null;
+      try{
+        if(s.startsWith('http')) return await fetchJson(s);
+      }catch{}
+      return await fetchJson(`${base.replace(/\/$/,'')}/${s}`);
     }
-    async function postTasksIndividually(base, tasks){
-      const created = [];
-      for (const t of tasks) {
-        const res = await fetch(`${base.replace(/\/$/,'')}/Task`, {
-          method: 'POST',
-          headers: { 'Content-Type':'application/fhir+json', 'Accept':'application/fhir+json' },
-          body: JSON.stringify(t)
-        });
-        if (!res.ok) throw new Error('POST failed for Task (focus '+(t.focus?.reference||'?')+') HTTP '+res.status);
-        created.push(await res.json());
-      }
-      return created;
+
+    // Relaxed check for "Task Group"
+    function isGroupTask(res){
+      if(res?.resourceType!=='Task') return false;
+      const profs = res.meta?.profile || [];
+      const tags  = res.meta?.tag || [];
+      const profileHit = profs.some(p => /au-?e?request(ing)?-?task-?group/i.test(p));
+      const tagHit     = tags.some(t => /fulfil?ment-?task-?group/i.test(t.code||''));
+      const looksLikeGroup = !res.focus && !!res.groupIdentifier;  // pragmatic heuristic
+      return profileHit || tagHit || looksLikeGroup;
     }
-    async function putServiceRequestsIndividually(base, srs){
-      for (const sr of srs) {
-        const res = await fetch(`${base.replace(/\/$/,'')}/ServiceRequest/${encodeURIComponent(sr.id)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type':'application/fhir+json', 'Accept':'application/fhir+json' },
-          body: JSON.stringify(sr)
-        });
-        if (!res.ok) throw new Error('PUT failed for ServiceRequest/'+sr.id+' HTTP '+res.status);
+
+    async function fetchDiagnosticTasksForGroup(base, groupTaskId){
+      const url=`${base.replace(/\/$/,'')}/Task?part-of=${encodeURIComponent('Task/'+groupTaskId)}&_count=200`;
+      const b=await fetchJson(url);
+      return (b.entry||[]).map(e=>e.resource).filter(r=>r?.resourceType==='Task');
+    }
+
+    async function fetchServiceRequestsAndRelated(base, tasks){
+      const srs=[]; const extra=[];
+      const seen = new Set();
+      for(const t of tasks){
+        const fref = t.focus?.reference; if(!fref) continue;
+        const key = fref.startsWith('http') ? new URL(fref).pathname.split('/').filter(Boolean).slice(-2).join('/') : fref;
+        if(seen.has(key)) continue; seen.add(key);
+        try{
+          const sr = await getByRef(base, fref);
+          if(sr?.resourceType==='ServiceRequest') {
+            srs.push(sr);
+            for(const r of (sr.supportingInfo||[])){
+              const res = await getByRef(base, r.reference||r);
+              if(res?.resourceType==='Observation') extra.push(res);
+            }
+            if(sr.requester?.reference){
+              const rq = await getByRef(base, sr.requester.reference);
+              if(rq) extra.push(rq);
+              if(rq?.resourceType==='PractitionerRole'){
+                if(rq.organization?.reference){
+                  const org = await getByRef(base, rq.organization.reference); if(org) extra.push(org);
+                }
+                if(Array.isArray(rq.location)){
+                  for(const lr of rq.location){
+                    const loc = await getByRef(base, lr.reference||lr); if(loc) extra.push(loc);
+                  }
+                }
+                if(rq.practitioner?.reference){
+                  const prac = await getByRef(base, rq.practitioner.reference); if(prac) extra.push(prac);
+                }
+              }
+            }
+          }
+        }catch(e){ console.warn('SR fetch failed for', fref, e); }
       }
-      return true;
+      return {srs, related:extra};
+    }
+
+    function composeBundle(patient, serviceRequests, tasks, extras=[], includeGroupTask=null){
+      const entry=[];
+      if(patient) entry.push({fullUrl:`Patient/${patient.id}`, resource:patient});
+      for(const r of (serviceRequests||[])) if(r?.resourceType==='ServiceRequest') entry.push({fullUrl:`ServiceRequest/${r.id||crypto.randomUUID?.()||Math.random().toString(36).slice(2)}`, resource:r});
+      for(const t of (tasks||[])) if(t?.resourceType==='Task') entry.push({fullUrl:`Task/${t.id||crypto.randomUUID?.()||Math.random().toString(36).slice(2)}`, resource:t});
+      for(const x of (extras||[])) if(x?.resourceType && x.id) entry.push({fullUrl:`${x.resourceType}/${x.id}`, resource:x});
+      if(includeGroupTask) entry.push({fullUrl:`Task/${includeGroupTask.id}`, resource:includeGroupTask});
+      return {resourceType:'Bundle', type:'collection', entry};
+    }
+
+    // ---------- Loader (accepts group or diagnostic task URL) ----------
+    async function loadGroupTaskFromUrl(url){
+      statusEl.textContent='Fetching…';
+      const base=inferBaseFromUrl(url);
+      const task=await fetchJson(url);
+      if(task?.resourceType!=='Task') throw new Error('URL does not resolve to a Task');
+
+      CURRENT_BASE=base;
+
+      let groupTask = null, groupKey = null, note = '';
+
+      if (isGroupTask(task)) {
+        groupTask = task;
+        groupKey  = `Task/${task.id}`;
+      } else if (Array.isArray(task.partOf) && task.partOf.length) {
+        const grpRef = toTypeId(task.partOf[0]);
+        groupTask = await getByRef(base, grpRef);
+        groupKey  = toTypeId(grpRef);
+        note = 'Expanded from Diagnostic Task via partOf.';
+      } else {
+        groupTask = null;
+        groupKey  = null;
+        note = 'Loaded a single Diagnostic Task (no partOf).';
+      }
+
+      // Get diagnostic request tasks
+      let diagTasks = [];
+      if (groupKey) {
+        const grpId = groupKey.split('/')[1];
+        diagTasks = await fetchDiagnosticTasksForGroup(base, grpId);
+        if (!diagTasks.length && task.focus) diagTasks = [task]; // fallback to the original
+      } else {
+        if (task.focus) diagTasks = [task]; // orphan diagnostic task
+      }
+
+      // Stamp missing groupIdentifier for UI grouping
+      const stampedTasks = diagTasks.map(t => {
+        if (!t.groupIdentifier) {
+          const clone = JSON.parse(JSON.stringify(t));
+          clone.groupIdentifier = groupTask?.groupIdentifier || { value: (groupTask?.id || task.id || 'Requisition') };
+          return clone;
+        }
+        return t;
+      });
+
+      // Determine patient (group.for preferred)
+      let patient = null;
+      if (groupTask?.for)      patient = await getByRef(base, groupTask.for);
+      else if (stampedTasks[0]?.for) patient = await getByRef(base, stampedTasks[0].for);
+
+      // Fetch ServiceRequests and related
+      const {srs, related} = await fetchServiceRequestsAndRelated(base, stampedTasks);
+
+      // Compose and render
+      const bundle = composeBundle(patient, srs, stampedTasks, related, groupTask || null);
+      renderBundle(bundle);
+      statusEl.textContent='Loaded ✓' + (note ? ` (${note})` : '');
     }
 
     // ---------- Render: identity ----------
@@ -538,7 +649,7 @@
       const tMap = tasksByFocusMap(bundle);
 
       // Group by Task.groupIdentifier
-      const groups = new Map(); // reqKey -> {title, items:[{sr,task}]}
+      const groups = new Map();
       for(const sr of list){
         const key=`ServiceRequest/${sr.id}`;
         const tasks=tMap.get(key)||[];
@@ -585,12 +696,12 @@
                               : (pregIsUnspecified ? 'unspecified' : [...pregLabels].join(', '));
         const pregIsNotPregnant = hasKnownNotPreg && !hasAnyPregEvidence;
 
-        // All-claimed state (for initial render)
+        // All-claimed?
         const allClaimed = group.items.length>0 && group.items.every(({task}) =>
           task && task.status==='in-progress' && (task.businessStatus?.text||'').toLowerCase()==='collected'
         );
 
-        // group shell (adds Claim button)
+        // group shell
         const gId = safeId(`${reqNo}_${gIndex}`);
         const gEl = document.createElement('div');
         gEl.className='req-group';
@@ -685,29 +796,28 @@
           }catch(e){ /* ignore, keep UI */ }
         })();
 
-        // ---------- Claim behaviour (create missing Tasks + update existing) ----------
+        // ---------- Claim behaviour ----------
         claimBtn.addEventListener('click', async ()=>{
           try{
             if (!CURRENT_BASE) { showToast('No FHIR server base available for updates.', 'err'); return; }
             const nowIso = new Date().toISOString();
-            const fillerRef = selectedFillerRef(); // {identifier, display}
+            const fillerRef = selectedFillerRef();
 
-            // Split into create / update
             const toCreate = [];
             const toUpdate = [];
-            const srPuts = []; // updated ServiceRequests (with performer)
+            const srPuts = [];
 
             let exemplarGroupId=null;
             for (const {task} of group.items) { if (task?.groupIdentifier) { exemplarGroupId = task.groupIdentifier; break; } }
 
             for (const {sr, task} of group.items) {
-              // ---- Tasks ----
+              // Tasks
               if (task && task.id) {
                 const upd = (window.structuredClone ? structuredClone(task) : JSON.parse(JSON.stringify(task)));
                 upd.status = 'in-progress';
                 upd.businessStatus = { text: 'collected' };
                 upd.lastModified = nowIso;
-                upd.owner = fillerRef; // set owner to filler organisation
+                upd.owner = fillerRef;
                 toUpdate.push(upd);
               } else {
                 const focusRef = `ServiceRequest/${sr.id}`;
@@ -728,7 +838,7 @@
                 toCreate.push(newTask);
               }
 
-              // ---- ServiceRequest.performer ----
+              // SR.performer
               const srClone = (window.structuredClone ? structuredClone(sr) : JSON.parse(JSON.stringify(sr)));
               const perf = Array.isArray(srClone.performer) ? srClone.performer : [];
               const exists = perf.some(p =>
@@ -746,41 +856,35 @@
 
             claimBtn.disabled = true; claimBtn.textContent = 'Claiming…';
 
-            // Prepare transaction entries (POST new Tasks, PUT Task updates, PUT SR performers)
+            // Try transaction first, then fallback
             const txEntries = [
               ...toCreate.map(res => ({ request:{ method:'POST', url:`Task` }, resource: res })),
               ...toUpdate.map(res => ({ request:{ method:'PUT', url:`Task/${encodeURIComponent(res.id)}` }, resource: res })),
               ...srPuts.map(res => ({ request:{ method:'PUT', url:`ServiceRequest/${encodeURIComponent(res.id)}` }, resource: res }))
             ];
 
-            let createdIds = [];
             try {
-              // Try single transaction first
-              const txResp = await postTransaction(CURRENT_BASE, txEntries);
-              if (txResp?.resourceType==='Bundle' && Array.isArray(txResp.entry)) {
-                txResp.entry.forEach((e,i)=>{
-                  const req = txEntries[i];
-                  if (req.request.method==='POST') {
-                    const loc = e?.response?.location || '';
-                    const m = loc.match(/Task\/([^\/\?]+)/);
-                    if (m && m[1]) createdIds.push(m[1]);
-                  }
-                });
-              }
+              const resp = await fetch(CURRENT_BASE.replace(/\/$/,''), {
+                method:'POST',
+                headers:{ 'Content-Type':'application/fhir+json', 'Accept':'application/fhir+json' },
+                body: JSON.stringify({ resourceType:'Bundle', type:'transaction', entry: txEntries })
+              });
+              if(!resp.ok) throw new Error('HTTP '+resp.status);
+              await resp.json();
             } catch (e) {
-              // Fallback: POST creates, then PUT updates
-              if (toCreate.length) {
-                const createdResources = await postTasksIndividually(CURRENT_BASE, toCreate);
-                createdIds = createdResources.map(r=>r.id).filter(Boolean);
-                for (let i=0;i<createdResources.length;i++) toCreate[i] = createdResources[i];
+              // Fallback: POST/PUT individually
+              for (const r of toCreate) {
+                const p=await fetch(`${CURRENT_BASE.replace(/\/$/,'')}/Task`,{method:'POST',headers:{'Content-Type':'application/fhir+json','Accept':'application/fhir+json'},body:JSON.stringify(r)});
+                if(!p.ok) throw new Error('POST Task failed');
+                const created=await p.json(); r.id=created.id;
               }
-              if (toUpdate.length) await putTasksIndividually(CURRENT_BASE, toUpdate);
-              if (srPuts.length) await putServiceRequestsIndividually(CURRENT_BASE, srPuts);
-            }
-
-            if (createdIds.length) {
-              for (let i=0;i<toCreate.length;i++) {
-                if (!toCreate[i].id && createdIds[i]) toCreate[i].id = createdIds[i];
+              for (const r of toUpdate) {
+                const q=await fetch(`${CURRENT_BASE.replace(/\/$/,'')}/Task/${encodeURIComponent(r.id)}`,{method:'PUT',headers:{'Content-Type':'application/fhir+json','Accept':'application/fhir+json'},body:JSON.stringify(r)});
+                if(!q.ok) throw new Error('PUT Task failed');
+              }
+              for (const r of srPuts) {
+                const q=await fetch(`${CURRENT_BASE.replace(/\/$/,'')}/ServiceRequest/${encodeURIComponent(r.id)}`,{method:'PUT',headers:{'Content-Type':'application/fhir+json','Accept':'application/fhir+json'},body:JSON.stringify(r)});
+                if(!q.ok) throw new Error('PUT ServiceRequest failed');
               }
             }
 
@@ -845,23 +949,24 @@
     by('#mode-qr').addEventListener('click',()=>setMode('qr'));
 
     const loadUrlBtn=by('#loadUrlBtn'); const bundleUrlIn=by('#bundleUrl');
-    loadUrlBtn.addEventListener('click', async ()=>{ loadFromUrl((bundleUrlIn.value||'').trim()); });
 
-    async function loadFromUrl(url){
-      if(!url) return; statusEl.textContent='Fetching…';
-      try{
-        const res=await fetch(url,{headers:{'Accept':'application/fhir+json'}});
-        if(!res.ok) throw new Error('HTTP '+res.status);
-        const json=await res.json();
-        const base=inferBaseFromUrl(url);
-        CURRENT_BASE = base;
-        let bundle=await ensureBundle(json, base);
-        if (!tasksInBundle(bundle).length && base) bundle = await addTasksForBundleServiceRequests(bundle, base);
-        renderBundle(bundle);
-        statusEl.textContent='Loaded ✓';
-      }catch(err){ console.error(err); statusEl.textContent='Load failed (CORS? URL? see console).'; }
-    }
+    // Normalize on blur (nice-to-have)
+    bundleUrlIn.addEventListener('blur', ()=>{
+      const v=(bundleUrlIn.value||'').trim();
+      if(v) bundleUrlIn.value = normalizeResourceUrl(v);
+    });
 
+    // Load button (normalize first)
+    loadUrlBtn.addEventListener('click', async ()=>{
+      const raw=(bundleUrlIn.value||'').trim();
+      const url = normalizeResourceUrl(raw);
+      if(!url) return;
+      bundleUrlIn.value = url; // reflect normalization
+      try{ await loadGroupTaskFromUrl(url); }
+      catch(err){ console.error(err); statusEl.textContent='Load failed (CORS? wrong URL? see console).'; }
+    });
+
+    // Patient search path retained
     const baseUrlIn=by('#baseUrl'); const patientQueryIn=by('#patientQuery'); const resultsEl=by('#results');
     let searchTimer=null;
     patientQueryIn.addEventListener('input',()=>{
@@ -871,15 +976,14 @@
       searchTimer=setTimeout(()=>runPatientSearch(q),300);
     });
 
+    async function fetchJsonEnsure(url){ const r=await fetch(url,{headers:{'Accept':'application/fhir+json'}}); if(!r.ok) throw new Error('HTTP '+r.status); return await r.json(); }
     async function runPatientSearch(q){
       const base=(baseUrlIn.value||'').replace(/\/$/,'');
       if(!base){ resultsEl.innerHTML='<div class="res"><span>Enter server base URL first</span></div>'; return; }
       resultsEl.innerHTML='<div class="res"><span>Searching…</span></div>';
       try{
         const url=`${base}/Patient?name=${encodeURIComponent(q)}&_count=10`;
-        const res=await fetch(url,{headers:{'Accept':'application/fhir+json'}});
-        if(!res.ok) throw new Error('HTTP '+res.status);
-        const b=await res.json();
+        const b=await fetchJsonEnsure(url);
         const entries=(b.entry||[]).map(e=>e.resource).filter(r=>r?.resourceType==='Patient');
         if(!entries.length){ resultsEl.innerHTML='<div class="res"><span>No matches</span></div>'; return; }
         resultsEl.innerHTML=entries.map(p=>{
@@ -895,11 +999,12 @@
             try{
               statusEl.textContent='Loading patient…';
               const [pt,srs]=await Promise.all([
-                fetchJson(`${base}/Patient/${id}`),
-                fetchJson(`${base}/ServiceRequest?subject=Patient/${id}&_count=100`)
+                fetchJsonEnsure(`${base}/Patient/${id}`),
+                fetchJsonEnsure(`${base}/ServiceRequest?subject=Patient/${id}&_count=100`)
               ]);
               const srResources=srs.entry?.map(e=>e.resource)||[];
-              const tasks=await fetchTasksForServiceRequests(base, srResources.map(r=>r.id).filter(Boolean));
+              // fetch related tasks
+              const tasks=[]; for(const sr of srResources){ try{ const t=await fetchJsonEnsure(`${base}/Task?focus=ServiceRequest/${encodeURIComponent(sr.id)}&_count=50`); tasks.push(...(t.entry||[]).map(e=>e.resource).filter(r=>r?.resourceType==='Task')); }catch{} }
               const bundle=composeBundle(pt, srResources, tasks);
               CURRENT_BASE = base;
               renderBundle(bundle);
@@ -910,57 +1015,28 @@
       }catch(err){ console.error(err); resultsEl.innerHTML='<div class="res"><span>Search failed (CORS? see console)</span></div>'; }
     }
 
-    // QR scan (optional)
+    // ---------- QR scan (normalized) ----------
     const qrVideo=by('#qrVideo'); const qrFile=by('#qrFile'); const startScanBtn=by('#startScanBtn'); const stopScanBtn=by('#stopScanBtn'); const qrStatus=by('#qrStatus');
     let qrStream=null, qrRaf=null, qrCanvas=null, qrCtx=null, detector=null;
     async function ensureDetector(){ if(detector) return detector; if(!('BarcodeDetector' in window)) throw new Error('BarcodeDetector not supported'); detector=new BarcodeDetector({formats:['qr_code']}); return detector; }
     function stopScan(){ if(qrRaf){cancelAnimationFrame(qrRaf); qrRaf=null;} if(qrStream){qrStream.getTracks().forEach(t=>t.stop()); qrStream=null;} if(qrVideo){qrVideo.srcObject=null;} qrStatus.textContent=''; }
-    function handleQrValue(val){ if(!val) return; stopScan(); qrStatus.textContent='QR found ✓'; bundleUrlIn.value=String(val).trim(); setMode('url'); loadUrlBtn.click(); }
+    function handleQrValue(val){
+      if(!val) return;
+      stopScan();
+      qrStatus.textContent='QR found ✓';
+      const norm = normalizeResourceUrl(String(val).trim());
+      const looksTask = /\/Task\/[^\/]+$/.test(norm) || /\/Task\/[^\/]+(?=\/|$)/.test(norm);
+      if(!looksTask){
+        // still allow; loader will error if not a Task
+      }
+      by('#bundleUrl').value = norm;
+      setMode('url');
+      by('#loadUrlBtn').click();
+    }
     async function scanFrame(){ try{ const det=await ensureDetector(); const w=qrVideo.videoWidth,h=qrVideo.videoHeight; if(!w||!h){ qrRaf=requestAnimationFrame(scanFrame); return; } if(!qrCanvas){ qrCanvas=document.createElement('canvas'); qrCtx=qrCanvas.getContext('2d'); } qrCanvas.width=w; qrCanvas.height=h; qrCtx.drawImage(qrVideo,0,0,w,h); const codes=await det.detect(qrCanvas); if(codes?.length){ handleQrValue(codes[0].rawValue); return; } }catch{} qrRaf=requestAnimationFrame(scanFrame); }
     startScanBtn?.addEventListener('click', async ()=>{ try{ if(!isSecureContext) throw Object.assign(new Error('Insecure'),{name:'InsecureContextError'}); await ensureDetector(); qrStatus.textContent='Starting camera…'; qrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false}); qrVideo.srcObject=qrStream; await qrVideo.play(); qrStatus.textContent='Scanning… point camera at QR'; scanFrame(); }catch(err){ console.error(err); let msg='QR scanning not available.'; if(err?.name==='NotAllowedError') msg='Camera permission denied.'; else if(err?.name==='NotFoundError'||err?.name==='OverconstrainedError') msg='No suitable camera found.'; else if(err?.name==='InsecureContextError') msg='Use HTTPS or localhost.'; else if(!('BarcodeDetector' in window)) msg='Browser does not support live QR scanning.'; qrStatus.textContent=msg; } });
     stopScanBtn?.addEventListener('click',()=>{ stopScan(); qrStatus.textContent='Stopped.'; });
     qrFile?.addEventListener('change', async ()=>{ const f=qrFile.files?.[0]; if(!f) return; try{ await ensureDetector(); if('createImageBitmap' in window){ const ib=await createImageBitmap(f); const codes=await detector.detect(ib); if(codes?.length){ handleQrValue(codes[0].rawValue); return; } } const img=new Image(); img.onload=async()=>{ const codes=await detector.detect(img); if(codes?.length) handleQrValue(codes[0].rawValue); else qrStatus.textContent='No QR found.'; }; img.onerror=()=>{ qrStatus.textContent='Could not decode image.'; }; img.src=URL.createObjectURL(f); }catch(err){ console.error(err); qrStatus.textContent='Could not decode image.'; } });
-
-    // ---------- Ensure / compose ----------
-    async function ensureBundle(obj, base){
-      if(obj?.resourceType==='Bundle') return obj;
-      if(obj?.resourceType==='Patient' && base){
-        const srs=await fetchJson(`${base.replace(/\/$/,'')}/ServiceRequest?subject=Patient/${obj.id}&_count=100`);
-        const sr=(srs.entry||[]).map(e=>e.resource)||[]; const tasks=await fetchTasksForServiceRequests(base, sr.map(r=>r.id).filter(Boolean));
-        return composeBundle(obj, sr, tasks);
-      }
-      if(obj?.resourceType==='ServiceRequest' && base){
-        let patient=null; const ref=obj.subject?.reference;
-        if(ref){ const key=ref.includes('/')?ref.split('/').slice(-2).join('/'):`Patient/${ref}`; patient=await fetchJson(`${base.replace(/\/$/,'')}/${key}`); }
-        const tasks=await fetchTasksForServiceRequests(base, [obj.id].filter(Boolean));
-        return composeBundle(patient, [obj], tasks);
-      }
-      throw new Error('URL did not return a Bundle/Patient/ServiceRequest.');
-    }
-    function composeBundle(patient, serviceRequests, tasks){
-      const entry=[]; if(patient) entry.push({fullUrl:`Patient/${patient.id}`, resource:patient});
-      for(const r of (serviceRequests||[])){ if(r?.resourceType==='ServiceRequest') entry.push({fullUrl:`ServiceRequest/${r.id||crypto.randomUUID?.()||Math.random().toString(36).slice(2)}`, resource:r}); }
-      for(const t of (tasks||[])){ if(t?.resourceType==='Task') entry.push({fullUrl:`Task/${t.id||crypto.randomUUID?.()||Math.random().toString(36).slice(2)}`, resource:t}); }
-      return {resourceType:'Bundle', type:'collection', entry};
-    }
-    async function fetchTasksForServiceRequests(base, ids){
-      const out=[]; const clean=base.replace(/\/$/,'');
-      for(const id of ids){ try{ const url=`${clean}/Task?focus=ServiceRequest/${encodeURIComponent(id)}&_count=50`; const res=await fetchJson(url); const tasks=(res.entry||[]).map(e=>e.resource).filter(r=>r?.resourceType==='Task'); out.push(...tasks); }catch{} }
-      return out;
-    }
-    async function addTasksForBundleServiceRequests(bundle, base){
-      const srs=(bundle.entry||[]).map(e=>e.resource).filter(r=>r?.resourceType==='ServiceRequest'); const ids=srs.map(s=>s.id).filter(Boolean);
-      if(!ids.length) return bundle;
-      const tasks=await fetchTasksForServiceRequests(base, ids); if(!tasks.length) return bundle;
-      return composeBundle(pickPatient(bundle), srs, tasks);
-    }
-
-    // Legacy hook
-    function renderRequests(list){ renderRequestsGrouped({entry:[]}, list); }
-
   </script>
 </body>
 </html>
-
-<!-- WORS WELL -->
- 
