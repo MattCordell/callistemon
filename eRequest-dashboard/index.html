@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>eRequest Dashboard — v6.5</title>
+  <title>eRequest Dashboard — v6.7</title>
   <!-- Tailwind Play CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <meta name="description" content="FHIR ServiceRequest dashboard" />
@@ -16,14 +16,27 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <script type="text/babel" data-presets="react">
+  <!-- Use env+react so modern JS and JSX both transpile -->
+  <script type="text/babel" data-presets="env,react">
     /**
-     * eRequest Dashboard — v6.5 (single-file)
-     * - Incoming Services additions:
-     *    • Task column now shows: Task.status — Task.businessStatus.text (if present)
-     *    • Priority (ServiceRequest.priority)
-     *    • Since Authored (live, only when priority !== "routine")
-     * - Uses _revinclude=Task:based-on to fetch Tasks linked to SRs.
+     * eRequest Dashboard — v6.7 (single-file)
+     * Incoming Services columns:
+     *  • Date
+     *  • Patient
+     *  • Test Name
+     *  • Category
+     *  • Status
+     *  • Task (Task.status — Task.businessStatus.text)
+     *  • Priority
+     *  • Since Authored (only if priority !== "routine")
+     *  • Performer (resolved names from ServiceRequest.performer)
+     *
+     * Fetch strategy:
+     *  - _include=ServiceRequest:subject (Patient)
+     *  - _include=ServiceRequest:performer (Practitioner/Organization/etc/PractitionerRole)
+     *  - _include:iterate=PractitionerRole:practitioner
+     *  - _include:iterate=PractitionerRole:organization
+     *  - _revinclude=Task:based-on
      */
 
     // ----------------------------- Error Boundary ------------------------------
@@ -53,16 +66,21 @@
     const { useEffect, useMemo, useRef, useState } = React;
 
     // ----------------------------- Helpers ------------------------------------
-    function getHumanName(patient) {
-      if (!patient || !Array.isArray(patient.name) || patient.name.length === 0) return "(no name)";
-      const n = patient.name.find((x) => x.use === "official") || patient.name[0];
+    function humanName(res) {
+      if (!res || !Array.isArray(res.name) || res.name.length === 0) return "";
+      const n = res.name.find(x => x.use === "official") || res.name[0];
       if (n && n.text && String(n.text).trim()) return String(n.text).trim();
       const family = (n && n.family ? String(n.family) : "").trim();
-      const givenArr = (n && Array.isArray(n.given) ? n.given : (n && n.given ? [n.given] : [])).map((g) => String(g).trim()).filter(Boolean);
+      const givenArr = (n && Array.isArray(n.given) ? n.given : (n && n.given ? [n.given] : [])).map(g => String(g).trim()).filter(Boolean);
       const given = givenArr.join(" ");
       const parts = [family, given].filter(Boolean);
-      const built = parts.join(", ").trim(); // "Family, Given"
-      return built || "(no name)";
+      const built = parts.join(", ").trim();
+      return built || "";
+    }
+
+    function patientName(patient) {
+      const s = humanName(patient);
+      return s || "(no name)";
     }
 
     function calcAge(birthDate) {
@@ -91,16 +109,32 @@
     }
 
     function srAuthoredOn(sr) { return (sr && sr.authoredOn) || (sr && sr.meta && sr.meta.lastUpdated) || null; }
-    function srCodeText(sr) { const t = sr && sr.code && sr.code.text; const c = sr && sr.code && sr.code.coding && sr.code.coding[0]; return t || (c && (c.display || c.code)) || "(no code)"; }
-    function srCategoryText(sr) { const cat = sr && sr.category && sr.category[0]; const c = cat && cat.coding && cat.coding[0]; return (cat && cat.text) || (c && (c.display || c.code)) || ""; }
+    function srCodeText(sr) {
+      const t = sr && sr.code && sr.code.text;
+      const c = sr && sr.code && sr.code.coding && sr.code.coding[0];
+      return t || (c && (c.display || c.code)) || "(no code)";
+    }
+    function srCategoryText(sr) {
+      const cat = sr && sr.category && sr.category[0];
+      const c = cat && cat.coding && cat.coding[0];
+      return (cat && cat.text) || (c && (c.display || c.code)) || "";
+    }
     function srPatientRef(sr) { return (sr && sr.subject && sr.subject.reference) || null; }
-    function refKey(ref) { return (ref || "").trim(); }
-    function formatDateTime(dtStr) { if (!dtStr) return ""; const d = new Date(dtStr); if (Number.isNaN(d.getTime())) return dtStr; return d.toLocaleString(); }
+    function formatDateTime(dtStr) {
+      if (!dtStr) return "";
+      const d = new Date(dtStr);
+      if (Number.isNaN(d.getTime())) return dtStr;
+      return d.toLocaleString();
+    }
 
-    // Normalize any absolute or versioned reference to canonical "Patient/{id}" or "ServiceRequest/{id}"
+    // Normalize "ResourceType/{id}" from Reference string
+    function normalizeRefStr(ref) {
+      const s = String(ref || "").trim();
+      const m = s.match(/^([A-Za-z]+)\/([^\/#?]+)/);
+      return m ? (m[1] + "/" + m[2]) : s;
+    }
     function normalizeRef(ref, type) {
-      const s = refKey(ref);
-      if (!s) return "";
+      const s = String(ref || "").trim();
       const m = s.match(new RegExp(type + "\\/([^\\/#?]+)"));
       return m ? (type + "/" + m[1]) : s;
     }
@@ -151,7 +185,7 @@
         return arr;
       }
       const coding = cc.coding;
-      if (Array.isArray(coding)) { for (let j = 0; j < coding.length; j++) { if (coding[j]) arr.push(coding[j]); } }
+      if (Array.isArray(coding)) { for (let j = 0; j < coding.length; j++) { if (c[j]) arr.push(c[j]); } }
       return arr;
     }
     function snomedCodesFromCC(cc) {
@@ -173,7 +207,7 @@
     const TX_PRESETS = [
       DEFAULT_TX,
       "https://r4.ontoserver.csiro.au/fhir",
-      "https://healthterminologies.gov.au/fhir",
+      "https://healthterminologies.gov.au/fhir"
     ];
 
     async function fetchJson(url) {
@@ -189,7 +223,7 @@
       const vsUrl = "http://snomed.info/sct?fhir_vs=ecl/" + encodeURIComponent(ecl);
       const url = txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=" + encodeURIComponent(vsUrl) + "&count=2000";
       const { ok, status, data, text } = await fetchJson(url);
-      if (!ok) throw new Error("$expand ECL failed: " + status + (text ? " — " + text : "")); // hyphen only
+      if (!ok) throw new Error("$expand ECL failed: " + status + (text ? " — " + text : ""));
       const contains = (data && data.expansion && data.expansion.contains) || [];
       const set = new Set();
       for (let i = 0; i < contains.length; i++) {
@@ -217,10 +251,10 @@
             const contains2 = (resp.data && resp.data.expansion && resp.data.expansion.contains) || [];
             return contains2.filter(c => c && c.code).map(c => ({ code: c.code, display: c.display || c.code }));
           }
-        } catch (e) { /* ignore */ }
+        } catch (e) {}
       }
       const msg = resp && (resp.text || (resp.data && resp.data.issue && JSON.stringify(resp.data.issue)) || "");
-      throw new Error("$expand ValueSet failed: " + (resp ? resp.status : "?") + (msg ? " — " + msg : "")); // hyphen only
+      throw new Error("$expand ValueSet failed: " + (resp ? resp.status : "?") + (msg ? " — " + msg : ""));
     }
 
     // ------------------------------ Component ---------------------------------
@@ -230,7 +264,7 @@
         "https://hapi.fhir.org/baseR4",
         "https://r4.smarthealthit.org",
         "https://demo.pathling.app/fhir",
-        "http://fhir.oridashi.com.au", // Note: may be blocked by browsers when served over HTTPS (mixed content)
+        "http://fhir.oridashi.com.au" // May be blocked by browsers when served over HTTPS (mixed content)
       ];
 
       // FHIR + Terminology servers
@@ -243,8 +277,9 @@
 
       // Data
       const [srList, setSrList] = useState([]);            // ServiceRequest[]
-      const [patientMap, setPatientMap] = useState({});    // ref -> Patient
+      const [patientMap, setPatientMap] = useState({});    // "Patient/{id}" -> Patient
       const [taskBySrId, setTaskBySrId] = useState({});    // "ServiceRequest/{id}" -> Task
+      const [resByRef, setResByRef] = useState({});        // "ResourceType/id" -> Resource (performers etc.)
       const [nextLink, setNextLink] = useState("");
 
       // Patient view state
@@ -270,7 +305,7 @@
         { code: "77477000", display: "Computed tomography" },
         { code: "44491008", display: "Fluoroscopy" },
         { code: "71651007", display: "Mammography" },
-        { code: "168537006", display: "Plain X-ray" },
+        { code: "168537006", display: "Plain X-ray" }
       ];
       const [selectedModality, setSelectedModality] = useState("");
       const [modalityCodes, setModalityCodes] = useState(new Set());
@@ -309,21 +344,24 @@
       const canSearch = !!(baseUrl && /^https?:\/\//i.test(baseUrl));
 
       // Auto-fetch on mount and whenever the baseUrl changes
-      useEffect(() => { if (canSearch) { fetchFirstPage({ resetSelection: true }); } }, [baseUrl]);
+      useEffect(() => { if (canSearch) { fetchFirstPage({ resetSelection: true }); } }, [baseUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
       // Core fetch (first page)
       async function fetchFirstPage({ resetSelection } = { resetSelection: true }) {
         if (!canSearch) return;
         setError(""); setLoading(true);
         try {
-          const query = new URLSearchParams({
-            _count: "50",
-            _include: "ServiceRequest:subject",
-            _revinclude: "Task:based-on",
-            _sort: "-authoredon,-_lastUpdated"
-          });
+          const query = new URLSearchParams();
+          query.set("_count", "50");
+          query.append("_include", "ServiceRequest:subject");     // Patient
+          query.append("_include", "ServiceRequest:performer");   // Performer refs
+          query.append("_include:iterate", "PractitionerRole:practitioner");
+          query.append("_include:iterate", "PractitionerRole:organization");
+          query.append("_revinclude", "Task:based-on");
+          query.append("_sort", "-authoredon,-_lastUpdated");
+
           const bundle = await fhirGET(baseUrl, "ServiceRequest?" + query.toString());
-          applyBundle(bundle, /*reset*/ true);
+          applyBundle(bundle, true);
           if (resetSelection) setSelectedPatientRef("");
         } catch (e) {
           setError(String(e && (e.message || e)));
@@ -338,7 +376,7 @@
           const res = await fetch(nextLink, { headers: { Accept: "application/fhir+json" } });
           if (!res.ok) throw new Error("FHIR GET next -> " + res.status);
           const bundle = await res.json();
-          applyBundle(bundle, /*reset*/ false);
+          applyBundle(bundle, false);
         } catch (e) { setError(String(e && (e.message || e))); } finally { setLoading(false); }
       }
 
@@ -348,17 +386,25 @@
         const nextPatients = reset ? {} : { ...patientMap };
         const nextSRsMap = new Map(((reset ? [] : srList)).map((r) => [r.id, r]));
         const nextTaskBySrId = reset ? {} : { ...taskBySrId };
+        const nextResByRef = reset ? {} : { ...resByRef };
 
         for (let i = 0; i < entries.length; i++) {
           const r = entries[i] && entries[i].resource;
           if (!r) continue;
+
+          // Index all resources by "Type/id" for generic lookup
+          if (r.resourceType && r.id) {
+            nextResByRef[r.resourceType + "/" + r.id] = r;
+          }
+
           if (r.resourceType === "ServiceRequest") nextSRsMap.set(r.id, r);
           if (r.resourceType === "Patient") nextPatients["Patient/" + r.id] = r;
+
           if (r.resourceType === "Task" && Array.isArray(r.basedOn)) {
-            for (const ref of r.basedOn) {
+            for (let j = 0; j < r.basedOn.length; j++) {
+              const ref = r.basedOn[j];
               const srRef = normalizeServiceRequestRef(ref && ref.reference);
               if (srRef) {
-                // Keep the most recently updated task if multiples appear
                 const existing = nextTaskBySrId[srRef];
                 if (!existing) {
                   nextTaskBySrId[srRef] = r;
@@ -375,10 +421,13 @@
         setPatientMap(nextPatients);
         setSrList(Array.from(nextSRsMap.values()));
         setTaskBySrId(nextTaskBySrId);
+        setResByRef(nextResByRef);
 
         const links = (bundle && bundle.link) || [];
         let nxt = "";
-        for (let i = 0; i < links.length; i++) { if (links[i] && links[i].relation === "next") { nxt = links[i].url || ""; break; } }
+        for (let k = 0; k < links.length; k++) {
+          if (links[k] && links[k].relation === "next") { nxt = links[k].url || ""; break; }
+        }
         setNextLink(nxt);
       }
 
@@ -391,7 +440,7 @@
           fetchFirstPage({ resetSelection: false });
         }, 42000);
         return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
-      }, [polling, baseUrl, loading]);
+      }, [polling, baseUrl, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
       // -------- Modality ECL (<<selected) ----------
       useEffect(() => {
@@ -455,9 +504,8 @@
       useEffect(() => {
         function onDocClick(e) {
           if (!siteInputRef.current) return;
-          if (!siteInputRef.current.parentElement.contains(e.target)) {
-            setSiteMenuOpen(false);
-          }
+          const wrapper = siteInputRef.current.parentElement;
+          if (!wrapper || !wrapper.contains(e.target)) setSiteMenuOpen(false);
         }
         document.addEventListener("click", onDocClick);
         return () => document.removeEventListener("click", onDocClick);
@@ -474,13 +522,78 @@
         const d = Math.floor(min / 1440);
         const h = Math.floor((min % 1440) / 60);
         const m = min % 60;
-        if (d > 0) return `${d}d ${h}h`;
-        if (h > 0) return `${h}h ${m}m`;
-        return `${m}m`;
+        if (d > 0) return d + "d " + h + "h";
+        if (h > 0) return h + "h " + m + "m";
+        return m + "m";
+      }
+
+      // Resolve a Reference -> displayable name using included resources
+      function nameFromResource(res) {
+        if (!res || !res.resourceType) return "";
+        switch (res.resourceType) {
+          case "Patient":
+          case "Practitioner":
+          case "RelatedPerson":
+            return humanName(res);
+          case "Organization":
+          case "CareTeam":
+          case "HealthcareService":
+            return (res.name && String(res.name)) || "";
+          case "Device":
+            if (Array.isArray(res.deviceName) && res.deviceName.length) return res.deviceName[0].name || "";
+            if (res.type && res.type.text) return res.type.text;
+            if (res.type && Array.isArray(res.type.coding) && res.type.coding[0]) return res.type.coding[0].display || res.type.coding[0].code || "";
+            return "";
+          case "PractitionerRole": {
+            let prac = "";
+            if (res.practitioner && res.practitioner.reference) {
+              const pracRes = resByRef[normalizeRefStr(res.practitioner.reference)];
+              prac = nameFromResource(pracRes);
+            }
+            let org = "";
+            if (res.organization && res.organization.reference) {
+              const orgRes = resByRef[normalizeRefStr(res.organization.reference)];
+              org = nameFromResource(orgRes);
+            }
+            let role = "";
+            if (Array.isArray(res.code) && res.code.length) {
+              const c = res.code[0];
+              role = (c.text) || (Array.isArray(c.coding) && c.coding[0] && (c.coding[0].display || c.coding[0].code)) || "";
+            }
+            const left = prac || role;
+            if (left && org) return left + " @ " + org;
+            return left || org || "";
+          }
+          default:
+            if (res.title) return String(res.title);
+            if (res.name) return String(res.name);
+            return "";
+        }
+      }
+
+      function performerNames(sr) {
+        const refs = Array.isArray(sr && sr.performer) ? sr.performer : [];
+        const names = [];
+        for (let i = 0; i < refs.length; i++) {
+          const r = refs[i];
+          const disp = (r && r.display) ? String(r.display).trim() : "";
+          const refStr = normalizeRefStr(r && r.reference);
+          const res = refStr ? resByRef[refStr] : null;
+          const nm = nameFromResource(res) || disp || refStr;
+          if (nm) names.push(nm);
+        }
+        // de-duplicate while preserving order
+        const seen = new Set();
+        const uniq = [];
+        for (let j = 0; j < names.length; j++) {
+          const n = names[j];
+          if (!seen.has(n)) { uniq.push(n); seen.add(n); }
+        }
+        return uniq.join(", ");
       }
 
       // Derived views -----------------------------------------------------------
-      const allIncomingRows = React.useMemo(() => {
+      const allIncomingRows = useMemo(() => {
         const rows = srList.map((sr) => {
           const pref = normalizePatientRef(srPatientRef(sr));
           const p = patientMap[pref];
@@ -489,15 +602,15 @@
           const priority = sr && sr.priority ? String(sr.priority) : "";
           const since = priority && priority.toLowerCase() !== "routine" ? formatSince(srAuthoredOn(sr)) : "";
 
-          // NEW: capture Task.businessStatus.text
           const businessStatus =
-            (task && task.businessStatus && (task.businessStatus.text || (task.businessStatus.coding && task.businessStatus.coding[0] && task.businessStatus.coding[0].display))) || "";
+            (task && task.businessStatus && (task.businessStatus.text ||
+              (task.businessStatus.coding && task.businessStatus.coding[0] && task.businessStatus.coding[0].display))) || "";
 
           return {
             id: sr.id,
             date: srAuthoredOn(sr),
             patientRef: pref,
-            patientName: getHumanName(p),
+            patientName: patientName(p),
             testName: srCodeText(sr),
             categoryText: srCategoryText(sr),
             status: sr.status || "",
@@ -505,15 +618,16 @@
             testSct: snomedCodesFromCC(sr.code),
             taskStatus: (task && task.status) ? String(task.status) : "",
             taskBusinessStatus: businessStatus ? String(businessStatus) : "",
-            priority,
+            priority: priority,
             sinceAuthored: since,
+            performer: performerNames(sr)
           };
         });
-        rows.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        rows.sort(function(a, b){ return new Date(b.date || 0) - new Date(a.date || 0); });
         return rows;
-      }, [srList, patientMap, taskBySrId]);
+      }, [srList, patientMap, taskBySrId, resByRef]);
 
-      const filteredIncomingRows = React.useMemo(() => {
+      const filteredIncomingRows = useMemo(() => {
         let out = allIncomingRows;
         if (categoryFilter === "lab") {
           out = out.filter(r => r.categorySct && r.categorySct.indexOf(LAB_SCT) !== -1);
@@ -529,7 +643,7 @@
         return out;
       }, [allIncomingRows, categoryFilter, modalityCodes, anatomyCodes]);
 
-      const patientRows = React.useMemo(() => {
+      const patientRows = useMemo(() => {
         const map = new Map();
         for (let i = 0; i < srList.length; i++) {
           const sr = srList[i];
@@ -543,33 +657,43 @@
             cur.count = (cur.count || 0) + 1;
           }
         }
-        let arr = Array.from(map.entries()).map(([pref, v]) => ({
-          patientRef: pref,
-          patientName: getHumanName(patientMap[pref]),
-          latestDate: v.latestDate,
-          count: v.count,
-        }));
+        let arr = Array.from(map.entries()).map(function(entry){
+          const pref = entry[0]; const v = entry[1];
+          return {
+            patientRef: pref,
+            patientName: patientName(patientMap[pref]),
+            latestDate: v.latestDate,
+            count: v.count
+          };
+        });
         const q = patientSearch.trim().toLowerCase();
-        if (q) arr = arr.filter((p) => (p.patientName || "").toLowerCase().includes(q));
+        if (q) arr = arr.filter(p => (p.patientName || "").toLowerCase().includes(q));
         if (last7Only) {
           const now = Date.now();
           const seven = 7 * 24 * 60 * 60 * 1000;
-          arr = arr.filter((p) => {
+          arr = arr.filter(p => {
             const t = new Date(p.latestDate || 0).getTime();
             return !Number.isNaN(t) && now - t <= seven;
           });
         }
-        arr.sort((a, b) => new Date(b.latestDate || 0) - new Date(a.latestDate || 0));
+        arr.sort(function(a, b){ return new Date(b.latestDate || 0) - new Date(a.latestDate || 0); });
         return arr;
       }, [srList, patientMap, patientSearch, last7Only]);
 
       const selectedPatient = patientMap[selectedPatientRef];
-      const selectedPatientSRs = React.useMemo(
-        () => allIncomingRows.filter((r) => r.patientRef === selectedPatientRef),
+      const selectedPatientSRs = useMemo(
+        () => allIncomingRows.filter(r => r.patientRef === selectedPatientRef),
         [allIncomingRows, selectedPatientRef]
       );
 
       const selectedPhotoSrc = getPatientPhotoSrc(selectedPatient, baseUrl);
+
+      // Example queries text (avoid nested template pitfalls inside JSX)
+      const exampleQueries =
+        "FHIR GET " + baseUrl.replace(/\/$/, "") +
+        "/ServiceRequest?_count=50&_include=ServiceRequest:subject&_include=ServiceRequest:performer&_include:iterate=PractitionerRole:practitioner&_include:iterate=PractitionerRole:organization&_revinclude=Task:based-on&_sort=-authoredon,-_lastUpdated\n" +
+        "$expand (ECL) " + txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=http://snomed.info/sct?fhir_vs=ecl/%3C%3CSCTID\n" +
+        "$expand (site) " + txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=" + "https://healthterminologies.gov.au/fhir/ValueSet/body-site-1";
 
       // UI ----------------------------------------------------------------------
       return (
@@ -624,8 +748,8 @@
 
             {/* Mode Toggle */}
             <div className="flex gap-2">
-              <button onClick={() => setMode("incoming")} className={`px-4 py-2 rounded-xl border ${mode === "incoming" ? "bg-slate-800 border-slate-700" : "bg-slate-900 border-slate-800 hover:bg-slate-800"}`}>Incoming Services</button>
-              <button onClick={() => setMode("patients")} className={`px-4 py-2 rounded-xl border ${mode === "patients" ? "bg-slate-800 border-slate-700" : "bg-slate-900 border-slate-800 hover:bg-slate-800"}`}>Patient Listing</button>
+              <button onClick={() => setMode("incoming")} className={"px-4 py-2 rounded-xl border " + (mode === "incoming" ? "bg-slate-800 border-slate-700" : "bg-slate-900 border-slate-800 hover:bg-slate-800")}>Incoming Services</button>
+              <button onClick={() => setMode("patients")} className={"px-4 py-2 rounded-xl border " + (mode === "patients" ? "bg-slate-800 border-slate-700" : "bg-slate-900 border-slate-800 hover:bg-slate-800")}>Patient Listing</button>
             </div>
 
             {error && <div className="bg-red-950/40 border border-red-800 text-red-200 p-3 rounded-xl">{error}</div>}
@@ -644,9 +768,9 @@
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="text-sm text-slate-300 w-28">Category</div>
                     <div className="inline-flex rounded-xl overflow-hidden border border-slate-700">
-                      <button className={`px-3 py-1 text-sm ${categoryFilter==="all"?"bg-slate-800":"bg-slate-900 hover:bg-slate-800"}`} onClick={()=>setCategoryFilter("all")}>All</button>
-                      <button className={`px-3 py-1 text-sm ${categoryFilter==="lab"?"bg-slate-800":"bg-slate-900 hover:bg-slate-800"}`} onClick={()=>setCategoryFilter("lab")}>Laboratory</button>
-                      <button className={`px-3 py-1 text-sm ${categoryFilter==="imaging"?"bg-slate-800":"bg-slate-900 hover:bg-slate-800"}`} onClick={()=>setCategoryFilter("imaging")}>Imaging</button>
+                      <button className={"px-3 py-1 text-sm " + (categoryFilter==="all"?"bg-slate-800":"bg-slate-900 hover:bg-slate-800")} onClick={()=>setCategoryFilter("all")}>All</button>
+                      <button className={"px-3 py-1 text-sm " + (categoryFilter==="lab"?"bg-slate-800":"bg-slate-900 hover:bg-slate-800")} onClick={()=>setCategoryFilter("lab")}>Laboratory</button>
+                      <button className={"px-3 py-1 text-sm " + (categoryFilter==="imaging"?"bg-slate-800":"bg-slate-900 hover:bg-slate-800")} onClick={()=>setCategoryFilter("imaging")}>Imaging</button>
                     </div>
                   </div>
 
@@ -696,7 +820,7 @@
                                   setSiteQuery(opt.display);
                                   setSelectedSite(opt.code);
                                   setSiteMenuOpen(false);
-                                  requestAnimationFrame(() => siteInputRef.current && siteInputRef.current.focus());
+                                  requestAnimationFrame(() => { if (siteInputRef.current) siteInputRef.current.focus(); });
                                 }}
                               >
                                 {opt.display}
@@ -732,6 +856,7 @@
                         <th className="px-4 py-3 font-medium">Task</th>
                         <th className="px-4 py-3 font-medium">Priority</th>
                         <th className="px-4 py-3 font-medium">Since Authored</th>
+                        <th className="px-4 py-3 font-medium">Performer</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -750,10 +875,11 @@
                           <td className="px-4 py-2 uppercase tracking-wide text-slate-300">{r.status}</td>
                           <td className="px-4 py-2 text-slate-200">
                             <span className="uppercase tracking-wide">{r.taskStatus || ""}</span>
-                            {r.taskBusinessStatus ? <span>{` — ${r.taskBusinessStatus}`}</span> : null}
+                            {r.taskBusinessStatus ? <span>{" — " + r.taskBusinessStatus}</span> : null}
                           </td>
                           <td className="px-4 py-2 capitalize">{r.priority || ""}</td>
                           <td className="px-4 py-2">{r.sinceAuthored || ""}</td>
+                          <td className="px-4 py-2">{r.performer || ""}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -801,7 +927,7 @@
                           {patientRows.map((p) => (
                             <tr
                               key={p.patientRef}
-                              className={`border-t border-slate-800 hover:bg-slate-900/50 ${selectedPatientRef === p.patientRef ? "bg-slate-900/60" : ""} cursor-pointer`}
+                              className={"border-t border-slate-800 hover:bg-slate-900/50 " + (selectedPatientRef === p.patientRef ? "bg-slate-900/60" : "") + " cursor-pointer"}
                               onClick={() => setSelectedPatientRef(p.patientRef)}
                               tabIndex={0}
                               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedPatientRef(p.patientRef); } }}
@@ -827,7 +953,7 @@
                             <div className="w-16 h-16 rounded-xl bg-slate-900 border border-slate-800 grid place-items-center text-xs text-slate-500">No photo</div>
                           )}
                           <div className="space-y-1">
-                            <div><span className="text-slate-400">Name:&nbsp;</span>{getHumanName(selectedPatient)}</div>
+                            <div><span className="text-slate-400">Name:&nbsp;</span>{patientName(selectedPatient)}</div>
                             {selectedPatient && selectedPatient.birthDate && (
                               <div><span className="text-slate-400">Age:&nbsp;</span>{calcAge(selectedPatient.birthDate)} (DOB: {selectedPatient.birthDate})</div>
                             )}
@@ -881,16 +1007,14 @@
                 <div className="bg-slate-900/40 p-2 rounded-xl border border-slate-800">
                   <div className="font-semibold">State</div>
                   <pre className="whitespace-pre-wrap">{JSON.stringify({
-                    mode, baseUrl, txBase, nextLink,
-                    counts: { srs: srList.length, patients: Object.keys(patientMap).length, tasks: Object.keys(taskBySrId).length },
-                    filters: { categoryFilter, selectedModality, modalityCodes: modalityCodes.size, selectedSite, anatomyCodes: anatomyCodes.size },
+                    mode: mode, baseUrl: baseUrl, txBase: txBase, nextLink: nextLink,
+                    counts: { srs: srList.length, patients: Object.keys(patientMap).length, tasks: Object.keys(taskBySrId).length, indexed: Object.keys(resByRef).length },
+                    filters: { categoryFilter: categoryFilter, selectedModality: selectedModality, modalityCodes: modalityCodes.size, selectedSite: selectedSite, anatomyCodes: anatomyCodes.size }
                   }, null, 2)}</pre>
                 </div>
                 <div className="bg-slate-900/40 p-2 rounded-xl border border-slate-800">
                   <div className="font-semibold">Example queries</div>
-                  <pre className="whitespace-pre-wrap">{`FHIR GET ${baseUrl.replace(/\/$/, "")}/ServiceRequest?_count=50&_include=ServiceRequest:subject&_revinclude=Task:based-on&_sort=-authoredon,-_lastUpdated
-$expand (ECL) ${txBase.replace(/\/$/, "")}/ValueSet/$expand?url=http://snomed.info/sct?fhir_vs=ecl/%3C%3C{SCTID}
-$expand (site) ${txBase.replace(/\/$/, "")}/ValueSet/$expand?url=${AU_BODY_SITE_VS}`}</pre>
+                  <pre className="whitespace-pre-wrap">{exampleQueries}</pre>
                 </div>
               </div>
             </details>
