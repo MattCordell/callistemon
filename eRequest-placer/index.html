@@ -274,6 +274,7 @@
   const PLACER_SYS = "http://callistemon.test/placer/id/";
   const MAX_NOTE_SUG = 8;
   const XRAY_PARENT = '363680008'; // Radiographic imaging procedure
+  const HBA1C_CODE = '43396009';   // HbA1c
 
   // ECL for fasting instruction
   const ECL_FASTING = '^1072351000168102 {{ term = "fasting" }}';
@@ -294,11 +295,12 @@
     "45036003":  { display: "Ultrasound of abdomen", kind: 'IMAG' },
     "241601008": { display: "MRI of head", kind: 'IMAG' },
     "3621000087107": { display: "Plain X-ray of left hand", kind: 'IMAG' },
-    "3631000087109": { display: "Plain X-ray of right hand", kind: 'IMAG' }
+    "3631000087109": { display: "Plain X-ray of right hand", kind: 'IMAG' },
+    "43396009": { display: "HbA1c (glycated haemoglobin)", kind: 'PATH' }
   };
 
   const SUGGESTION_RULES = [
-    { parents: ['359752005'], tests: ['269820002','313440008','26604007'] },
+    { parents: ['359752005'], tests: ['269820002','313440008','26604007','43396009'] },
     { parents: ['276319003','609624008'], tests: ['166434005','45036003'] },
     { parents: ['82271004'], tests: ['241601008'] },
     { parents: ['125599006'], tests: ['3621000087107','3631000087109'] }
@@ -341,7 +343,8 @@
         {code:"26958001",display:"Liver function test"},
         {code:"252150008",display:"Fasting lipid profile"},
         {code:"843441000168103",display:"Respiratory pathogen nucleic acid assay"},
-        {code:"395142003",display:"Allergy screening test"}
+        {code:"395142003",display:"Allergy screening test"},
+        {code:"43396009",display:"HbA1c (glycated haemoglobin)"}
       ],
       radiology: [
         {code:"399208008",display:"Chest X-ray"},
@@ -359,7 +362,8 @@
         {code:"113076002",display:"Glucose tolerance test"},
         {code:"252409009",display:"Rubella virus antibody screening"},
         {code:"44608003",display:"Blood group typing"},
-        {code:"395144002",display:"B12/folate level"}
+        {code:"395144002",display:"B12/folate level"},
+        {code:"43396009",display:"HbA1c (glycated haemoglobin)"}
       ],
       radiology: [
         {code:"446522006",display:"Ultrasound scan in first trimester"},
@@ -603,7 +607,7 @@
     }catch(e){ console.warn('preloadFastingCodes', e); }
   }
 
-  // SNOMED $subsumes caching (used for some heuristics)
+  // SNOMED $subsumes caching
   const subsumesCache = new Map();
   function readOutcomeFromParameters(j){
     try{
@@ -719,11 +723,12 @@
     });
   }
 
-  // ----- History checks -----
+  // ----- History checks helpers -----
   function isoDateMonthsAgo(m){ const d=new Date(); d.setMonth(d.getMonth()-m); return d.toISOString(); }
   function isoDateDaysAgo(dy){ const d=new Date(Date.now()-dy*24*60*60*1000); return d.toISOString(); }
 
   async function fhirCount(resourceType, params){
+    // Tries multiple candidate date params in order and requests accurate totals
     const tryDateParams = params.tryDateParams || ['authored','date','issued','effective','_lastUpdated'];
     const codeParamOrder = [];
     if(params.code)      codeParamOrder.push({k:'code', v:params.code});
@@ -737,6 +742,7 @@
           const url=new URL(`${FHIR_BASE}/${resourceType}`);
           for(const [k,v] of Object.entries(params.base||{})){ url.searchParams.append(k,v); }
           url.searchParams.append('_summary','count');
+          url.searchParams.append('_total','accurate'); // ensure reliable totals on servers like Firely
           if(codeParam){ url.searchParams.append(codeParam.k, codeParam.v); }
           if(params.sinceISO) url.searchParams.append(dateParam, 'ge'+params.sinceISO);
           setDebugUrl(url.toString());
@@ -777,6 +783,41 @@
     }catch(e){ console.warn('manualCountSRSubsumed',e); return 0; }
   }
 
+  async function hasRecentHbA1c(patientId){
+    const since = isoDateMonthsAgo(6);
+    const base  = { subject: `Patient/${patientId}` };
+
+    // Direct coded count first
+    const n = await fhirCount('ServiceRequest', {
+      base,
+      sinceISO: since,
+      code: 'http://snomed.info/sct|'+HBA1C_CODE,
+      tryDateParams:['authored','_lastUpdated'] // SR: authored or lastUpdated
+    });
+    if(n>0) return true;
+
+    // Fallback: fetch SRs and scan codes
+    try{
+      const url=new URL(`${FHIR_BASE}/ServiceRequest`);
+      url.searchParams.set('subject', `Patient/${patientId}`);
+      url.searchParams.set('authored', 'ge'+since);
+      url.searchParams.set('_elements', 'code');
+      url.searchParams.set('_count', '200');
+      setDebugUrl(url.toString());
+      const r=await fetch(url.toString(),{headers:{Accept:'application/fhir+json'}});
+      if(!r.ok) return false;
+      const j=await r.json();
+      const entries = Array.isArray(j.entry) ? j.entry : [];
+      for(const e of entries){
+        const codings = e?.resource?.code?.coding || [];
+        if (codings.some(c => (c.system||'').includes('snomed') && c.code === HBA1C_CODE)) {
+          return true;
+        }
+      }
+    }catch(e){ console.warn('HbA1c fallback failed', e); }
+    return false;
+  }
+
   async function countRecentXRays(patientId){
     const since = isoDateDaysAgo(30);
     const base = { subject: `Patient/${patientId}` };
@@ -785,7 +826,7 @@
       base, sinceISO: since,
       codeBelow: 'http://snomed.info/sct|'+XRAY_PARENT,
       codeIn:    'http://snomed.info/sct?fhir_vs=ecl/<<'+XRAY_PARENT,
-      tryDateParams:['authored','date','_lastUpdated']
+      tryDateParams:['authored','_lastUpdated'] // SR: authored or lastUpdated
     });
     if(n===0){
       n = await manualCountSRSubsumed(patientId, since);
@@ -796,7 +837,7 @@
       base, sinceISO: since,
       codeBelow: 'http://snomed.info/sct|'+XRAY_PARENT,
       codeIn:    'http://snomed.info/sct?fhir_vs=ecl/<<'+XRAY_PARENT,
-      tryDateParams:['issued','effective','date','_lastUpdated']
+      tryDateParams:['issued','effective','date','_lastUpdated'] // DR: issued/effective/date
     });
 
     return n;
@@ -813,12 +854,14 @@
     try{
       const pid = currentPatientResource?.id; if(!pid) return false;
       let changed=false;
-      if(test.code==='43396009'){
-        const since = isoDateMonthsAgo(6);
-        const base = { subject: `Patient/${pid}` };
-        const n = await fhirCount('ServiceRequest', { base, sinceISO: since, code: 'http://snomed.info/sct|43396009', tryDateParams:['authored','date','_lastUpdated'] });
-        changed = setWarn(test, 'Patient has already had a HbA1c recently', n>0) || changed;
+
+      // HbA1c recent warning
+      if(test.code===HBA1C_CODE){
+        const hasHb = await hasRecentHbA1c(pid);
+        changed = setWarn(test, 'Patient has already had a HbA1c recently', hasHb) || changed;
       }
+
+      // Radiography per-test warning
       const isXray = await snomedSubsumes(XRAY_PARENT, test.code);
       if(isXray){
         const cnt = await countRecentXRays(pid);
@@ -1102,11 +1145,12 @@
         priority: (t.priority || 'routine'),
         category:[category],
         code:{ coding:[{system:'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display },
-        subject:{reference:patientRef},
+        subject:{reference:patientRef},              // relative Patient/{id}
         requester:{ reference: roleRef },
         requisition: groupIdentifier,
         reasonCode:buildReasonCodeArray(),
-        note: combinedNote ? [{text:combinedNote}] : []
+        note: combinedNote ? [{text:combinedNote}] : [],
+        authoredOn: now                              // <-- ensures authored searches will work later
       };
 
       // Fasting instruction via ECL membership
