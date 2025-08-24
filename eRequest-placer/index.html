@@ -24,107 +24,105 @@
 </style>
 </head>
 <body class="bg-gray-100 text-gray-900">
+
+<!-- Header with clinician in header -->
+<header class="bg-white border-b">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white grid place-items-center font-bold">ER</div>
+      <div>
+        <div class="text-lg font-semibold">FHIR eRequesting Demo (AU)</div>
+        <div class="text-xs text-gray-500">AU eRequesting — demo workflow</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <label for="doctor-select" class="text-sm text-gray-600">Requesting clinician</label>
+        <select id="doctor-select" class="border rounded p-2 text-sm">
+          <option>Dr Confident Cane Toad</option>
+          <option>Dr Compassionate Quoll</option>
+        </select>
+      </div>
+      <div id="doctor-specialty" class="text-sm text-gray-600 hidden md:block"></div>
+    </div>
+  </div>
+</header>
+
 <main class="max-w-6xl mx-auto p-6 space-y-6">
 
-  <!-- FHIR Server selector -->
-  <section class="bg-white p-4 rounded-2xl shadow">
-    <div class="flex flex-col md:flex-row md:items-end gap-3">
-      <label class="block w-full md:w-auto flex-1">
-        <span class="block text-sm font-medium">FHIR Server URL</span>
-        <input id="fhir-base" class="border rounded w-full p-2 mono" value="https://server.fire.ly" placeholder="https://your.fhir.server"/>
-      </label>
-      <button id="apply-fhir-base" class="h-10 px-4 bg-blue-600 text-white rounded">Use this server</button>
-    </div>
-    <div class="mt-2 text-xs text-gray-600">All queries and transaction POSTs will use this base. Default is shown above.</div>
-  </section>
+  <!-- Patient + Clinical Notes side-by-side -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Patient -->
+    <section class="bg-white p-4 rounded-2xl shadow space-y-4">
+      <div class="flex items-center justify-between gap-4">
+        <h2 class="text-lg font-semibold">Patient</h2>
+      </div>
 
-  <!-- Patient -->
-  <section class="bg-white p-4 rounded-2xl shadow space-y-4">
-    <div class="flex items-center justify-between gap-4">
-      <h2 class="text-lg font-semibold">Patient</h2>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
-      <label class="block">
-        <span class="block text-sm font-medium">Name <span id="pt-mode-help" class="text-gray-500 font-normal">(Search mode: autocomplete)</span></span>
-        <div class="relative">
-          <input id="patient-name" autocomplete="off" class="border rounded w-full p-2" placeholder="Type a name…"/>
-          <ul id="pt-ac" class="absolute left-0 right-0 mt-1 bg-white border rounded shadow max-h-56 overflow-auto hidden z-20"></ul>
-        </div>
-      </label>
-      <div class="md:justify-self-end">
-        <div class="segmented" id="ptMode">
-          <span class="seg-thumb" id="ptThumb"></span>
-          <button type="button" id="ptBtnSearch" class="bg-transparent text-gray-900 font-medium">Search</button>
-          <button type="button" id="ptBtnNew" class="bg-transparent text-gray-500">New Patient</button>
+      <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
+        <label class="block">
+          <span class="block text-sm font-medium">Name <span id="pt-mode-help" class="text-gray-500 font-normal">(Search mode: autocomplete)</span></span>
+          <div class="relative">
+            <input id="patient-name" autocomplete="off" class="border rounded w-full p-2" placeholder="Type a name…"/>
+            <ul id="pt-ac" class="absolute left-0 right-0 mt-1 bg-white border rounded shadow max-h-56 overflow-auto hidden z-20"></ul>
+          </div>
+        </label>
+        <div class="md:justify-self-end">
+          <div class="segmented" id="ptMode">
+            <span class="seg-thumb" id="ptThumb"></span>
+            <button type="button" id="ptBtnSearch" class="bg-transparent text-gray-900 font-medium">Search</button>
+            <button type="button" id="ptBtnNew" class="bg-transparent text-gray-500">New Patient</button>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="flex items-start gap-4">
-      <img id="patient-photo" src="defaultProfile.jpg" alt="Patient photo" class="w-24 h-24 rounded-full object-cover border">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
-        <label class="block">
-          <span class="block text-sm font-medium">DOB</span>
-          <input id="patient-dob" type="date" class="border rounded w-full p-2"/>
-        </label>
-        <label class="block">
-          <span class="block text-sm font-medium">Gender</span>
-          <select id="patient-gender" class="border rounded w-full p-2">
-            <option value="male">male</option>
-            <option value="female">female</option>
-            <option value="other">other</option>
-            <option value="unknown" selected>unknown</option>
-          </select>
-        </label>
+      <div class="flex items-start gap-4">
+        <img id="patient-photo" src="defaultProfile.jpg" alt="Patient photo" class="w-24 h-24 rounded-full object-cover border">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+          <label class="block">
+            <span class="block text-sm font-medium">DOB</span>
+            <input id="patient-dob" type="date" class="border rounded w-full p-2"/>
+          </label>
+          <label class="block">
+            <span class="block text-sm font-medium">Gender</span>
+            <select id="patient-gender" class="border rounded w-full p-2">
+              <option value="male">male</option>
+              <option value="female">female</option>
+              <option value="other">other</option>
+              <option value="unknown" selected>unknown</option>
+            </select>
+          </label>
 
-        <!-- Pregnancy Status (always editable) -->
-        <label class="block md:col-span-2">
-          <span class="block text-sm font-medium">Pregnancy Status</span>
-          <select id="pregnancy-status" class="border rounded w-full p-2">
-            <option value="">— Select pregnancy status —</option>
-          </select>
-          <p class="text-xs text-gray-500 mt-1">Values from IPS ValueSet; left empty by default.</p>
-        </label>
+          <!-- Pregnancy Status (always editable) -->
+          <label class="block md:col-span-2">
+            <span class="block text-sm font-medium">Pregnancy Status</span>
+            <select id="pregnancy-status" class="border rounded w-full p-2">
+              <option value="">— Select pregnancy status —</option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1">Values from IPS ValueSet; left empty by default.</p>
+          </label>
 
-        <div class="md:col-span-2 border rounded p-3">
-          <div class="text-sm font-medium mb-1">Address</div>
-          <div id="patient-address" class="text-sm text-gray-700 whitespace-pre-line">—</div>
+          <div class="md:col-span-2 border rounded p-3">
+            <div class="text-sm font-medium mb-1">Address</div>
+            <div id="patient-address" class="text-sm text-gray-700 whitespace-pre-line">—</div>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- Requesting Clinician -->
-  <section class="bg-white p-4 rounded-2xl shadow">
-    <label class="block text-sm font-medium mb-1">Requesting Clinician</label>
-    <select id="doctor-select" class="border rounded w-full p-2 max-w-md">
-      <option>Dr Confident Cane Toad</option>
-      <option>Dr Compassionate Quoll</option>
-    </select>
-    <div id="doctor-specialty" class="mt-2 text-sm text-gray-600"></div>
-  </section>
-
-  <!-- Clinical Notes + reason tags -->
-  <section class="bg-white p-4 rounded-2xl shadow">
-    <label class="block font-medium mb-1">Clinical Notes <span class="text-gray-500">(live after 4+ chars)</span></label>
-    <textarea id="clinical-notes" class="w-full border rounded p-2" placeholder="Optional clinical context for the request(s)"></textarea>
-    <div class="mt-2">
-      <div class="text-xs text-gray-500 mb-1">Reason tags</div>
-      <div id="notes-tags" class="flex flex-wrap gap-2"></div>
-    </div>
-    <div id="notes-suggestions" class="mt-2 hidden">
-      <div class="text-xs text-gray-500 mb-1">Suggestions (live after 4+ chars)</div>
-      <div id="notes-suggestion-list" class="flex flex-wrap gap-2"></div>
-    </div>
-  </section>
-
-  <!-- Suggested Tests -->
-  <section class="bg-white p-4 rounded-2xl shadow">
-    <h3 class="font-semibold mb-2">Suggested Tests</h3>
-    <div id="suggested-tests" class="flex flex-wrap gap-2"></div>
-    <div id="suggested-tests-empty" class="text-sm text-gray-500">No suggestions yet — add Reason tags to see recommendations.</div>
-  </section>
+    <!-- Clinical Notes -->
+    <section class="bg-white p-4 rounded-2xl shadow">
+      <label class="block font-medium mb-1">Clinical Notes <span class="text-gray-500">(live after 4+ chars)</span></label>
+      <textarea id="clinical-notes" class="w-full border rounded p-2 h-48" placeholder="Optional clinical context for the request(s)"></textarea>
+      <div class="mt-2">
+        <div class="text-xs text-gray-500 mb-1">Reason tags</div>
+        <div id="notes-tags" class="flex flex-wrap gap-2"></div>
+      </div>
+      <div id="notes-suggestions" class="mt-2 hidden">
+        <div class="text-xs text-gray-500 mb-1">Suggestions (live after 4+ chars)</div>
+        <div id="notes-suggestion-list" class="flex flex-wrap gap-2"></div>
+      </div>
+    </section>
+  </div>
 
   <!-- Tabs: Pathology/Radiology -->
   <section class="bg-white rounded-2xl shadow">
@@ -156,11 +154,21 @@
     </div>
   </section>
 
-  <!-- Selected tests -->
-  <section class="bg-white p-4 rounded-2xl shadow">
-    <h3 class="font-semibold mb-2">Selected Tests</h3>
-    <ul id="selected-tests" class="divide-y"></ul>
-  </section>
+  <!-- Suggested Tests + Selected Tests side-by-side -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Suggested Tests -->
+    <section class="bg-white p-4 rounded-2xl shadow">
+      <h3 class="font-semibold mb-2">Suggested Tests</h3>
+      <div id="suggested-tests" class="flex flex-wrap gap-2"></div>
+      <div id="suggested-tests-empty" class="text-sm text-gray-500">No suggestions yet — add Reason tags to see recommendations.</div>
+    </section>
+
+    <!-- Selected tests -->
+    <section class="bg-white p-4 rounded-2xl shadow">
+      <h3 class="font-semibold mb-2">Selected Tests</h3>
+      <ul id="selected-tests" class="divide-y"></ul>
+    </section>
+  </div>
 
   <!-- Error / Status -->
   <div id="error-box" class="hidden p-2 border border-red-400 bg-red-100 text-red-800 rounded"></div>
@@ -192,8 +200,11 @@
   </section>
 </main>
 
-<!-- Floating Debug -->
-<button id="debug-toggle" class="fixed bottom-4 right-4 z-40 px-3 py-2 rounded-full shadow bg-yellow-500 text-white text-sm">Debug</button>
+<!-- Floating toggles -->
+<button id="server-toggle" class="fixed bottom-4 right-36 z-40 px-3 py-2 rounded-full shadow bg-blue-600 text-white text-sm">Server</button>
+<button id="debug-toggle"  class="fixed bottom-4 right-4  z-40 px-3 py-2 rounded-full shadow bg-yellow-500 text-white text-sm">Debug</button>
+
+<!-- Debug Panel -->
 <div id="debug-panel" class="fixed bottom-16 right-4 z-40 w-[min(90vw,42rem)] max-h-[50vh] overflow-hidden hidden">
   <div class="bg-yellow-100 border border-yellow-300 rounded shadow">
     <div class="flex items-center justify-between px-3 py-2 border-b border-yellow-300">
@@ -208,6 +219,24 @@
       <div id="last-expand-url" class="text-[11px] break-all bg-yellow-50 border border-yellow-200 rounded p-2"></div>
       <div class="text-xs text-yellow-900 mt-3 mb-1">History (most recent first):</div>
       <ul id="expand-history" class="text-[11px] space-y-1 max-h-[22vh] overflow-auto pr-1"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- Server Panel -->
+<div id="server-panel" class="fixed bottom-16 right-4 z-40 w-[min(90vw,32rem)] overflow-hidden hidden">
+  <div class="bg-blue-50 border border-blue-200 rounded-2xl shadow">
+    <div class="flex items-center justify-between px-4 py-2 border-b border-blue-200">
+      <div class="font-semibold text-blue-900 text-sm">FHIR Server</div>
+      <button id="server-close" class="text-xs px-2 py-1 rounded border border-blue-300 bg-white">Close</button>
+    </div>
+    <div class="p-4 space-y-2">
+      <label class="block">
+        <span class="block text-sm font-medium">FHIR Server URL</span>
+        <input id="fhir-base" class="border rounded w-full p-2 mono" value="https://server.fire.ly" placeholder="https://your.fhir.server"/>
+      </label>
+      <button id="apply-fhir-base" class="h-10 px-4 bg-blue-600 text-white rounded">Use this server</button>
+      <div class="text-xs text-gray-600">All queries and transaction POSTs use this base. Default shown above.</div>
     </div>
   </div>
 </div>
@@ -246,8 +275,8 @@
 
 <script>
 (function(){
-  // ----- Config (FHIR base is editable) -----
-  let FHIR_BASE = "https://server.fire.ly"; // default, editable via UI at top
+  // ----- Config (FHIR base is editable via Server panel) -----
+  let FHIR_BASE = "https://server.fire.ly";
   const fhirBaseInput = document.getElementById('fhir-base');
   const fhirBaseApply = document.getElementById('apply-fhir-base');
   fhirBaseApply.addEventListener('click', ()=>{
@@ -256,6 +285,19 @@
     FHIR_BASE = v.replace(/\/+$/,''); // trim trailing slash
     showStatus(`Using FHIR server: ${FHIR_BASE}`);
   });
+
+  // Floating panels toggles
+  const serverPanel = document.getElementById('server-panel');
+  const serverToggle = document.getElementById('server-toggle');
+  const serverClose  = document.getElementById('server-close');
+  serverToggle.addEventListener('click', ()=> serverPanel.classList.toggle('hidden'));
+  serverClose.addEventListener('click', ()=> serverPanel.classList.add('hidden'));
+
+  const debugPanel = document.getElementById('debug-panel');
+  const debugToggle = document.getElementById('debug-toggle');
+  const debugClose  = document.getElementById('debug-close');
+  debugToggle.addEventListener('click', ()=> debugPanel.classList.toggle('hidden'));
+  debugClose.addEventListener('click', ()=> debugPanel.classList.add('hidden'));
 
   // Ontoserver + terminology
   const ONTO_BASE = "https://tx.ontoserver.csiro.au/fhir/ValueSet/$expand";
@@ -387,7 +429,7 @@
   catch(e){ console.warn("JSONViewer fallback",e); viewer={ show:(o)=>{ $("#json-viewer").innerHTML=`<pre class='mono text-xs whitespace-pre-wrap'></pre>`; $("#json-viewer pre").textContent=JSON.stringify(o,null,2);} }; }
 
   // ----- Debug strip -----
-  const dbg = { panel:$("#debug-panel"), toggle:$("#debug-toggle"), close:$("#debug-close"), copy:$("#debug-copy"), last:"#last-expand-url", list:"#expand-history", history:[], max:50 };
+  const dbg = { panel:debugPanel, toggle:debugToggle, close:debugClose, copy:$("#debug-copy"), last:"#last-expand-url", list:"#expand-history", history:[], max:50 };
   function setDebugUrl(url){
     if(!url) return;
     const last = document.querySelector(dbg.last);
@@ -402,12 +444,10 @@
       ul.appendChild(li);
     });
   }
-  dbg.toggle.addEventListener('click', ()=>dbg.panel.classList.toggle('hidden'));
-  $("#debug-close").addEventListener('click', ()=>dbg.panel.classList.add('hidden'));
-  $("#debug-copy").addEventListener('click', async ()=>{
+  dbg.copy.addEventListener('click', async ()=>{
     const t=document.querySelector(dbg.last).textContent||'';
     if(!t) return;
-    try{ await navigator.clipboard.writeText(t); const btn=$("#debug-copy"); const old=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=old,1200);}catch{}
+    try{ await navigator.clipboard.writeText(t); const btn=dbg.copy; const old=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=old,1200);}catch{}
   });
 
   // ----- State -----
@@ -742,7 +782,7 @@
           const url=new URL(`${FHIR_BASE}/${resourceType}`);
           for(const [k,v] of Object.entries(params.base||{})){ url.searchParams.append(k,v); }
           url.searchParams.append('_summary','count');
-          url.searchParams.append('_total','accurate'); // ensure reliable totals on servers like Firely
+          url.searchParams.append('_total','accurate');
           if(codeParam){ url.searchParams.append(codeParam.k, codeParam.v); }
           if(params.sinceISO) url.searchParams.append(dateParam, 'ge'+params.sinceISO);
           setDebugUrl(url.toString());
@@ -792,7 +832,7 @@
       base,
       sinceISO: since,
       code: 'http://snomed.info/sct|'+HBA1C_CODE,
-      tryDateParams:['authored','_lastUpdated'] // SR: authored or lastUpdated
+      tryDateParams:['authored','_lastUpdated']
     });
     if(n>0) return true;
 
@@ -826,7 +866,7 @@
       base, sinceISO: since,
       codeBelow: 'http://snomed.info/sct|'+XRAY_PARENT,
       codeIn:    'http://snomed.info/sct?fhir_vs=ecl/<<'+XRAY_PARENT,
-      tryDateParams:['authored','_lastUpdated'] // SR: authored or lastUpdated
+      tryDateParams:['authored','_lastUpdated']
     });
     if(n===0){
       n = await manualCountSRSubsumed(patientId, since);
@@ -837,7 +877,7 @@
       base, sinceISO: since,
       codeBelow: 'http://snomed.info/sct|'+XRAY_PARENT,
       codeIn:    'http://snomed.info/sct?fhir_vs=ecl/<<'+XRAY_PARENT,
-      tryDateParams:['issued','effective','date','_lastUpdated'] // DR: issued/effective/date
+      tryDateParams:['issued','effective','date','_lastUpdated']
     });
 
     return n;
@@ -1000,11 +1040,13 @@
   setupSearch('#pathology-search','#pathology-results',VS.PATH,'PATH');
   setupSearch('#radiology-search','#radiology-results',VS.IMAG,'IMAG');
 
-  // ----- Specialty label -----
+  // ----- Specialty label (inline in header) -----
   function updateSpecialtyDisplay(name){
     const sp = roleSpecialties[name];
     const el = document.getElementById('doctor-specialty');
-    el.textContent = sp ? `Specialty: ${sp.display}` : '';
+    const text = sp ? `Specialty: ${sp.display}` : '';
+    el.textContent = text;
+    if(text){ el.classList.remove('hidden'); } else { el.classList.add('hidden'); }
   }
 
   // ----- Pregnancy status dropdown -----
@@ -1145,12 +1187,12 @@
         priority: (t.priority || 'routine'),
         category:[category],
         code:{ coding:[{system:'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display },
-        subject:{reference:patientRef},              // relative Patient/{id}
+        subject:{reference:patientRef},
         requester:{ reference: roleRef },
         requisition: groupIdentifier,
         reasonCode:buildReasonCodeArray(),
         note: combinedNote ? [{text:combinedNote}] : [],
-        authoredOn: now                              // <-- ensures authored searches will work later
+        authoredOn: now
       };
 
       // Fasting instruction via ECL membership
@@ -1203,9 +1245,9 @@
     new QRCode(box, { text: url || '', width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
     qrBackdrop.style.display = 'flex';
   }
-  qrClose?.addEventListener('click', ()=> qrBackdrop.style.display='none');
-  qrOpen?.addEventListener('click', ()=> { const u = qrUrlEl.textContent.trim(); if(u) window.open(u, "_blank"); });
-  qrCopy?.addEventListener('click', async ()=> { try{ await navigator.clipboard.writeText(qrUrlEl.textContent.trim()); const b=qrCopy; const t=b.textContent; b.textContent='Copied!'; setTimeout(()=>b.textContent=t,1200);}catch{} });
+  qrClose.addEventListener('click', ()=> qrBackdrop.style.display='none');
+  qrOpen.addEventListener('click', ()=> { const u = qrUrlEl.textContent.trim(); if(u) window.open(u, "_blank"); });
+  qrCopy.addEventListener('click', async ()=> { try{ await navigator.clipboard.writeText(qrUrlEl.textContent.trim()); const b=qrCopy; const t=b.textContent; b.textContent='Copied!'; setTimeout(()=>b.textContent=t,1200);}catch{} });
 
   // Resolve Task Group absolute URL via PGN search
   async function resolveTaskGroupUrlFromServer(){
