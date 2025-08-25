@@ -1,166 +1,385 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>FHIR eRequesting Demo (AU)</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://unpkg.com/json-viewer-js@latest/dist/json-viewer.css"/>
-<script src="https://unpkg.com/json-viewer-js@latest/dist/json-viewer.umd.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<style>
-  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
-  .segmented{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:.25rem;background:#f3f4f6;border-radius:9999px;padding:.25rem}
-  .segmented button{position:relative;z-index:1;border-radius:9999px;padding:.35rem .9rem;font-size:.8rem}
-  .seg-thumb{position:absolute;inset:.25rem auto .25rem .25rem;width:calc(50% - .25rem);border-radius:9999px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08);transition:transform .18s ease}
-  .chip{display:inline-flex;align-items:center;gap:.4rem;border:1px solid #d1fae5;background:#ecfdf5;color:#065f46;border-radius:9999px;padding:.25rem .5rem;font-size:.75rem}
-  .chip button{line-height:1}
-  .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50}
-  .modal{background:#fff;border-radius:1rem;max-width:28rem;width:calc(100% - 2rem);box-shadow:0 10px 30px rgba(0,0,0,.2)}
-  .sending-overlay{position:fixed;inset:0;background:rgba(255,255,255,.6);backdrop-filter:blur(1px);display:none;align-items:center;justify-content:center;z-index:60}
-  .spinner{width:44px;height:44px;border-radius:9999px;border:4px solid #d1d5db;border-top-color:#10b981;animation:spin .9s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .btn-disabled{opacity:.6;pointer-events:none}
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>FHIR AU eRequesting Demo</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Inter font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+
+  <!-- JSON viewer + QR -->
+  <link rel="stylesheet" href="https://unpkg.com/json-viewer-js@latest/dist/json-viewer.css"/>
+  <script src="https://unpkg.com/json-viewer-js@latest/dist/json-viewer.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root{
+      /* Muted clinical palette + strong background contrast */
+      --bg:           #8c9bcc;  /* blue-800 */
+      --card:         #ffffff;
+      --ink:          #0f172a; /* slate-900 */
+      --muted-ink:    #475569; /* slate-600 */
+      --line:         #e2e8f0; /* slate-200 */
+      --brand:        #3b82f6; /* blue-500 */
+      --brand-600:    #2563eb; /* blue-600 */
+      --accent:       #1d4ed8; /* blue-700 */
+      --accent-50:    rgba(29, 78, 216, .08);
+      --warn-ink:     #92400e;
+      --warn-bg:      #fffbeb;
+      --danger:       #dc2626;
+      --success:      #059669;
+      --shadow-1:     0 1px 2px rgba(2,6,23,.06), 0 1px 1px rgba(2,6,23,.04);
+      --shadow-2:     0 8px 24px rgba(2,6,23,.08), 0 4px 12px rgba(2,6,23,.06);
+    }
+
+    html, body { height: 100%; }
+    body{
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    /* General polish for cards/sections */
+    section.bg-white, .modal, .bg-blue-50, .bg-yellow-100{
+      border-radius: 1rem !important;
+      box-shadow: var(--shadow-1);
+      border: 1px solid var(--line);
+    }
+    header{
+      background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.96));
+      backdrop-filter: saturate(120%) blur(4px);
+      border-bottom: 1px solid var(--line) !important;
+    }
+
+    /* Inputs/selects/textarea */
+    input, select, textarea{
+      border: 1px solid var(--line);
+      border-radius: .75rem !important;
+      padding: .625rem .75rem !important;
+      background: #fff;
+      transition: box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
+    }
+    input::placeholder, textarea::placeholder{ color: #94a3b8; }
+    input:focus, select:focus, textarea:focus{
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-50);
+    }
+
+    /* Buttons */
+    button{
+      border-radius: .75rem !important;
+      transition: transform .06s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease, border-color .2s ease;
+      will-change: transform;
+    }
+    button:hover{ transform: translateY(-1px); }
+    button:active{ transform: translateY(0); }
+    .btn-disabled{ opacity:.6; pointer-events:none; transform:none !important; }
+
+    /* Primary accents */
+    .bg-blue-600{
+      background-color: var(--brand) !important;
+      box-shadow: 0 6px 14px rgba(59,130,246,.18);
+    }
+    .bg-blue-600:hover{ background-color: var(--brand-600) !important; }
+    .bg-emerald-600{ box-shadow: 0 6px 14px rgba(5,150,105,.18); }
+
+    /* Icon+text toggle (Search/New) */
+    .toggle-btn{
+      display:inline-flex; align-items:center;
+      padding:.5rem .75rem; font-size:.875rem; font-weight:600;
+      background:#ffffff; color:#334155; /* slate-700 */
+      transition: background-color .15s ease, color .15s ease, box-shadow .2s ease;
+    }
+    .toggle-btn svg{ flex: none; }
+    .toggle-btn:hover{ background:#f1f5f9; } /* slate-100 */
+    .toggle-btn:focus{ outline:none; box-shadow:0 0 0 3px var(--accent-50); }
+    .toggle-btn.is-active{
+      background: var(--brand); color:#ffffff;
+      box-shadow: 0 6px 14px rgba(59,130,246,.18);
+    }
+
+    /* JSON/debug panes */
+    #json-viewer, #server-response{
+      background: #fbfdff;
+      border: 1px solid var(--line);
+      border-radius: .75rem;
+      box-shadow: inset 0 1px 0 #fff;
+    }
+
+    /* Details summary styling */
+    details > summary{
+      list-style: none;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      border-radius: .75rem;
+      transition: background .2s ease, border-color .2s ease;
+      cursor: pointer;
+      padding: .25rem .5rem;
+    }
+    details[open] > summary{ background:#eef2ff; border-color:#c7d2fe; }
+    details > summary::-webkit-details-marker{ display: none; }
+    details > summary:after{
+      content: "▾";
+      font-size: .8rem;
+      color: var(--muted-ink);
+      transform: translateY(-1px);
+    }
+
+    /* Tabs active underline */
+    #pathology-tab, #radiology-tab{
+      position: relative;
+      padding: .65rem 1rem !important;
+      border-bottom: 2px solid transparent;
+      color: #475569;
+    }
+    #pathology-tab.border-b-2.border-blue-600,
+    #radiology-tab.border-b-2.border-blue-600{
+      color:#0f172a;
+      background: linear-gradient(180deg,#ffffff, #f8fafc);
+      border-bottom-color: var(--brand) !important;
+    }
+
+    /* Lists & results */
+    #pt-ac, #pathology-results, #radiology-results{
+      border-color: var(--line) !important;
+      box-shadow: var(--shadow-2);
+      border-radius: .75rem !important;
+    }
+    #pt-ac li, #pathology-results li, #radiology-results li{
+      transition: background .15s ease, color .15s ease;
+    }
+    #pt-ac li:hover, #pathology-results li:hover, #radiology-results li:hover{ background:#f1f5f9 !important; }
+
+    /* Status & error boxes */
+    #error-box{
+      border-color:#fecaca !important;
+      background:#fef2f2 !important;
+      color:#7f1d1d !important;
+      border-radius:.75rem !important;
+    }
+    #status-box{
+      border-color:#fde68a !important;
+      background:#fffbeb !important;
+      color:#78350f !important;
+      border-radius:.75rem !important;
+    }
+
+    /* QR/backdrop/modal polish */
+    .backdrop{ position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:50 }
+    .modal{
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      max-width:28rem; width:calc(100% - 2rem);
+      box-shadow: var(--shadow-2);
+    }
+
+    /* Sending overlay spinner */
+    .sending-overlay{ position:fixed; inset:0; background:rgba(255,255,255,.55); backdrop-filter: blur(1px); display:none; align-items:center; justify-content:center; z-index:60 }
+    .spinner{ width:44px; height:44px; border-radius:9999px; border:4px solid #d1d5db; border-top-color: var(--brand-600); animation:spin .9s linear infinite }
+    @keyframes spin{ to{ transform: rotate(360deg) } }
+
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+
+    #pt-mode-help { display: none !important; }
+
+  </style>
 </head>
-<body class="bg-gray-100 text-gray-900">
+<body class="bg-blue-200 text-gray-900 antialiased">
 
-<!-- Header with clinician in header -->
-<header class="bg-white border-b">
-  <div class="max-w-6xl mx-auto px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white grid place-items-center font-bold">ER</div>
-      <div>
-        <div class="text-lg font-semibold">FHIR eRequesting Demo (AU)</div>
-        <div class="text-xs text-gray-500">AU eRequesting — demo workflow</div>
+  <!-- Header -->
+  <header class="bg-white border-b">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="flex items-center gap-3">
+        <!-- <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white grid place-items-center font-bold shadow">ER</div> -->
+
+<div class="w-9 h-9 rounded-xl bg-emerald-600 text-white grid place-items-center font-bold shadow">
+  <!-- swap any icon below here -->
+<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"
+     class="w-7 h-7" stroke="currentColor" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round">
+  <!-- handle -->
+  <path d="M7 7V6a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v1"/>
+  <!-- case -->
+  <rect x="3" y="7" width="18" height="12" rx="2"/>
+  <!-- cross -->
+  <path d="M12 10v6M9 13h6"/>
+</svg>
+
+
+
+
+
+
+
+
+</div>
+
+
+
+
+
+        <div>
+          <div class="text-lg font-semibold">FHIR AU eRequesting</div>
+          <div class="text-xs text-gray-500">Requesting Clinician (Placer) demo</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
+          <label for="doctor-select" class="text-sm text-gray-600">Requesting Clinician</label>
+          <select id="doctor-select" class="border rounded p-2 text-sm">
+            <option>Dr Confident Cane Toad</option>
+            <option>Dr Compassionate Quoll</option>
+          </select>
+        </div>
+        <div id="doctor-specialty" class="text-sm text-gray-600 hidden md:block"></div>
       </div>
     </div>
-    <div class="flex items-center gap-3">
-      <div class="flex items-center gap-2">
-        <label for="doctor-select" class="text-sm text-gray-600">Requesting clinician</label>
-        <select id="doctor-select" class="border rounded p-2 text-sm">
-          <option>Dr Confident Cane Toad</option>
-          <option>Dr Compassionate Quoll</option>
-        </select>
-      </div>
-      <div id="doctor-specialty" class="text-sm text-gray-600 hidden md:block"></div>
-    </div>
-  </div>
-</header>
+  </header>
 
-<main class="max-w-6xl mx-auto p-6 space-y-6">
+  <main class="max-w-6xl mx-auto p-6 space-y-6">
 
-  <!-- Patient + Clinical Notes side-by-side -->
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <!-- Patient -->
-    <section class="bg-white p-4 rounded-2xl shadow space-y-4">
-      <div class="flex items-center justify-between gap-4">
-        <h2 class="text-lg font-semibold">Patient</h2>
-      </div>
+    <!-- Patient + Clinical Notes side-by-side -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Patient -->
+      <section class="bg-white p-4 rounded-2xl shadow space-y-4">
+        <!-- Header with toggle -->
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <h2 class="text-lg font-semibold">Patient</h2>
 
-      <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
+          <!-- Search / New toggle -->
+          <div id="ptToggle" class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+            <button type="button" id="ptBtnSearch" class="toggle-btn is-active" aria-pressed="true" title="Search patients on server">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="w-4 h-4 mr-1.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="6"></circle>
+                <line x1="20.5" y1="20.5" x2="16.2" y2="16.2"></line>
+              </svg>
+              <span>Search</span>
+            </button>
+            <button type="button" id="ptBtnNew" class="toggle-btn" aria-pressed="false" title="Create a new patient">
+              <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="w-4 h-4 mr-1.5">
+                <path d="M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM2 16.25A4.25 4.25 0 0 1 6.25 12h1.5A4.25 4.25 0 0 1 12 16.25v.25a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5v-.25ZM14.5 9a.75.75 0 0 1 .75.75V11h1.25a.75.75 0 0 1 0 1.5H15.25v1.25a.75.75 0 0 1-1.5 0V12.5H12.5a.75.75 0 0 1 0-1.5h1.25V9.75A.75.75 0 0 1 14.5 9Z"/>
+              </svg>
+              <span>New</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Help text reflects mode -->
+        <div class="text-sm text-gray-500" id="pt-mode-help">(Search mode: autocomplete)</div>
+
+        <!-- Name + autocomplete results -->
         <label class="block">
-          <span class="block text-sm font-medium">Name <span id="pt-mode-help" class="text-gray-500 font-normal">(Search mode: autocomplete)</span></span>
+          <span class="block text-sm font-medium">Name</span>
           <div class="relative">
-            <input id="patient-name" autocomplete="off" class="border rounded w-full p-2" placeholder="Type a name…"/>
+            <input id="patient-name" autocomplete="off" class="border rounded w-full p-2" placeholder="Type a name..."/>
             <ul id="pt-ac" class="absolute left-0 right-0 mt-1 bg-white border rounded shadow max-h-56 overflow-auto hidden z-20"></ul>
           </div>
         </label>
-        <div class="md:justify-self-end">
-          <div class="segmented" id="ptMode">
-            <span class="seg-thumb" id="ptThumb"></span>
-            <button type="button" id="ptBtnSearch" class="bg-transparent text-gray-900 font-medium">Search</button>
-            <button type="button" id="ptBtnNew" class="bg-transparent text-gray-500">New Patient</button>
+
+        <!-- Demographics -->
+        <div class="flex items-start gap-4">
+          <img id="patient-photo" src="defaultProfile.jpg" alt="Patient photo" class="w-24 h-24 rounded-full object-cover border">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+            <label class="block">
+              <span class="block text-sm font-medium">DOB</span>
+              <input id="patient-dob" type="date" class="border rounded w-full p-2"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm font-medium">Gender</span>
+              <select id="patient-gender" class="border rounded w-full p-2">
+                <option value="male">male</option>
+                <option value="female">female</option>
+                <option value="other">other</option>
+                <option value="unknown" selected>unknown</option>
+              </select>
+            </label>
+
+            <!-- Pregnancy Status (always editable) -->
+            <label class="block md:col-span-2">
+              <span class="block text-sm font-medium">Pregnancy Status</span>
+              <select id="pregnancy-status" class="border rounded w-full p-2">
+                <option value="">— Select pregnancy status —</option>
+              </select>
+            </label>
+
+            <div class="md:col-span-2 border rounded p-3">
+              <div class="text-sm font-medium mb-1">Address</div>
+              <div id="patient-address" class="text-sm text-gray-700 whitespace-pre-line">—</div>
+            </div>
           </div>
+        </div>
+      </section>
+
+      <!-- Clinical Notes -->
+      <section class="bg-white p-4 rounded-2xl shadow">
+        <label class="block font-medium mb-1">Clinical Notes</label>
+        <textarea id="clinical-notes" class="w-full border rounded p-2 h-60" placeholder="Optional clinical context for the request"></textarea>
+        <div class="mt-2">
+          <div class="text-xs text-gray-500 mb-1">Reason tags</div>
+          <div id="notes-tags" class="flex flex-wrap gap-2"></div>
+        </div>
+        <div id="notes-suggestions" class="mt-2 hidden">
+          <div class="text-xs text-gray-500 mb-1">Suggestions</div>
+          <div id="notes-suggestion-list" class="flex flex-wrap gap-2"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Tabs: Pathology/Radiology -->
+    <section class="bg-white rounded-2xl shadow">
+      <div class="flex border-b">
+        <button id="pathology-tab" class="px-4 py-2 font-semibold border-b-2 border-blue-600">Pathology</button>
+        <button id="radiology-tab" class="px-4 py-2">Radiology</button>
+      </div>
+
+      <!-- Pathology panel -->
+      <div id="pathology-panel" class="p-4 space-y-4">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <section>
+            <h3 class="font-semibold mb-2">Favourites</h3>
+            <div id="pathology-favs"></div>
+          </section>
+          <section>
+            <h3 class="font-semibold mb-2">Suggested Tests</h3>
+            <div id="suggested-tests-mirror-path" class="flex flex-wrap gap-2"></div>
+            <div id="suggested-tests-empty-path" class="text-sm text-gray-500">No suggestions yet — add Reason tags to see recommendations.</div>
+          </section>
+        </div>
+        <div>
+          <input id="pathology-search" class="border rounded w-full p-2" placeholder="Search pathology tests...">
+          <ul id="pathology-results" class="mt-2 border rounded bg-white"></ul>
         </div>
       </div>
 
-      <div class="flex items-start gap-4">
-        <img id="patient-photo" src="defaultProfile.jpg" alt="Patient photo" class="w-24 h-24 rounded-full object-cover border">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
-          <label class="block">
-            <span class="block text-sm font-medium">DOB</span>
-            <input id="patient-dob" type="date" class="border rounded w-full p-2"/>
-          </label>
-          <label class="block">
-            <span class="block text-sm font-medium">Gender</span>
-            <select id="patient-gender" class="border rounded w-full p-2">
-              <option value="male">male</option>
-              <option value="female">female</option>
-              <option value="other">other</option>
-              <option value="unknown" selected>unknown</option>
-            </select>
-          </label>
-
-          <!-- Pregnancy Status (always editable) -->
-          <label class="block md:col-span-2">
-            <span class="block text-sm font-medium">Pregnancy Status</span>
-            <select id="pregnancy-status" class="border rounded w-full p-2">
-              <option value="">— Select pregnancy status —</option>
-            </select>
-            <p class="text-xs text-gray-500 mt-1">Values from IPS ValueSet; left empty by default.</p>
-          </label>
-
-          <div class="md:col-span-2 border rounded p-3">
-            <div class="text-sm font-medium mb-1">Address</div>
-            <div id="patient-address" class="text-sm text-gray-700 whitespace-pre-line">—</div>
-          </div>
+      <!-- Radiology panel -->
+      <div id="radiology-panel" class="p-4 space-y-4 hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <section>
+            <h3 class="font-semibold mb-2">Favourites</h3>
+            <div id="radiology-favs"></div>
+          </section>
+          <section>
+            <h3 class="font-semibold mb-2">Suggested Tests</h3>
+            <div id="suggested-tests-mirror-rad" class="flex flex-wrap gap-2"></div>
+            <div id="suggested-tests-empty-rad" class="text-sm text-gray-500">No suggestions yet — add Reason tags to see recommendations.</div>
+          </section>
+        </div>
+        <div>
+          <input id="radiology-search" class="border rounded w-full p-2" placeholder="Search radiology tests...">
+          <ul id="radiology-results" class="mt-2 border rounded bg-white"></ul>
         </div>
       </div>
-    </section>
-
-    <!-- Clinical Notes -->
-    <section class="bg-white p-4 rounded-2xl shadow">
-      <label class="block font-medium mb-1">Clinical Notes <span class="text-gray-500">(live after 4+ chars)</span></label>
-      <textarea id="clinical-notes" class="w-full border rounded p-2 h-48" placeholder="Optional clinical context for the request(s)"></textarea>
-      <div class="mt-2">
-        <div class="text-xs text-gray-500 mb-1">Reason tags</div>
-        <div id="notes-tags" class="flex flex-wrap gap-2"></div>
-      </div>
-      <div id="notes-suggestions" class="mt-2 hidden">
-        <div class="text-xs text-gray-500 mb-1">Suggestions (live after 4+ chars)</div>
-        <div id="notes-suggestion-list" class="flex flex-wrap gap-2"></div>
-      </div>
-    </section>
-  </div>
-
-  <!-- Tabs: Pathology/Radiology -->
-  <section class="bg-white rounded-2xl shadow">
-    <div class="flex border-b">
-      <button id="pathology-tab" class="px-4 py-2 font-semibold border-b-2 border-blue-600">Pathology</button>
-      <button id="radiology-tab" class="px-4 py-2">Radiology</button>
-    </div>
-
-    <div id="pathology-panel" class="p-4 space-y-4">
-      <div>
-        <h3 class="font-semibold mb-2">Favourites</h3>
-        <div id="pathology-favs"></div>
-      </div>
-      <div>
-        <input id="pathology-search" class="border rounded w-full p-2" placeholder="Search pathology tests…">
-        <ul id="pathology-results" class="mt-2 border rounded bg-white"></ul>
-      </div>
-    </div>
-
-    <div id="radiology-panel" class="p-4 space-y-4 hidden">
-      <div>
-        <h3 class="font-semibold mb-2">Favourites</h3>
-        <div id="radiology-favs"></div>
-      </div>
-      <div>
-        <input id="radiology-search" class="border rounded w-full p-2" placeholder="Search radiology tests…">
-        <ul id="radiology-results" class="mt-2 border rounded bg-white"></ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- Suggested Tests + Selected Tests side-by-side -->
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    <!-- Suggested Tests -->
-    <section class="bg-white p-4 rounded-2xl shadow">
-      <h3 class="font-semibold mb-2">Suggested Tests</h3>
-      <div id="suggested-tests" class="flex flex-wrap gap-2"></div>
-      <div id="suggested-tests-empty" class="text-sm text-gray-500">No suggestions yet — add Reason tags to see recommendations.</div>
     </section>
 
     <!-- Selected tests -->
@@ -168,1179 +387,1196 @@
       <h3 class="font-semibold mb-2">Selected Tests</h3>
       <ul id="selected-tests" class="divide-y"></ul>
     </section>
-  </div>
 
-  <!-- Error / Status -->
-  <div id="error-box" class="hidden p-2 border border-red-400 bg-red-100 text-red-800 rounded"></div>
-  <div id="status-box" class="hidden p-2 border border-amber-400 bg-amber-50 text-amber-800 rounded"></div>
+    <!-- Error / Status -->
+    <div id="error-box" class="hidden p-2 border border-red-400 bg-red-100 text-red-800 rounded"></div>
+    <div id="status-box" class="hidden p-2 border border-amber-400 bg-amber-50 text-amber-800 rounded"></div>
 
-  <!-- Bundle + Send -->
-  <section class="bg-white p-4 rounded-2xl shadow">
-    <h3 class="font-semibold mb-2">FHIR Bundle Preview</h3>
-    <div class="flex flex-wrap gap-3 mb-3">
-      <button id="build-bundle" class="px-4 py-2 bg-blue-600 text-white rounded">Build FHIR Bundle</button>
-      <button id="send-btn" class="px-4 py-2 bg-emerald-600 text-white rounded">Send to FHIR Server</button>
-    </div>
-
-    <details>
-      <summary class="cursor-pointer px-2 py-1 rounded bg-gray-100 text-sm font-medium">
-        Request Bundle (click to expand)
-      </summary>
-      <div id="json-viewer" class="border rounded p-2 bg-gray-50 mt-2"></div>
-    </details>
-
-    <details class="mt-3">
-      <summary class="cursor-pointer px-2 py-1 rounded bg-gray-100 text-sm font-medium">
-        Server Response (click to expand)
-      </summary>
-      <pre id="server-response" class="mt-2 text-sm text-gray-800 whitespace-pre-wrap"></pre>
-    </details>
-
-    <p class="text-xs text-gray-500 mt-2">Tip: run via a local server (<span class="mono">python3 -m http.server 8000</span>) instead of opening as <span class="mono">file://</span>.</p>
-  </section>
-</main>
-
-<!-- Floating toggles -->
-<button id="server-toggle" class="fixed bottom-4 right-36 z-40 px-3 py-2 rounded-full shadow bg-blue-600 text-white text-sm">Server</button>
-<button id="debug-toggle"  class="fixed bottom-4 right-4  z-40 px-3 py-2 rounded-full shadow bg-yellow-500 text-white text-sm">Debug</button>
-
-<!-- Debug Panel -->
-<div id="debug-panel" class="fixed bottom-16 right-4 z-40 w-[min(90vw,42rem)] max-h-[50vh] overflow-hidden hidden">
-  <div class="bg-yellow-100 border border-yellow-300 rounded shadow">
-    <div class="flex items-center justify-between px-3 py-2 border-b border-yellow-300">
-      <div class="font-semibold text-yellow-900 text-sm">Terminology/FHIR calls — recent</div>
-      <div class="flex items-center gap-2">
-        <button id="debug-copy" class="text-xs px-2 py-1 rounded border border-yellow-400 bg-white">Copy last</button>
-        <button id="debug-close" class="text-xs px-2 py-1 rounded border border-yellow-400 bg-white">Close</button>
+    <!-- Bundle + Send -->
+    <section class="bg-white p-4 rounded-2xl shadow">
+      <h3 class="font-semibold mb-2">FHIR Bundle Preview</h3>
+      <div class="flex flex-wrap gap-3 mb-3">
+        <button id="build-bundle" class="px-4 py-2 bg-blue-600 text-white rounded">Build FHIR Bundle</button>
+        <button id="send-btn" class="px-4 py-2 bg-emerald-600 text-white rounded">Send to FHIR Server</button>
       </div>
-    </div>
-    <div class="p-3">
-      <div class="text-xs text-yellow-900 mb-1">Most recent URL:</div>
-      <div id="last-expand-url" class="text-[11px] break-all bg-yellow-50 border border-yellow-200 rounded p-2"></div>
-      <div class="text-xs text-yellow-900 mt-3 mb-1">History (most recent first):</div>
-      <ul id="expand-history" class="text-[11px] space-y-1 max-h-[22vh] overflow-auto pr-1"></ul>
-    </div>
-  </div>
-</div>
 
-<!-- Server Panel -->
-<div id="server-panel" class="fixed bottom-16 right-4 z-40 w-[min(90vw,32rem)] overflow-hidden hidden">
-  <div class="bg-blue-50 border border-blue-200 rounded-2xl shadow">
-    <div class="flex items-center justify-between px-4 py-2 border-b border-blue-200">
-      <div class="font-semibold text-blue-900 text-sm">FHIR Server</div>
-      <button id="server-close" class="text-xs px-2 py-1 rounded border border-blue-300 bg-white">Close</button>
-    </div>
-    <div class="p-4 space-y-2">
-      <label class="block">
-        <span class="block text-sm font-medium">FHIR Server URL</span>
-        <input id="fhir-base" class="border rounded w-full p-2 mono" value="https://server.fire.ly" placeholder="https://your.fhir.server"/>
-      </label>
-      <button id="apply-fhir-base" class="h-10 px-4 bg-blue-600 text-white rounded">Use this server</button>
-      <div class="text-xs text-gray-600">All queries and transaction POSTs use this base. Default shown above.</div>
-    </div>
-  </div>
-</div>
+      <details>
+        <summary>
+          Request Bundle (click to expand)
+        </summary>
+        <div id="json-viewer" class="border rounded p-2 bg-gray-50 mt-2"></div>
+      </details>
 
-<!-- QR Modal -->
-<div id="qr-backdrop" class="backdrop">
-  <div class="modal p-4">
-    <div class="flex items-start justify-between gap-4 border-b pb-3">
-      <div>
-        <h3 class="text-lg font-semibold">Task Group Location</h3>
-        <p class="text-sm text-gray-500">Scan to open the created Task Group (requisition).</p>
+      <details class="mt-3">
+        <summary>
+          Server Response (click to expand)
+        </summary>
+        <pre id="server-response" class="mt-2 text-sm text-gray-800 whitespace-pre-wrap"></pre>
+      </details>
+
+      <p class="text-xs text-gray-100 mt-2">
+        <span class="bg-blue-800 px-1.5 py-0.5 rounded">Tip</span> run via a local server (<span class="mono">python3 -m http.server 8000</span>) instead of opening as <span class="mono">file://</span>.
+      </p>
+    </section>
+  </main>
+
+  <!-- Floating toggles -->
+  <button id="server-toggle" class="fixed bottom-4 right-36 z-40 px-3 py-2 rounded-full shadow bg-blue-600 text-white text-sm">Server</button>
+  <button id="debug-toggle"  class="fixed bottom-4 right-4  z-40 px-3 py-2 rounded-full shadow bg-yellow-500 text-white text-sm">Debug</button>
+
+  <!-- Debug Panel -->
+  <div id="debug-panel" class="fixed bottom-16 right-4 z-40 w-[min(90vw,42rem)] max-h-[50vh] overflow-hidden hidden">
+    <div class="bg-yellow-100 border border-yellow-300 rounded shadow">
+      <div class="flex items-center justify-between px-3 py-2 border-b border-yellow-300">
+        <div class="font-semibold text-yellow-900 text-sm">Terminology/FHIR calls — recent</div>
+        <div class="flex items-center gap-2">
+          <button id="debug-copy" class="text-xs px-2 py-1 rounded border border-yellow-400 bg-white">Copy last</button>
+          <button id="debug-close" class="text-xs px-2 py-1 rounded border border-yellow-400 bg-white">Close</button>
+        </div>
       </div>
-      <button id="qr-close" class="rounded-full p-2 hover:bg-gray-100" aria-label="Close">✕</button>
-    </div>
-    <div class="p-4 flex flex-col items-center gap-3">
-      <div id="qrcode"></div>
-      <div class="w-full">
-        <div class="text-xs text-gray-500 mb-1">Primary location (encoded in QR):</div>
-        <div id="qr-url" class="mono text-[12px] break-all bg-gray-50 border rounded p-2"></div>
-      </div>
-      <div class="flex gap-2">
-        <button id="qr-open" class="px-3 py-1.5 bg-emerald-600 text-white rounded">Open link</button>
-        <button id="qr-copy" class="px-3 py-1.5 border rounded">Copy link</button>
+      <div class="p-3">
+        <div class="text-xs text-yellow-900 mb-1">Most recent URL:</div>
+        <div id="last-expand-url" class="text-[11px] break-all bg-yellow-50 border border-yellow-200 rounded p-2"></div>
+        <div class="text-xs text-yellow-900 mt-3 mb-1">History (most recent first):</div>
+        <ul id="expand-history" class="text-[11px] space-y-1 max-h-[22vh] overflow-auto pr-1"></ul>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Send overlay -->
-<div id="sending-overlay" class="sending-overlay">
-  <div class="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white shadow">
-    <div class="spinner"></div>
-    <div class="text-sm text-gray-600">Submitting order…</div>
+  <!-- Server Panel (popout) -->
+  <div id="server-panel" class="fixed bottom-16 right-4 z-40 w-[min(90vw,32rem)] overflow-hidden hidden">
+    <div class="bg-blue-50 border border-blue-200 rounded-2xl shadow">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-blue-200">
+        <div class="font-semibold text-blue-900 text-sm">FHIR Server</div>
+        <button id="server-close" class="text-xs px-2 py-1 rounded border border-blue-300 bg-white">Close</button>
+      </div>
+      <div class="p-4 space-y-2">
+        <label class="block">
+          <span class="block text-sm font-medium">FHIR Server URL</span>
+          <input id="fhir-base" class="border rounded w-full p-2 mono" value="https://server.fire.ly" placeholder="https://your.fhir.server"/>
+        </label>
+        <button id="apply-fhir-base" class="h-10 px-4 bg-blue-600 text-white rounded">Use this server</button>
+        <div class="text-xs text-gray-600">All queries and transaction POSTs use this base. Default shown above.</div>
+      </div>
+    </div>
   </div>
-</div>
 
-<script>
-(function(){
-  // ----- Config (FHIR base is editable via Server panel) -----
-  let FHIR_BASE = "https://server.fire.ly";
-  const fhirBaseInput = document.getElementById('fhir-base');
-  const fhirBaseApply = document.getElementById('apply-fhir-base');
-  fhirBaseApply.addEventListener('click', ()=>{
-    const v = (fhirBaseInput.value || '').trim();
-    if(!v){ return; }
-    FHIR_BASE = v.replace(/\/+$/,''); // trim trailing slash
-    showStatus(`Using FHIR server: ${FHIR_BASE}`);
-  });
+  <!-- QR Modal -->
+  <div id="qr-backdrop" class="backdrop">
+    <div class="modal p-4">
+      <div class="flex items-start justify-between gap-4 border-b pb-3">
+        <div>
+          <h3 class="text-lg font-semibold">Task Group Location</h3>
+          <p class="text-sm text-gray-500">Scan to open the created Task Group (requisition).</p>
+        </div>
+        <button id="qr-close" class="rounded-full p-2 hover:bg-gray-100" aria-label="Close">✕</button>
+      </div>
+      <div class="p-4 flex flex-col items-center gap-3">
+        <div id="qrcode"></div>
+        <div class="w-full">
+          <div class="text-xs text-gray-500 mb-1">Primary location (encoded in QR):</div>
+          <div id="qr-url" class="mono text-[12px] break-all bg-gray-50 border rounded p-2"></div>
+        </div>
+        <div class="flex gap-2">
+          <button id="qr-open" class="px-3 py-1.5 bg-emerald-600 text-white rounded">Open link</button>
+          <button id="qr-copy" class="px-3 py-1.5 border rounded">Copy link</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  // Floating panels toggles
-  const serverPanel = document.getElementById('server-panel');
-  const serverToggle = document.getElementById('server-toggle');
-  const serverClose  = document.getElementById('server-close');
-  serverToggle.addEventListener('click', ()=> serverPanel.classList.toggle('hidden'));
-  serverClose.addEventListener('click', ()=> serverPanel.classList.add('hidden'));
+  <!-- Send overlay -->
+  <div id="sending-overlay" class="sending-overlay">
+    <div class="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white shadow">
+      <div class="spinner"></div>
+      <div class="text-sm text-gray-600">Submitting order...</div>
+    </div>
+  </div>
 
-  const debugPanel = document.getElementById('debug-panel');
-  const debugToggle = document.getElementById('debug-toggle');
-  const debugClose  = document.getElementById('debug-close');
-  debugToggle.addEventListener('click', ()=> debugPanel.classList.toggle('hidden'));
-  debugClose.addEventListener('click', ()=> debugPanel.classList.add('hidden'));
-
-  // Ontoserver + terminology
-  const ONTO_BASE = "https://tx.ontoserver.csiro.au/fhir/ValueSet/$expand";
-  const TERM_BASE = "https://tx.ontoserver.csiro.au/fhir";
-  const VS = {
-    PATH: "https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3",
-    IMAG: "https://ranzcr.com/fhir/ValueSet/radiology-referral-1",
-    REASON: "https://healthterminologies.gov.au/fhir/ValueSet/reason-for-procedure-1",
-    PREGNANCY: "http://hl7.org/fhir/uv/ips/ValueSet/pregnancy-status-uv-ips"
-  };
-  const AU_PROFILES = {
-    TASK_GROUP: "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-task-group",
-    TASK_DIAG:  "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-task-diagnosticrequest",
-    SR_DIAG:    "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-diagnosticrequest"
-  };
-  const PLACER_SYS = "http://callistemon.test/placer/id/";
-  const MAX_NOTE_SUG = 8;
-  const XRAY_PARENT = '363680008'; // Radiographic imaging procedure
-  const HBA1C_CODE = '43396009';   // HbA1c
-
-  // ECL for fasting instruction
-  const ECL_FASTING = '^1072351000168102 {{ term = "fasting" }}';
-  const VS_ECL_FASTING = 'http://snomed.info/sct?fhir_vs=ecl/' + encodeURIComponent(ECL_FASTING);
-  const fastingCodeSet = new Set();
-
-  const CAT = {
-    PATH: { coding: [{ system: "http://snomed.info/sct", code: "108252007", display: "Laboratory procedure" }] },
-    IMAG: { coding: [{ system: "http://snomed.info/sct", code: "363679005", display: "Imaging" }] }
-  };
-
-  // Suggested tests metadata (demo only)
-  const SUGGESTED_TESTS_META = {
-    "269820002": { display: "Serum iron tests", kind: 'PATH' },
-    "313440008": { display: "Serum TSH measurement", kind: 'PATH' },
-    "26604007":  { display: "Full blood count", kind: 'PATH' },
-    "166434005": { display: "Serum pregnancy test (B-HCG)", kind: 'PATH' },
-    "45036003":  { display: "Ultrasound of abdomen", kind: 'IMAG' },
-    "241601008": { display: "MRI of head", kind: 'IMAG' },
-    "3621000087107": { display: "Plain X-ray of left hand", kind: 'IMAG' },
-    "3631000087109": { display: "Plain X-ray of right hand", kind: 'IMAG' },
-    "43396009": { display: "HbA1c (glycated haemoglobin)", kind: 'PATH' }
-  };
-
-  const SUGGESTION_RULES = [
-    { parents: ['359752005'], tests: ['269820002','313440008','26604007','43396009'] },
-    { parents: ['276319003','609624008'], tests: ['166434005','45036003'] },
-    { parents: ['82271004'], tests: ['241601008'] },
-    { parents: ['125599006'], tests: ['3621000087107','3631000087109'] }
-  ];
-
-  // ----- Clinicians -----
-  const practitionerResources = {
-    "Dr Confident Cane Toad": {
-      resourceType: "Practitioner",
-      id: "J855592470710578",
-      meta: { profile: ["http://hl7.org.au/fhir/StructureDefinition/au-practitioner"] },
-      name: [{ text: "Dr Confident Cane Toad", family: "Cane Toad", given: ["Confident"], prefix: ["Dr"] }],
-      address: [{
-        text: "45 Wattle Rise, Kensington, TAS 6497",
-        line: ["45 Wattle Rise"], city: "Kensington", state: "TAS", postalCode: "6497", country: "Australia"
-      }]
-    },
-    "Dr Compassionate Quoll": {
-      resourceType: "Practitioner",
-      id: "W855592487843004",
-      meta: { profile: ["http://hl7.org.au/fhir/StructureDefinition/au-practitioner"] },
-      name: [{ text: "Dr Compassionate Quoll", family: "Quoll", given: ["Compassionate"], prefix: ["Dr"] }],
-      address: [{
-        text: "136 Allocasuarina Ln, Geelong, NSW 5600",
-        line: ["136 Allocasuarina Ln"], city: "Geelong", state: "NSW", postalCode: "5600", country: "Australia"
-      }]
-    }
-  };
-
-  const roleSpecialties = {
-    "Dr Confident Cane Toad": { system: "http://snomed.info/sct", code: "408443003", display: "General medical practice" },
-    "Dr Compassionate Quoll": { system: "http://snomed.info/sct", code: "394585009", display: "Obstetrics and gynaecology" }
-  };
-
-  const userFavourites = {
-    "Dr Confident Cane Toad": {
-      pathology: [
-        {code:"26604007",display:"Full blood count"},
-        {code:"401324008",display:"Urine MCS"},
-        {code:"26958001",display:"Liver function test"},
-        {code:"252150008",display:"Fasting lipid profile"},
-        {code:"843441000168103",display:"Respiratory pathogen nucleic acid assay"},
-        {code:"395142003",display:"Allergy screening test"},
-        {code:"43396009",display:"HbA1c (glycated haemoglobin)"}
-      ],
-      radiology: [
-        {code:"399208008",display:"Chest X-ray"},
-        {code:"3821000087108",display:"Plain X-ray of left wrist"},
-        {code:"3831000087105",display:"Plain X-ray of right wrist"},
-        {code:"446522006",display:"Ultrasound scan in first trimester"},
-        {code:"33367005",display:"Coronary angiography"},
-        {code:"241601008",display:"MRI of head"}
-      ]
-    },
-    "Dr Compassionate Quoll": {
-      pathology: [
-        {code:"26604007",display:"Full blood count"},
-        {code:"401324008",display:"Serum pregnancy test (B-HCG)"},
-        {code:"113076002",display:"Glucose tolerance test"},
-        {code:"252409009",display:"Rubella virus antibody screening"},
-        {code:"44608003",display:"Blood group typing"},
-        {code:"395144002",display:"B12/folate level"},
-        {code:"43396009",display:"HbA1c (glycated haemoglobin)"}
-      ],
-      radiology: [
-        {code:"446522006",display:"Ultrasound scan in first trimester"},
-        {code:"446208007",display:"Ultrasound scan in second trimester"},
-        {code:"446353007",display:"Ultrasound scan in third trimester"},
-        {code:"433235006",display:"Fetal echocardiography"},
-        {code:"414880004",display:"Nuchal ultrasound scan"},
-        {code:"433153009",display:"Chorionic villus sampling using obstetric ultrasound guidance"}
-      ]
-    }
-  };
-
-  // ----- DOM helpers -----
-  const $ = (s)=>document.querySelector(s);
-  function showError(msg){ const box=$("#error-box"); box.textContent=msg; box.classList.remove("hidden"); }
-  function showStatus(msg){ const box=$("#status-box"); box.textContent=msg; box.classList.remove("hidden"); setTimeout(()=>box.classList.add("hidden"), 4000); }
-
-  // ----- JSON viewer -----
-  let viewer;
-  try { viewer = new JSONViewer(); $("#json-viewer").appendChild(viewer.getContainer()); }
-  catch(e){ console.warn("JSONViewer fallback",e); viewer={ show:(o)=>{ $("#json-viewer").innerHTML=`<pre class='mono text-xs whitespace-pre-wrap'></pre>`; $("#json-viewer pre").textContent=JSON.stringify(o,null,2);} }; }
-
-  // ----- Debug strip -----
-  const dbg = { panel:debugPanel, toggle:debugToggle, close:debugClose, copy:$("#debug-copy"), last:"#last-expand-url", list:"#expand-history", history:[], max:50 };
-  function setDebugUrl(url){
-    if(!url) return;
-    const last = document.querySelector(dbg.last);
-    last.textContent=url;
-    dbg.history.unshift({url,ts:new Date()});
-    if(dbg.history.length>dbg.max) dbg.history.pop();
-    const ul=document.querySelector(dbg.list); ul.innerHTML='';
-    dbg.history.forEach(i=>{
-      const li=document.createElement('li');
-      li.className='break-all';
-      li.textContent=`[${i.ts.toLocaleTimeString()}] ${i.url}`;
-      ul.appendChild(li);
+  <script>
+  (function(){
+    // ----- Config (FHIR base is editable via Server panel) -----
+    let FHIR_BASE = "https://server.fire.ly";
+    const fhirBaseInput = document.getElementById('fhir-base');
+    const fhirBaseApply = document.getElementById('apply-fhir-base');
+    fhirBaseApply.addEventListener('click', ()=>{
+      const v = (fhirBaseInput.value || '').trim();
+      if(!v){ return; }
+      FHIR_BASE = v.replace(/\/+$/,'');
+      showStatus('Using FHIR server: ' + FHIR_BASE);
     });
-  }
-  dbg.copy.addEventListener('click', async ()=>{
-    const t=document.querySelector(dbg.last).textContent||'';
-    if(!t) return;
-    try{ await navigator.clipboard.writeText(t); const btn=dbg.copy; const old=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=old,1200);}catch{}
-  });
 
-  // ----- State -----
-  let selectedTests=[]; // {system, code, display, kind, priority, warnSet:Set<string>}
-  let patientAddress=null;
-  let reasonTags=[];
-  let notesAnchor=0;
-  let ptMode='search';
-  let currentPatientResource=null; // if set & has id -> existing patient
-  let suggestedRenderToken=0;
-  let lastRequisitionId = null; // PGN value
+    // Floating panels toggles
+    const serverPanel = document.getElementById('server-panel');
+    const serverToggle = document.getElementById('server-toggle');
+    const serverClose  = document.getElementById('server-close');
+    serverToggle.addEventListener('click', ()=> serverPanel.classList.toggle('hidden'));
+    serverClose.addEventListener('click', ()=> serverPanel.classList.add('hidden'));
 
-  // ----- Utils -----
-  function uuidURN(){return "urn:uuid:" + (crypto?.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(16).slice(2));}
-  function newUUID(){ return (crypto?.randomUUID ? crypto.randomUUID() : (Date.now()+"-"+Math.random().toString(16).slice(2))); }
-  function formatAddress(addr){
-    if(!addr) return '';
-    if(addr.text) return addr.text;
-    const parts=[];
-    if(Array.isArray(addr.line)&&addr.line.length) parts.push(addr.line.join(', '));
-    if(addr.city) parts.push(addr.city);
-    if(addr.state) parts.push(addr.state);
-    if(addr.postalCode) parts.push(addr.postalCode);
-    if(addr.country) parts.push(addr.country);
-    return parts.filter(Boolean).join(', ');
-  }
+    const debugPanel = document.getElementById('debug-panel');
+    const debugToggle = document.getElementById('debug-toggle');
+    const debugClose  = document.getElementById('debug-close');
+    debugToggle.addEventListener('click', ()=> debugPanel.classList.toggle('hidden'));
+    debugClose.addEventListener('click', ()=> debugPanel.classList.add('hidden'));
 
-  // ----- Patient mode + Autocomplete -----
-  const ptThumb=$("#ptThumb"), btnSearch=$("#ptBtnSearch"), btnNew=$("#ptBtnNew"), nameInp=$("#patient-name"), ac=$("#pt-ac"), help=$("#pt-mode-help");
-  function setPtMode(mode){
-    ptMode=mode;
-    if(mode==='search'){
-      ptThumb.style.transform='translateX(0%)';
-      btnSearch.classList.add('text-gray-900','font-medium');
-      btnNew.classList.remove('text-gray-900','font-medium'); btnNew.classList.add('text-gray-500');
-      help.textContent='(Search mode: autocomplete)';
-    } else {
-      ptThumb.style.transform='translateX(100%)';
-      btnNew.classList.add('text-gray-900','font-medium');
-      btnSearch.classList.remove('text-gray-900','font-medium'); btnSearch.classList.add('text-gray-500');
-      help.textContent='(New Patient: manual entry)';
-      hidePtAC(); clearPatientForm();
-      setPatientLocked(false);
-    }
-  }
-  btnSearch.addEventListener('click', ()=> setPtMode('search'));
-  btnNew.addEventListener('click', ()=> setPtMode('new'));
-  setPtMode('search');
-
-  // Lock fields if existing patient — BUT leave pregnancy editable
-  function setPatientLocked(locked){
-    const lockIds = ["patient-name","patient-dob","patient-gender"]; // pregnancy-status intentionally excluded
-    lockIds.forEach(id=>{
-      const el = document.getElementById(id);
-      if(!el) return;
-      el.disabled = locked;
-      el.classList.toggle('bg-gray-50', locked);
-      el.classList.toggle('cursor-not-allowed', locked);
-      el.title = locked ? "Loaded from server; editing disabled" : "";
-    });
-    // Ensure pregnancy remains enabled
-    const preg = document.getElementById('pregnancy-status');
-    if(preg){
-      preg.disabled = false;
-      preg.classList.remove('bg-gray-50','cursor-not-allowed');
-      preg.title = '';
-    }
-  }
-
-  function clearPatientForm(){ fillPatientForm({ nameText:'', birthDate:'', gender:'unknown', photoUrl:'defaultProfile.jpg', addressText:'—' }); patientAddress=null; currentPatientResource=null; }
-  function fillPatientForm({ nameText, birthDate, gender, photoUrl, addressText }){
-    nameInp.value=nameText||''; $("#patient-dob").value=birthDate||''; $("#patient-gender").value=gender||'unknown';
-    $("#patient-photo").src=photoUrl||'defaultProfile.jpg'; $("#patient-address").textContent=addressText||'—';
-  }
-  function hidePtAC(){ ac.classList.add('hidden'); ac.innerHTML=''; }
-
-  async function searchPatientsByName(q){
-    if(!q||q.trim().length<2) { hidePtAC(); return; }
-    try{
-      const url=new URL(FHIR_BASE+"/Patient"); url.searchParams.set('name', q.trim()); url.searchParams.set('_count','20');
-      setDebugUrl(url.toString());
-      const r=await fetch(url.toString(),{headers:{Accept:'application/fhir+json'}});
-      if(!r.ok) throw new Error('FHIR '+r.status);
-      const j=await r.json();
-      const pats=(j.entry||[]).map(e=>e.resource).filter(r=>r.resourceType==='Patient');
-
-      const seen=new Set(); const unique=[];
-      for(const p of pats){ if(p.id && !seen.has(p.id)){ seen.add(p.id); unique.push(p); } }
-      renderPtAC(unique.slice(0,10));
-    }catch(e){ console.warn(e); hidePtAC(); showError('Could not search Patient on FHIR server.'); }
-  }
-  function renderPtAC(pats){
-    ac.innerHTML=''; if(!pats.length){ hidePtAC(); return; }
-    pats.forEach(p=>{
-      const li=document.createElement('li'); li.className='px-3 py-2 hover:bg-gray-100 cursor-pointer';
-      const nm=(p.name?.[0]?.text)||[...(p.name?.[0]?.given||[]),p.name?.[0]?.family].filter(Boolean).join(' ')||'(no name)';
-      const dob=p.birthDate||'—'; const gender=p.gender||'—';
-      li.innerHTML=`<div class='font-medium'>${nm}</div><div class='text-xs text-gray-500'>DOB: ${dob} • Gender: ${gender}</div>`;
-      li.addEventListener('click',()=>{ fillPatientFormFromResource(p); hidePtAC(); });
-      ac.appendChild(li);
-    });
-    ac.classList.remove('hidden');
-  }
-  function fillPatientFormFromResource(p){
-    const name=p.name?.[0]?.text || [ ...(p.name?.[0]?.given||[]), p.name?.[0]?.family ].filter(Boolean).join(' ') || '';
-    let photoUrl=''; if(p.photo&&p.photo.length>0){ const ph=p.photo[0]; if(ph.url) photoUrl=ph.url; else if(ph.data && ph.contentType) photoUrl=`data:${ph.contentType};base64,${ph.data}`; }
-    patientAddress=(Array.isArray(p.address)&&p.address.length)?p.address[0]:null;
-    currentPatientResource = p;
-    fillPatientForm({ nameText:name, birthDate:p.birthDate||'', gender:p.gender||'unknown', photoUrl:photoUrl||'defaultProfile.jpg', addressText: patientAddress?formatAddress(patientAddress):'—' });
-    setPatientLocked(true); // lock core demographics; pregnancy remains editable
-  }
-
-  nameInp.addEventListener('input', ()=>{ if(ptMode==='search'){ searchPatientsByName(nameInp.value); } else { hidePtAC(); }});
-  document.addEventListener('click', (e)=>{ if(!ac.contains(e.target) && e.target!==nameInp) hidePtAC(); });
-
-  // ----- Reason tags + suggestions -----
-  function renderReasonTags(){
-    const wrap=document.querySelector("#notes-tags"); wrap.innerHTML='';
-    reasonTags.forEach((t,idx)=>{
-      const chip=document.createElement('span'); chip.className='chip'; chip.innerHTML=`<span>${t.display}</span>`;
-      const x=document.createElement('button'); x.type='button'; x.textContent='✕';
-      x.onclick=()=>{ reasonTags.splice(idx,1); renderReasonTags(); };
-      chip.appendChild(x);
-      wrap.appendChild(chip);
-    });
-    computeAndRenderSuggestions();
-  }
-  function showReasonSuggestions(items){
-    const box=$("#notes-suggestions"), list=$("#notes-suggestion-list"); list.innerHTML='';
-    const top=items.slice(0,MAX_NOTE_SUG); if(!top.length){ box.classList.add('hidden'); return; }
-    top.forEach(it=>{
-      const btn=document.createElement('button'); btn.type='button'; btn.className='px-2 py-1 rounded border text-xs hover:bg-gray-50';
-      btn.textContent=it.display||it.code||'—';
-      btn.onclick=()=>{
-        const code=it.code, system=it.system||'http://snomed.info/sct', display=it.display||it.code;
-        if(!reasonTags.some(t=>t.code===code && t.system===system)){ reasonTags.push({system,code,display}); renderReasonTags(); }
-        const notes=$("#clinical-notes"); notesAnchor=(notes.value||'').length; box.classList.add('hidden');
-      };
-      list.appendChild(btn);
-    });
-    box.classList.remove('hidden');
-  }
-  async function fetchReasonSuggestions(filter){
-    if(!filter||filter.length<4) return [];
-    try{
-      const url = `${ONTO_BASE}?url=${encodeURIComponent(VS.REASON)}&count=20&filter=${encodeURIComponent(filter)}`;
-      setDebugUrl(url);
-      const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
-      if(!r.ok) throw new Error(r.status);
-      const j=await r.json();
-      return j?.expansion?.contains||[];
-    }catch(e){ console.warn(e); return []; }
-  }
-  (function wireNotes(){
-    const notes=$("#clinical-notes"); let debounce=null;
-    notes.addEventListener('input', ()=>{
-      const text=notes.value||''; const caret=notes.selectionStart??text.length; const since=(text.slice(notesAnchor, caret)||'').trim();
-      if(debounce) clearTimeout(debounce);
-      debounce=setTimeout(async ()=>{
-        if(since.length<4){ $("#notes-suggestions").classList.add('hidden'); return; }
-        const items=await fetchReasonSuggestions(since); showReasonSuggestions(items);
-      }, 0);
-    });
-  })();
-  function buildReasonCodeArray(){ if(!reasonTags.length) return undefined;
-    return reasonTags.map(t=>({ coding:[{system:t.system||'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display }));
-  }
-  function buildCombinedNoteText(){
-    const notes=(document.querySelector("#clinical-notes").value||'').trim();
-    const tagDisplays=(reasonTags||[]).map(t=>t.display).filter(Boolean);
-    if(!tagDisplays.length) return notes;
-    const tagLine=`Reason tags: ${Array.from(new Set(tagDisplays)).join('; ')}`;
-    return notes ? `${notes}\n${tagLine}` : tagLine;
-  }
-
-  // ----- Ontoserver helpers -----
-  async function expandFromOntoserver(vsCanonicalUrl, filter){
-    try{
-      const base = new URL(ONTO_BASE);
-      base.searchParams.set('url', vsCanonicalUrl);
-      if(filter && filter.trim().length) base.searchParams.set('filter', filter);
-      base.searchParams.set('count', '50');
-      const url = base.toString();
-      setDebugUrl(url);
-      const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
-      if(!r.ok) throw new Error(`Ontoserver ${r.status}`);
-      const j=await r.json();
-      return j?.expansion?.contains||[];
-    }catch(e){ console.warn('Ontoserver expand failed', e); return []; }
-  }
-
-  // Preload fasting codes from ECL
-  async function preloadFastingCodes(){
-    try{
-      const items = await expandFromOntoserver(VS_ECL_FASTING);
-      items.forEach(i=>{ if(i.code) fastingCodeSet.add(i.code); });
-    }catch(e){ console.warn('preloadFastingCodes', e); }
-  }
-
-  // SNOMED $subsumes caching
-  const subsumesCache = new Map();
-  function readOutcomeFromParameters(j){
-    try{
-      if(j?.resourceType==='Parameters' && Array.isArray(j.parameter)){
-        const outParam=j.parameter.find(p=>p.name==='outcome');
-        const resParam=j.parameter.find(p=>p.name==='result');
-        if(outParam){
-          const val = outParam.valueCode || outParam.valueString || (outParam.value && outParam.value.code);
-          if(typeof val==='string') return { outcome: val };
-        }
-        if(resParam && typeof resParam.valueBoolean==='boolean'){
-          return { result: !!resParam.valueBoolean };
-        }
-      }
-    }catch{}
-    return {};
-  }
-  async function callSubsumes(codeA, codeB){
-    const url = `${TERM_BASE}/CodeSystem/$subsumes?system=http://snomed.info/sct&codeA=${encodeURIComponent(codeA)}&codeB=${encodeURIComponent(codeB)}`;
-    setDebugUrl(url);
-    const r = await fetch(url, { headers: { Accept: 'application/fhir+json' } });
-    if(!r.ok) throw new Error('subsumes '+r.status);
-    const j = await r.json();
-    return readOutcomeFromParameters(j);
-  }
-  async function snomedSubsumes(parent, child){
-    const key = parent+'|'+child; if(subsumesCache.has(key)) return subsumesCache.get(key);
-    try{
-      let { outcome, result } = await callSubsumes(parent, child);
-      let match = (outcome==='subsumes' || outcome==='equivalent' || result===true);
-      if(!match){
-        ({ outcome, result } = await callSubsumes(child, parent));
-        match = (outcome==='specializes' || outcome==='equivalent' || result===true);
-      }
-      subsumesCache.set(key, !!match);
-      return !!match;
-    }catch(e){ console.warn('subsumes',e); subsumesCache.set(key,false); return false; }
-  }
-
-  // ----- Suggestions engine -----
-  async function computeSuggestions(){
-    const codes = (reasonTags||[]).filter(t=> (t.system||'http://snomed.info/sct').includes('snomed')).map(t=>t.code);
-    if(!codes.length) return [];
-    const suggestions = new Set();
-    for(const rule of SUGGESTION_RULES){
-      let match=false;
-      for(const parent of rule.parents){
-        for(const c of codes){
-          if(await snomedSubsumes(parent, c)){ match=true; break; }
-        }
-        if(match) break;
-      }
-      if(match){ rule.tests.forEach(tc=> suggestions.add(tc)); }
-    }
-    const selectedCodes = new Set(selectedTests.map(t=>t.code));
-    return Array.from(suggestions).filter(c=> !selectedCodes.has(c));
-  }
-  async function renderSuggestedTests(){
-    const token = ++suggestedRenderToken;
-    const cont = document.getElementById('suggested-tests');
-    const empty = document.getElementById('suggested-tests-empty');
-    const list = await computeSuggestions();
-    if(token !== suggestedRenderToken) return;
-    cont.innerHTML='';
-    if(!list.length){ empty.classList.remove('hidden'); return; }
-    empty.classList.add('hidden');
-    const seen=new Set();
-    list.forEach(code=>{
-      if(seen.has(code)) return; seen.add(code);
-      const meta = SUGGESTED_TESTS_META[code] || { display: code, kind: 'PATH' };
-      const chip = document.createElement('span');
-      chip.className='chip';
-      const label = document.createElement('span');
-      label.textContent = meta.display;
-      const add = document.createElement('button');
-      add.type='button'; add.textContent='＋'; add.title='Add test';
-      add.onclick=()=>{ addSelectedTest({ system:'http://snomed.info/sct', code, display: meta.display, kind: meta.kind }); };
-      chip.appendChild(label); chip.appendChild(add); cont.appendChild(chip);
-    });
-  }
-  function computeAndRenderSuggestions(){ renderSuggestedTests(); }
-
-  // ----- Favourites -----
-  function renderFavColumn(items, kind){
-    const col=document.createElement('div'); col.className='flex flex-col space-y-2';
-    items.forEach(f=>{
-      const row=document.createElement('label'); row.className='flex items-center space-x-2';
-      row.innerHTML=`<input type="checkbox" class="fav" data-kind="${kind}" data-code="${f.code}" data-display="${f.display}" data-system="http://snomed.info/sct"> <span>${f.display}</span>`;
-      col.appendChild(row);
-    });
-    return col;
-  }
-  function renderFavsForUser(user){
-    const def=userFavourites[user];
-    const renderSet=(containerId, favs, kind)=>{
-      const container=document.getElementById(containerId); container.innerHTML='';
-      const half=Math.ceil(favs.length/2);
-      const grid=document.createElement('div'); grid.className='grid grid-cols-2 gap-4';
-      grid.appendChild(renderFavColumn(favs.slice(0,half),kind));
-      grid.appendChild(renderFavColumn(favs.slice(half),kind));
-      container.appendChild(grid);
+    // Ontoserver + terminology
+    const ONTO_BASE = "https://tx.ontoserver.csiro.au/fhir/ValueSet/$expand";
+    const TERM_BASE = "https://tx.ontoserver.csiro.au/fhir";
+    const VS = {
+      PATH: "https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3",
+      IMAG: "https://ranzcr.com/fhir/ValueSet/radiology-referral-1",
+      REASON: "https://healthterminologies.gov.au/fhir/ValueSet/reason-for-procedure-1",
+      PREGNANCY: "http://hl7.org/fhir/uv/ips/ValueSet/pregnancy-status-uv-ips"
     };
-    renderSet('pathology-favs', def.pathology, 'PATH');
-    renderSet('radiology-favs', def.radiology, 'IMAG');
-    document.querySelectorAll('.fav').forEach(cb=>{
-      cb.addEventListener('change', e=>{
-        const { code, system, display, kind } = e.target.dataset;
-        if(e.target.checked) addSelectedTest({code,system,display,kind}); else removeSelectedTestByCode(code);
+    const AU_PROFILES = {
+      TASK_GROUP: "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-task-group",
+      TASK_DIAG:  "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-task-diagnosticrequest",
+      SR_DIAG:    "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-diagnosticrequest"
+    };
+    const PLACER_SYS = "http://callistemon.test/placer/id/";
+    const MAX_NOTE_SUG = 8;
+    const XRAY_PARENT = '363680008'; // Radiographic imaging procedure
+    const HBA1C_CODE = '43396009';   // HbA1c
+
+    // ECL for fasting instruction
+    const ECL_FASTING = '^1072351000168102 {{ term = "fasting" }}';
+    const VS_ECL_FASTING = 'http://snomed.info/sct?fhir_vs=ecl/' + encodeURIComponent(ECL_FASTING);
+    const fastingCodeSet = new Set();
+
+    const CAT = {
+      PATH: { coding: [{ system: "http://snomed.info/sct", code: "108252007", display: "Laboratory procedure" }] },
+      IMAG: { coding: [{ system: "http://snomed.info/sct", code: "363679005", display: "Imaging" }] }
+    };
+
+    // Suggested tests metadata (demo only)
+    const SUGGESTED_TESTS_META = {
+      "269820002": { display: "Serum iron tests", kind: 'PATH' },
+      "313440008": { display: "Serum TSH measurement", kind: 'PATH' },
+      "26604007":  { display: "Full blood count", kind: 'PATH' },
+      "166434005": { display: "Serum pregnancy test (B-HCG)", kind: 'PATH' },
+      "45036003":  { display: "Ultrasound of abdomen", kind: 'IMAG' },
+      "241601008": { display: "MRI of head", kind: 'IMAG' },
+      "3621000087107": { display: "Plain X-ray of left hand", kind: 'IMAG' },
+      "3631000087109": { display: "Plain X-ray of right hand", kind: 'IMAG' },
+      "43396009": { display: "HbA1c (glycated haemoglobin)", kind: 'PATH' }
+    };
+
+    const SUGGESTION_RULES = [
+      { parents: ['359752005'], tests: ['269820002','313440008','26604007','43396009'] },
+      { parents: ['276319003','609624008'], tests: ['166434005','45036003'] },
+      { parents: ['82271004'], tests: ['241601008'] },
+      { parents: ['125599006'], tests: ['3621000087107','3631000087109'] }
+    ];
+
+    // ----- Clinicians -----
+    const practitionerResources = {
+      "Dr Confident Cane Toad": {
+        resourceType: "Practitioner",
+        id: "J855592470710578",
+        meta: { profile: ["http://hl7.org.au/fhir/StructureDefinition/au-practitioner"] },
+        name: [{ text: "Dr Confident Cane Toad", family: "Cane Toad", given: ["Confident"], prefix: ["Dr"] }],
+        address: [{
+          text: "45 Wattle Rise, Kensington, TAS 6497",
+          line: ["45 Wattle Rise"], city: "Kensington", state: "TAS", postalCode: "6497", country: "Australia"
+        }]
+      },
+      "Dr Compassionate Quoll": {
+        resourceType: "Practitioner",
+        id: "W855592487843004",
+        meta: { profile: ["http://hl7.org.au/fhir/StructureDefinition/au-practitioner"] },
+        name: [{ text: "Dr Compassionate Quoll", family: "Quoll", given: ["Compassionate"], prefix: ["Dr"] }],
+        address: [{
+          text: "136 Allocasuarina Ln, Geelong, NSW 5600",
+          line: ["136 Allocasuarina Ln"], city: "Geelong", state: "NSW", postalCode: "5600", country: "Australia"
+        }]
+      }
+    };
+
+    const roleSpecialties = {
+      "Dr Confident Cane Toad": { system: "http://snomed.info/sct", code: "408443003", display: "General medical practice" },
+      "Dr Compassionate Quoll": { system: "http://snomed.info/sct", code: "394585009", display: "Obstetrics and gynaecology" }
+    };
+
+    const userFavourites = {
+      "Dr Confident Cane Toad": {
+        pathology: [
+          {code:"26604007",display:"Full blood count"},
+          {code:"401324008",display:"Urine MCS"},
+          {code:"26958001",display:"Liver function test"},
+          {code:"252150008",display:"Fasting lipid profile"},
+          {code:"843441000168103",display:"Respiratory pathogen nucleic acid assay"},
+          {code:"395142003",display:"Allergy screening test"},
+          {code:"43396009",display:"HbA1c (glycated haemoglobin)"}
+        ],
+        radiology: [
+          {code:"399208008",display:"Chest X-ray"},
+          {code:"3821000087108",display:"Plain X-ray of left wrist"},
+          {code:"3831000087105",display:"Plain X-ray of right wrist"},
+          {code:"446522006",display:"Ultrasound scan in first trimester"},
+          {code:"33367005",display:"Coronary angiography"},
+          {code:"241601008",display:"MRI of head"}
+        ]
+      },
+      "Dr Compassionate Quoll": {
+        pathology: [
+          {code:"26604007",display:"Full blood count"},
+          {code:"401324008",display:"Serum pregnancy test (B-HCG)"},
+          {code:"113076002",display:"Glucose tolerance test"},
+          {code:"252409009",display:"Rubella virus antibody screening"},
+          {code:"44608003",display:"Blood group typing"},
+          {code:"395144002",display:"B12/folate level"},
+          {code:"43396009",display:"HbA1c (glycated haemoglobin)"}
+        ],
+        radiology: [
+          {code:"446522006",display:"Ultrasound scan in first trimester"},
+          {code:"446208007",display:"Ultrasound scan in second trimester"},
+          {code:"446353007",display:"Ultrasound scan in third trimester"},
+          {code:"433235006",display:"Fetal echocardiography"},
+          {code:"414880004",display:"Nuchal ultrasound scan"},
+          {code:"433153009",display:"Chorionic villus sampling using obstetric ultrasound guidance"}
+        ]
+      }
+    };
+
+    // ----- DOM helpers -----
+    const $ = (s)=>document.querySelector(s);
+    function showError(msg){ const box=$("#error-box"); box.textContent=msg; box.classList.remove("hidden"); }
+    function showStatus(msg){ const box=$("#status-box"); box.textContent=msg; box.classList.remove("hidden"); setTimeout(()=>box.classList.add("hidden"), 4000); }
+
+    // ----- JSON viewer -----
+    let viewer;
+    try { viewer = new JSONViewer(); $("#json-viewer").appendChild(viewer.getContainer()); }
+    catch(e){ console.warn("JSONViewer fallback",e); viewer={ show:(o)=>{ $("#json-viewer").innerHTML='<pre class=\"mono text-xs whitespace-pre-wrap\"></pre>'; $("#json-viewer pre").textContent=JSON.stringify(o,null,2);} }; }
+
+    // ----- Debug strip -----
+    const dbg = { panel:debugPanel, toggle:debugToggle, close:debugClose, copy:$("#debug-copy"), last:"#last-expand-url", list:"#expand-history", history:[], max:50 };
+    function setDebugUrl(url){
+      if(!url) return;
+      const last = document.querySelector(dbg.last);
+      last.textContent=url;
+      dbg.history.unshift({url,ts:new Date()});
+      if(dbg.history.length>dbg.max) dbg.history.pop();
+      const ul=document.querySelector(dbg.list); ul.innerHTML='';
+      dbg.history.forEach(i=>{
+        const li=document.createElement('li');
+        li.className='break-all';
+        li.textContent='['+i.ts.toLocaleTimeString()+'] '+i.url;
+        ul.appendChild(li);
       });
+    }
+    $("#debug-toggle").addEventListener('click', ()=>debugPanel.classList.toggle('hidden'));
+    $("#debug-close").addEventListener('click', ()=>debugPanel.classList.add('hidden'));
+    $("#debug-copy").addEventListener('click', async ()=>{
+      const t=document.querySelector(dbg.last).textContent||'';
+      if(!t) return;
+      try{ await navigator.clipboard.writeText(t); const btn=$("#debug-copy"); const old=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=old,1200);}catch{}
     });
-    document.querySelectorAll('.fav').forEach(cb=>{
-      const code=cb.dataset.code; cb.checked=selectedTests.some(t=>t.code===code);
-    });
-  }
 
-  // ----- History checks helpers -----
-  function isoDateMonthsAgo(m){ const d=new Date(); d.setMonth(d.getMonth()-m); return d.toISOString(); }
-  function isoDateDaysAgo(dy){ const d=new Date(Date.now()-dy*24*60*60*1000); return d.toISOString(); }
+    // ----- State -----
+    let selectedTests=[];
+    let patientAddress=null;
+    let reasonTags=[];
+    let notesAnchor=0;
+    let ptMode='search';
+    let currentPatientResource=null;
+    let suggestedRenderToken=0;
+    let lastRequisitionId = null;
 
-  async function fhirCount(resourceType, params){
-    // Tries multiple candidate date params in order and requests accurate totals
-    const tryDateParams = params.tryDateParams || ['authored','date','issued','effective','_lastUpdated'];
-    const codeParamOrder = [];
-    if(params.code)      codeParamOrder.push({k:'code', v:params.code});
-    if(params.codeBelow) codeParamOrder.push({k:'code:below', v:params.codeBelow});
-    if(params.codeIn)    codeParamOrder.push({k:'code:in', v:params.codeIn});
-    if(codeParamOrder.length===0) codeParamOrder.push(null);
+    // ----- Utils -----
+    function uuidURN(){return 'urn:uuid:' + (crypto && crypto.randomUUID ? crypto.randomUUID() : (Date.now()+'-'+Math.random().toString(16).slice(2)));}
+    function newUUID(){ return (crypto && crypto.randomUUID ? crypto.randomUUID() : (Date.now()+'-'+Math.random().toString(16).slice(2))); }
+    function formatAddress(addr){
+      if(!addr) return '';
+      if(addr.text) return addr.text;
+      const parts=[];
+      if(Array.isArray(addr.line)&&addr.line.length) parts.push(addr.line.join(', '));
+      if(addr.city) parts.push(addr.city);
+      if(addr.state) parts.push(addr.state);
+      if(addr.postalCode) parts.push(addr.postalCode);
+      if(addr.country) parts.push(addr.country);
+      return parts.filter(Boolean).join(', ');
+    }
 
-    for(const codeParam of codeParamOrder){
-      for(const dateParam of tryDateParams){
-        try{
-          const url=new URL(`${FHIR_BASE}/${resourceType}`);
-          for(const [k,v] of Object.entries(params.base||{})){ url.searchParams.append(k,v); }
-          url.searchParams.append('_summary','count');
-          url.searchParams.append('_total','accurate');
-          if(codeParam){ url.searchParams.append(codeParam.k, codeParam.v); }
-          if(params.sinceISO) url.searchParams.append(dateParam, 'ge'+params.sinceISO);
-          setDebugUrl(url.toString());
-          const r=await fetch(url.toString(),{headers:{Accept:'application/fhir+json'}});
-          if(!r.ok) continue;
-          const j=await r.json();
-          if(typeof j.total==='number') return j.total;
-          if(Array.isArray(j.entry)) return j.entry.length;
-        }catch(e){ console.warn('count',resourceType,e); }
+    // ----- Patient mode + Autocomplete -----
+    const btnSearch=$("#ptBtnSearch"), btnNew=$("#ptBtnNew"), nameInp=$("#patient-name"), ac=$("#pt-ac"), help=$("#pt-mode-help");
+
+    function updatePtToggleVisuals(){
+      const isSearch = (ptMode === 'search');
+      btnSearch.classList.toggle('is-active', isSearch);
+      btnNew.classList.toggle('is-active', !isSearch);
+      btnSearch.setAttribute('aria-pressed', String(isSearch));
+      btnNew.setAttribute('aria-pressed', String(!isSearch));
+    }
+
+    function setPtMode(mode){
+      ptMode=mode;
+      if(mode==='search'){
+        help.textContent='(Search mode: autocomplete)';
+      } else {
+        help.textContent='(New Patient: manual entry)';
+        hidePtAC(); clearPatientForm();
+        setPatientLocked(false);
+      }
+      updatePtToggleVisuals();
+    }
+
+    btnSearch.addEventListener('click', ()=> setPtMode('search'));
+    btnNew.addEventListener('click', ()=> setPtMode('new'));
+    setPtMode('search');
+
+    // Lock fields if existing patient — pregnancy remains editable
+    function setPatientLocked(locked){
+      const lockIds = ['patient-name','patient-dob','patient-gender'];
+      lockIds.forEach(id=>{
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.disabled = locked;
+        el.classList.toggle('bg-gray-50', locked);
+        el.classList.toggle('cursor-not-allowed', locked);
+        el.title = locked ? 'Loaded from server; editing disabled' : '';
+      });
+      const preg = document.getElementById('pregnancy-status');
+      if(preg){
+        preg.disabled = false;
+        preg.classList.remove('bg-gray-50','cursor-not-allowed');
+        preg.title = '';
       }
     }
-    return 0;
-  }
 
-  async function manualCountSRSubsumed(patientId, sinceISO){
-    try{
-      const url=new URL(`${FHIR_BASE}/ServiceRequest`);
-      url.searchParams.set('subject', `Patient/${patientId}`);
-      url.searchParams.set('authored', 'ge'+sinceISO);
-      url.searchParams.set('_elements', 'code');
-      url.searchParams.set('_count', '200');
-      setDebugUrl(url.toString());
-      const r=await fetch(url.toString(),{headers:{Accept:'application/fhir+json'}});
-      if(!r.ok) return 0;
-      const j=await r.json();
-      const entries = Array.isArray(j.entry) ? j.entry : [];
-      let cnt=0;
-      for(const e of entries){
-        const res=e.resource;
-        const codings=(res?.code?.coding||[]).filter(c=> (c.system||'').includes('snomed') && c.code);
-        let hit=false;
-        for(const c of codings){
-          if(await snomedSubsumes(XRAY_PARENT, c.code)){ hit=true; break; }
+    function clearPatientForm(){ fillPatientForm({ nameText:'', birthDate:'', gender:'unknown', photoUrl:'defaultProfile.jpg', addressText:'—' }); patientAddress=null; currentPatientResource=null; }
+    function fillPatientForm({ nameText, birthDate, gender, photoUrl, addressText }){
+      nameInp.value=nameText||''; document.getElementById('patient-dob').value=birthDate||''; document.getElementById('patient-gender').value=gender||'unknown';
+      document.getElementById('patient-photo').src=photoUrl||'defaultProfile.jpg'; document.getElementById('patient-address').textContent=addressText||'—';
+    }
+    function hidePtAC(){ ac.classList.add('hidden'); ac.innerHTML=''; }
+
+    async function searchPatientsByName(q){
+      if(!q||q.trim().length<2) { hidePtAC(); return; }
+      try{
+        const url=new URL(FHIR_BASE+'/Patient'); url.searchParams.set('name', q.trim()); url.searchParams.set('_count','20');
+        setDebugUrl(url.toString());
+        const r=await fetch(url.toString(),{headers:{Accept:'application/fhir+json'}});
+        if(!r.ok) throw new Error('FHIR '+r.status);
+        const j=await r.json();
+        const pats=(j.entry||[]).map(e=>e.resource).filter(r=>r.resourceType==='Patient');
+
+        const seen=new Set(); const unique=[];
+        for(const p of pats){ if(p.id && !seen.has(p.id)){ seen.add(p.id); unique.push(p); } }
+        renderPtAC(unique.slice(0,10));
+      }catch(e){ console.warn(e); hidePtAC(); showError('Could not search Patient on FHIR server.'); }
+    }
+    function renderPtAC(pats){
+      ac.innerHTML=''; if(!pats.length){ hidePtAC(); return; }
+      pats.forEach(p=>{
+        const li=document.createElement('li'); li.className='px-3 py-2 hover:bg-gray-100 cursor-pointer';
+        const nm=(p.name&&p.name[0]&&p.name[0].text)||([...(p.name&&p.name[0]&&p.name[0].given||[]),p.name&&p.name[0]&&p.name[0].family].filter(Boolean).join(' '))||'(no name)';
+        const dob=p.birthDate||'—'; const gender=p.gender||'—';
+        li.innerHTML='<div class=\"font-medium\">'+nm+'</div><div class=\"text-xs text-gray-500\">DOB: '+dob+' • Gender: '+gender+'</div>';
+        li.addEventListener('click',()=>{ fillPatientFormFromResource(p); hidePtAC(); });
+        ac.appendChild(li);
+      });
+      ac.classList.remove('hidden');
+    }
+    function fillPatientFormFromResource(p){
+      const name=(p.name&&p.name[0]&&p.name[0].text) || ([...(p.name&&p.name[0]&&p.name[0].given||[]), p.name&&p.name[0]&&p.name[0].family].filter(Boolean).join(' ')) || '';
+      let photoUrl=''; if(p.photo&&p.photo.length>0){ const ph=p.photo[0]; if(ph.url) photoUrl=ph.url; else if(ph.data && ph.contentType) photoUrl='data:'+ph.contentType+';base64,'+ph.data; }
+      patientAddress=(Array.isArray(p.address)&&p.address.length)?p.address[0]:null;
+      currentPatientResource = p;
+      fillPatientForm({ nameText:name, birthDate:p.birthDate||'', gender:p.gender||'unknown', photoUrl:photoUrl||'defaultProfile.jpg', addressText: patientAddress?formatAddress(patientAddress):'—' });
+      setPatientLocked(true);
+    }
+
+    nameInp.addEventListener('input', ()=>{ if(ptMode==='search'){ searchPatientsByName(nameInp.value); } else { hidePtAC(); }});
+    document.addEventListener('click', (e)=>{ if(!ac.contains(e.target) && e.target!==nameInp) hidePtAC(); });
+
+    // ----- Reason tags + suggestions -----
+    function renderReasonTags(){
+      const wrap=document.querySelector('#notes-tags'); wrap.innerHTML='';
+      reasonTags.forEach((t,idx)=>{
+        const chip=document.createElement('span'); chip.className='inline-flex items-center gap-1.5 border border-emerald-100 bg-emerald-50 text-emerald-800 rounded-full px-2 py-0.5 text-xs';
+        chip.innerHTML='<span>'+t.display+'</span>';
+        const x=document.createElement('button'); x.type='button'; x.textContent='✕'; x.className='opacity-70 hover:opacity-100';
+        x.onclick=()=>{ reasonTags.splice(idx,1); renderReasonTags(); };
+        chip.appendChild(x);
+        wrap.appendChild(chip);
+      });
+      computeAndRenderSuggestions();
+    }
+    function showReasonSuggestions(items){
+      const box=document.getElementById('notes-suggestions'), list=document.getElementById('notes-suggestion-list'); list.innerHTML='';
+      const top=items.slice(0,MAX_NOTE_SUG); if(!top.length){ box.classList.add('hidden'); return; }
+      top.forEach(it=>{
+        const btn=document.createElement('button'); btn.type='button'; btn.className='px-2 py-1 rounded border text-xs hover:bg-gray-50';
+        btn.textContent=it.display||it.code||'—';
+        btn.onclick=()=>{
+          const code=it.code, system=it.system||'http://snomed.info/sct', display=it.display||it.code;
+          if(!reasonTags.some(t=>t.code===code && t.system===system)){ reasonTags.push({system:system,code:code,display:display}); renderReasonTags(); }
+          const notes=document.getElementById('clinical-notes'); notesAnchor=(notes.value||'').length; box.classList.add('hidden');
+        };
+        list.appendChild(btn);
+      });
+      box.classList.remove('hidden');
+    }
+    async function fetchReasonSuggestions(filter){
+      if(!filter||filter.length<4) return [];
+      try{
+        const url = ONTO_BASE+'?url='+encodeURIComponent(VS.REASON)+'&count=20&filter='+encodeURIComponent(filter);
+        setDebugUrl(url);
+        const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
+        if(!r.ok) throw new Error(r.status);
+        const j=await r.json();
+        return (j && j.expansion && j.expansion.contains) ? j.expansion.contains : [];
+      }catch(e){ console.warn(e); return []; }
+    }
+    (function wireNotes(){
+      const notes=document.getElementById('clinical-notes'); let debounce=null;
+      notes.addEventListener('input', ()=>{
+        const text=notes.value||''; const caret=(notes.selectionStart!=null?notes.selectionStart:text.length); const since=(text.slice(notesAnchor, caret)||'').trim();
+        if(debounce) clearTimeout(debounce);
+        debounce=setTimeout(async ()=>{
+          if(since.length<4){ document.getElementById('notes-suggestions').classList.add('hidden'); return; }
+          const items=await fetchReasonSuggestions(since); showReasonSuggestions(items);
+        }, 0);
+      });
+    })();
+    function buildReasonCodeArray(){ if(!reasonTags.length) return undefined;
+      return reasonTags.map(function(t){ return { coding:[{system:t.system||'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display }; });
+    }
+    function buildCombinedNoteText(){
+      const notes=(document.querySelector('#clinical-notes').value||'').trim();
+      const tagDisplays=(reasonTags||[]).map(function(t){return t.display;}).filter(Boolean);
+      if(!tagDisplays.length) return notes;
+      const tagLine='Reason tags: '+Array.from(new Set(tagDisplays)).join('; ');
+      return notes ? (notes+'\n'+tagLine) : tagLine;
+    }
+
+    // ----- Ontoserver helpers -----
+    async function expandFromOntoserver(vsCanonicalUrl, filter){
+      try{
+        const base = new URL(ONTO_BASE);
+        base.searchParams.set('url', vsCanonicalUrl);
+        if(filter && filter.trim().length) base.searchParams.set('filter', filter);
+        base.searchParams.set('count', '50');
+        const url = base.toString();
+        setDebugUrl(url);
+        const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
+        if(!r.ok) throw new Error('Ontoserver '+r.status);
+        const j=await r.json();
+        return (j && j.expansion && j.expansion.contains) ? j.expansion.contains : [];
+      }catch(e){ console.warn('Ontoserver expand failed', e); return []; }
+    }
+
+    // Preload fasting codes from ECL
+    async function preloadFastingCodes(){
+      try{
+        const items = await expandFromOntoserver(VS_ECL_FASTING);
+        items.forEach(function(i){ if(i.code) fastingCodeSet.add(i.code); });
+      }catch(e){ console.warn('preloadFastingCodes', e); }
+    }
+
+    // SNOMED $subsumes caching
+    const subsumesCache = new Map();
+    function readOutcomeFromParameters(j){
+      try{
+        if(j && j.resourceType==='Parameters' && Array.isArray(j.parameter)){
+          const outParam=j.parameter.find(function(p){return p.name==='outcome';});
+          const resParam=j.parameter.find(function(p){return p.name==='result';});
+          if(outParam){
+            const val = outParam.valueCode || outParam.valueString || (outParam.value && outParam.value.code);
+            if(typeof val==='string') return { outcome: val };
+          }
+          if(resParam && typeof resParam.valueBoolean==='boolean'){
+            return { result: !!resParam.valueBoolean };
+          }
         }
-        if(hit) cnt++;
-      }
-      return cnt;
-    }catch(e){ console.warn('manualCountSRSubsumed',e); return 0; }
-  }
-
-  async function hasRecentHbA1c(patientId){
-    const since = isoDateMonthsAgo(6);
-    const base  = { subject: `Patient/${patientId}` };
-
-    // Direct coded count first
-    const n = await fhirCount('ServiceRequest', {
-      base,
-      sinceISO: since,
-      code: 'http://snomed.info/sct|'+HBA1C_CODE,
-      tryDateParams:['authored','_lastUpdated']
-    });
-    if(n>0) return true;
-
-    // Fallback: fetch SRs and scan codes
-    try{
-      const url=new URL(`${FHIR_BASE}/ServiceRequest`);
-      url.searchParams.set('subject', `Patient/${patientId}`);
-      url.searchParams.set('authored', 'ge'+since);
-      url.searchParams.set('_elements', 'code');
-      url.searchParams.set('_count', '200');
-      setDebugUrl(url.toString());
-      const r=await fetch(url.toString(),{headers:{Accept:'application/fhir+json'}});
-      if(!r.ok) return false;
-      const j=await r.json();
-      const entries = Array.isArray(j.entry) ? j.entry : [];
-      for(const e of entries){
-        const codings = e?.resource?.code?.coding || [];
-        if (codings.some(c => (c.system||'').includes('snomed') && c.code === HBA1C_CODE)) {
-          return true;
+      }catch(_e){}
+      return {};
+    }
+    async function callSubsumes(codeA, codeB){
+      const url = TERM_BASE+'/CodeSystem/$subsumes?system=http://snomed.info/sct&codeA='+encodeURIComponent(codeA)+'&codeB='+encodeURIComponent(codeB);
+      setDebugUrl(url);
+      const r = await fetch(url, { headers: { Accept: 'application/fhir+json' } });
+      if(!r.ok) throw new Error('subsumes '+r.status);
+      const j = await r.json();
+      return readOutcomeFromParameters(j);
+    }
+    async function snomedSubsumes(parent, child){
+      const key = parent+'|'+child; if(subsumesCache.has(key)) return subsumesCache.get(key);
+      try{
+        let resp = await callSubsumes(parent, child);
+        let match = (resp.outcome==='subsumes' || resp.outcome==='equivalent' || resp.result===true);
+        if(!match){
+          resp = await callSubsumes(child, parent);
+          match = (resp.outcome==='specializes' || resp.outcome==='equivalent' || resp.result===true);
         }
-      }
-    }catch(e){ console.warn('HbA1c fallback failed', e); }
-    return false;
-  }
-
-  async function countRecentXRays(patientId){
-    const since = isoDateDaysAgo(30);
-    const base = { subject: `Patient/${patientId}` };
-
-    let n = await fhirCount('ServiceRequest', {
-      base, sinceISO: since,
-      codeBelow: 'http://snomed.info/sct|'+XRAY_PARENT,
-      codeIn:    'http://snomed.info/sct?fhir_vs=ecl/<<'+XRAY_PARENT,
-      tryDateParams:['authored','_lastUpdated']
-    });
-    if(n===0){
-      n = await manualCountSRSubsumed(patientId, since);
+        subsumesCache.set(key, !!match);
+        return !!match;
+      }catch(e){ console.warn('subsumes',e); subsumesCache.set(key,false); return false; }
     }
-    if(n>=3) return n;
 
-    n += await fhirCount('DiagnosticReport', {
-      base, sinceISO: since,
-      codeBelow: 'http://snomed.info/sct|'+XRAY_PARENT,
-      codeIn:    'http://snomed.info/sct?fhir_vs=ecl/<<'+XRAY_PARENT,
-      tryDateParams:['issued','effective','date','_lastUpdated']
-    });
-
-    return n;
-  }
-
-  // ----- Per-test & group warnings -----
-  const GROUP_RAD_WARN = "Requested tests involve substantial radiation exposure";
-
-  function ensureWarnSet(t){ if(!t.warnSet) t.warnSet = new Set(); return t.warnSet; }
-  function setWarn(t, msg, on){ const ws=ensureWarnSet(t); const before=ws.size; if(on) ws.add(msg); else ws.delete(msg); return ws.size!==before; }
-  function warnText(t){ return t.warnSet && t.warnSet.size ? Array.from(t.warnSet).join(' • ') : ''; }
-
-  async function checkTestHistoryWarning(test){
-    try{
-      const pid = currentPatientResource?.id; if(!pid) return false;
-      let changed=false;
-
-      // HbA1c recent warning
-      if(test.code===HBA1C_CODE){
-        const hasHb = await hasRecentHbA1c(pid);
-        changed = setWarn(test, 'Patient has already had a HbA1c recently', hasHb) || changed;
+    // ----- Suggestions engine (single list mirrored) -----
+    async function computeSuggestions(){
+      const codes = (reasonTags||[]).filter(function(t){ return (t.system||'http://snomed.info/sct').indexOf('snomed')>-1; }).map(function(t){ return t.code; });
+      if(!codes.length) return [];
+      const suggestions = new Set();
+      for(const rule of SUGGESTION_RULES){
+        let match=false;
+        for(const parent of rule.parents){
+          for(const c of codes){
+            if(await snomedSubsumes(parent, c)){ match=true; break; }
+          }
+          if(match) break;
+        }
+        if(match){ rule.tests.forEach(function(tc){ suggestions.add(tc); }); }
       }
-
-      // Radiography per-test warning
-      const isXray = await snomedSubsumes(XRAY_PARENT, test.code);
-      if(isXray){
-        const cnt = await countRecentXRays(pid);
-        changed = setWarn(test, 'Patient has already 3 recent X-Rays', cnt>=3) || changed;
-      }
-      return changed;
-    }catch(e){ console.warn('history warn', e); return false; }
-  }
-
-  async function applyRadiationGroupWarning(){
-    const codes = selectedTests.map(t=>t.code);
-    let xrayCount = 0;
-    for(const c of codes){
-      if(await snomedSubsumes(XRAY_PARENT, c)) xrayCount++;
+      const selectedCodes = new Set(selectedTests.map(function(t){return t.code;}));
+      return Array.from(suggestions).filter(function(c){ return !selectedCodes.has(c); });
     }
-    const on = xrayCount >= 3;
-    let changed=false;
-    selectedTests.forEach(t=>{ changed = setWarn(t, GROUP_RAD_WARN, on) || changed; });
-    if(changed) renderSelectedTests();
-  }
 
-  // ----- Selected tests UI -----
-  function addSelectedTest(test){
-    const existing = selectedTests.find(t=>t.code===test.code && t.display===test.display);
-    if(!existing){
-      if(!test.priority) test.priority = 'routine';
-      ensureWarnSet(test);
-      selectedTests.push(test);
-      checkTestHistoryWarning(test).then(changed=>{ if(changed) renderSelectedTests(); });
-      applyRadiationGroupWarning();
-    }
-    renderSelectedTests();
-    computeAndRenderSuggestions();
-    document.querySelectorAll(`.fav[data-code="${test.code}"]`).forEach(cb=>cb.checked=true);
-  }
-  function removeSelectedTestByCode(code){
-    selectedTests = selectedTests.filter(t=>t.code!==code);
-    renderSelectedTests();
-    computeAndRenderSuggestions();
-    applyRadiationGroupWarning();
-    document.querySelectorAll(`.fav[data-code="${code}"]`).forEach(cb=>cb.checked=false);
-  }
-  function renderSelectedTests(){
-    const ul = document.querySelector('#selected-tests');
-    ul.innerHTML = '';
-    selectedTests.forEach(t => {
-      const li = document.createElement('li');
-      li.className = 'flex items-center justify-between py-1 gap-3';
+    async function renderSuggestedTestsMirrored(){
+      const token = ++suggestedRenderToken;
+      const list = await computeSuggestions();
+      if(token !== suggestedRenderToken) return;
 
-      const leftWrap = document.createElement('div');
-      leftWrap.className='flex flex-col';
-      const titleRow = document.createElement('div');
-      titleRow.className='flex items-center';
-      const title = document.createElement('span');
-      title.textContent = t.display;
-      titleRow.appendChild(title);
-      const warningStr = warnText(t);
-      if(warningStr){
-        const icon = document.createElement('span');
-        icon.textContent = '⚠️';
-        icon.className='ml-2';
-        icon.title = warningStr;
-        titleRow.appendChild(icon);
-      }
-      leftWrap.appendChild(titleRow);
-      if(warningStr){
-        const note = document.createElement('div');
-        note.className='text-xs text-amber-700';
-        note.textContent = warningStr;
-        leftWrap.appendChild(note);
-      }
+      const pathCont = document.getElementById('suggested-tests-mirror-path');
+      const radCont  = document.getElementById('suggested-tests-mirror-rad');
+      const pathEmpty = document.getElementById('suggested-tests-empty-path');
+      const radEmpty  = document.getElementById('suggested-tests-empty-rad');
 
-      const controls = document.createElement('div');
-      controls.className = 'flex items-center gap-2';
-
-      const PRIORITIES = ['routine','urgent','asap','stat'];
-      const pBtn = document.createElement('button');
-      pBtn.className = 'text-xs px-2 py-1 rounded border';
-      pBtn.title = 'Toggle priority';
-      pBtn.textContent = `priority: ${t.priority || 'routine'}`;
-      pBtn.onclick = () => {
-        const idx = PRIORITIES.indexOf(t.priority || 'routine');
-        t.priority = PRIORITIES[(idx + 1) % PRIORITIES.length];
-        pBtn.textContent = `priority: ${t.priority}`;
-      };
-
-      const rm = document.createElement('button');
-      rm.textContent = 'Remove';
-      rm.className = 'text-red-600 text-sm';
-      rm.onclick = () => removeSelectedTestByCode(t.code);
-
-      controls.appendChild(pBtn);
-      controls.appendChild(rm);
-
-      li.appendChild(leftWrap);
-      li.appendChild(controls);
-      ul.appendChild(li);
-    });
-  }
-
-  // ----- Tabs -----
-  $("#pathology-tab").addEventListener('click', ()=>{
-    $("#pathology-tab").classList.add('border-b-2','border-blue-600','font-semibold');
-    $("#radiology-tab").classList.remove('border-b-2','border-blue-600','font-semibold');
-    $("#pathology-panel").classList.remove('hidden'); $("#radiology-panel").classList.add('hidden');
-  });
-  $("#radiology-tab").addEventListener('click', ()=>{
-    $("#radiology-tab").classList.add('border-b-2','border-blue-600','font-semibold');
-    $("#pathology-tab").classList.remove('border-b-2','border-blue-600','font-semibold');
-    $("#radiology-panel").classList.remove('hidden'); $("#pathology-panel").classList.add('hidden');
-  });
-  $("#doctor-select").addEventListener('change',(e)=>{ renderFavsForUser(e.target.value); updateSpecialtyDisplay(e.target.value); });
-
-  // ----- Search boxes -----
-  function setupSearch(inputSel, listSel, vsCanonicalUrl, kind){
-    const inp=$(inputSel), list=$(listSel); let to=null;
-    inp.addEventListener('input', ()=>{
-      if(to) clearTimeout(to);
-      const q=inp.value;
-      if(!q||q.length<2){ list.innerHTML=''; return; }
-      list.innerHTML=`<li class='p-2 text-gray-400 italic'>Loading…</li>`;
-      to=setTimeout(async ()=>{
-        const items=await expandFromOntoserver(vsCanonicalUrl,q);
-        list.innerHTML='';
-        const top=items.slice(0,5);
-        if(!top.length){ list.innerHTML=`<li class='p-2 text-gray-500'>No matches</li>`; return; }
-        top.forEach(it=>{
-          const li=document.createElement('li'); li.className='p-2 hover:bg-gray-100 cursor-pointer';
-          li.textContent=it.display||it.code||'—';
-          li.onclick=()=>{ addSelectedTest({system:it.system||'http://snomed.info/sct', code:it.code, display:it.display||it.code, kind}); list.innerHTML=''; inp.value=''; };
-          list.appendChild(li);
+      function fill(container, emptyEl){
+        container.innerHTML='';
+        if(!list.length){ emptyEl.classList.remove('hidden'); return; }
+        emptyEl.classList.add('hidden');
+        const seen = new Set();
+        list.forEach(function(code){
+          if(seen.has(code)) return; seen.add(code);
+          const meta = SUGGESTED_TESTS_META[code] || { display: code, kind: 'PATH' };
+          const chip = document.createElement('span');
+          chip.className='inline-flex items-center gap-1.5 border border-emerald-100 bg-emerald-50 text-emerald-800 rounded-full px-2 py-0.5 text-xs';
+          const label = document.createElement('span');
+          label.textContent = meta.display;
+          const add = document.createElement('button');
+          add.type='button'; add.textContent='＋'; add.title='Add test';
+          add.onclick=function(){ addSelectedTest({ system:'http://snomed.info/sct', code:code, display: meta.display, kind: meta.kind }); };
+          chip.appendChild(label); chip.appendChild(add); container.appendChild(chip);
         });
-      }, 250);
-    });
-  }
-  setupSearch('#pathology-search','#pathology-results',VS.PATH,'PATH');
-  setupSearch('#radiology-search','#radiology-results',VS.IMAG,'IMAG');
-
-  // ----- Specialty label (inline in header) -----
-  function updateSpecialtyDisplay(name){
-    const sp = roleSpecialties[name];
-    const el = document.getElementById('doctor-specialty');
-    const text = sp ? `Specialty: ${sp.display}` : '';
-    el.textContent = text;
-    if(text){ el.classList.remove('hidden'); } else { el.classList.add('hidden'); }
-  }
-
-  // ----- Pregnancy status dropdown -----
-  async function populatePregnancyStatus(){
-    const sel = document.getElementById('pregnancy-status');
-    try{
-      const url = `${ONTO_BASE}?url=${encodeURIComponent(VS.PREGNANCY)}&count=50`;
-      setDebugUrl(url);
-      const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
-      const j= r.ok ? await r.json() : null;
-      const items = j?.expansion?.contains || [];
-      let options = items;
-      if(!options.length){
-        options = [
-          { system: 'http://snomed.info/sct', code: '77386006', display: 'Pregnant (finding)' },
-          { system: 'http://snomed.info/sct', code: '60001007', display: 'Not pregnant (finding)' },
-          { system: 'http://snomed.info/sct', code: '261665006', display: 'Unknown (qualifier value)' }
-        ];
       }
-      options.forEach(o=>{
-        const opt = document.createElement('option');
-        opt.value = o.code;
-        opt.textContent = o.display || o.code;
-        opt.dataset.system = o.system || 'http://snomed.info/sct';
-        sel.appendChild(opt);
+
+      fill(pathCont, pathEmpty);
+      fill(radCont,  radEmpty);
+    }
+    function computeAndRenderSuggestions(){ renderSuggestedTestsMirrored(); }
+
+    // ----- Favourites -----
+    function renderFavColumn(items, kind){
+      const col=document.createElement('div'); col.className='flex flex-col space-y-2';
+      items.forEach(function(f){
+        const row=document.createElement('label'); row.className='flex items-center space-x-2';
+        row.innerHTML='<input type=\"checkbox\" class=\"fav\" data-kind=\"'+kind+'\" data-code=\"'+f.code+'\" data-display=\"'+f.display+'\" data-system=\"http://snomed.info/sct\"> <span>'+f.display+'</span>';
+        col.appendChild(row);
       });
-    }catch(e){
-      console.warn('pregnancy status expand failed', e);
+      return col;
     }
-  }
-
-  // ----- Practitioner/Role entries -----
-  function buildPractitionerAndRoleEntries(selectedName){
-    const pracRes = practitionerResources[selectedName];
-    const pracFullUrl = uuidURN();
-    const roleFullUrl = uuidURN();
-    const s = roleSpecialties[selectedName];
-    const practitionerRole = {
-      resourceType: 'PractitionerRole',
-      meta: { profile: ["http://hl7.org.au/fhir/StructureDefinition/au-practitionerrole"] },
-      active: true,
-      practitioner: { reference: pracFullUrl },
-      specialty: s ? [{ coding: [{ system: s.system, code: s.code, display: s.display }], text: s.display }] : undefined
-    };
-    const practitionerEntry = { fullUrl: pracFullUrl, resource: pracRes, request: { method: 'POST', url: 'Practitioner' } };
-    const roleEntry = { fullUrl: roleFullUrl, resource: practitionerRole, request: { method: 'POST', url: 'PractitionerRole' } };
-    return { practitionerEntry, roleEntry, roleRef: roleFullUrl };
-  }
-
-  // ----- Patient builders -----
-  function buildPatientResourceFromForm(){
-    const name=(nameInp.value||'').trim()||'John Citizen';
-    const parts=name.split(/\s+/); const given=parts[0]||'John'; const family=parts.length>1?parts[parts.length-1]:'Citizen';
-    const imgSrc=$("#patient-photo").src||'defaultProfile.jpg';
-    const patient={ resourceType:'Patient', name:[{use:'official', family, given:[given]}], gender:$("#patient-gender").value||'unknown', birthDate:$("#patient-dob").value||''};
-    if(imgSrc && !imgSrc.includes('defaultProfile.jpg')){
-      if(imgSrc.startsWith('data:')){ const [meta,base64]=imgSrc.split(','); const contentType=meta.match(/data:(.*);base64/)[1]; patient.photo=[{contentType,data:base64}]; }
-      else { patient.photo=[{url:imgSrc}]; }
-    }
-    if(patientAddress){ patient.address=[patientAddress]; }
-    return patient;
-  }
-  function providePatientRefAndEntry(){
-    if(currentPatientResource && currentPatientResource.id){
-      return { patientRef: `Patient/${currentPatientResource.id}`, entry: null };
-    }
-    const newPat = buildPatientResourceFromForm();
-    const full = uuidURN();
-    return { patientRef: full, entry: { fullUrl: full, resource: newPat, request:{method:'POST', url:'Patient'} } };
-  }
-
-  // ----- Build Bundle (AU grouping + pregnancy + fasting + identifiers) -----
-  function buildBundle(){
-    const { patientRef, entry: patientEntry } = providePatientRefAndEntry();
-    const doctorName = $("#doctor-select").value || 'Dr Confident Cane Toad';
-    const entries=[];
-    if(patientEntry) entries.push(patientEntry);
-
-    const { practitionerEntry, roleEntry, roleRef } = buildPractitionerAndRoleEntries(doctorName);
-    entries.push(practitionerEntry, roleEntry);
-
-    const now = new Date().toISOString();
-
-    // Placer Group Number (shared requisition id) with system
-    const requisitionId = newUUID();
-    lastRequisitionId = requisitionId;
-    const groupIdentifier = {
-      system: PLACER_SYS,
-      value: requisitionId,
-      type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'PGN', display: 'Placer group number' }] }
-    };
-
-    // Task Group (AU profile)
-    const groupTaskFullUrl = uuidURN();
-    const groupTask = {
-      resourceType: 'Task',
-      meta: { profile: [AU_PROFILES.TASK_GROUP] },
-      identifier: [{ system: PLACER_SYS, value: requisitionId }],
-      groupIdentifier,
-      status: 'requested',
-      intent: 'order',
-      for: { reference: patientRef },
-      authoredOn: now,
-      requester: { reference: roleRef }
-    };
-    entries.push({ fullUrl: groupTaskFullUrl, resource: groupTask, request: { method: 'POST', url: 'Task' } });
-
-    // Pregnancy Observation (IPS) if selected
-    const pregSel = document.getElementById('pregnancy-status');
-    const pregCode = pregSel?.value || '';
-    let pregObsFullUrl = null;
-    if(pregCode){
-      pregObsFullUrl = uuidURN();
-      const sys = pregSel.selectedOptions[0].dataset.system || 'http://snomed.info/sct';
-      const disp = pregSel.selectedOptions[0].textContent;
-      const pregObs = {
-        resourceType: 'Observation',
-        meta: { profile: ["http://hl7.org/fhir/uv/ips/StructureDefinition/Observation-pregnancy-status-uv-ips"] },
-        status: 'final',
-        code: { coding:[{system:'http://loinc.org',code:'82810-3',display:'Pregnancy status'}], text: 'Pregnancy status' },
-        subject: { reference: patientRef },
-        effectiveDateTime: now,
-        valueCodeableConcept: { coding:[{system: sys, code: pregCode, display: disp}], text: disp }
+    function renderFavsForUser(user){
+      const def=userFavourites[user];
+      const renderSet=function(containerId, favs, kind){
+        const container=document.getElementById(containerId); container.innerHTML='';
+        const half=Math.ceil(favs.length/2);
+        const grid=document.createElement('div'); grid.className='grid grid-cols-2 gap-4';
+        grid.appendChild(renderFavColumn(favs.slice(0,half),kind));
+        grid.appendChild(renderFavColumn(favs.slice(half),kind));
+        container.appendChild(grid);
       };
-      entries.push({ fullUrl: pregObsFullUrl, resource: pregObs, request:{method:'POST', url:'Observation'} });
+      renderSet('pathology-favs', def.pathology, 'PATH');
+      renderSet('radiology-favs', def.radiology, 'IMAG');
+      document.querySelectorAll('.fav').forEach(function(cb){
+        cb.addEventListener('change', function(e){
+          const ds = e.target.dataset;
+          if(e.target.checked) addSelectedTest({code:ds.code,system:ds.system,display:ds.display,kind:ds.kind});
+          else removeSelectedTestByCode(ds.code);
+        });
+      });
+      document.querySelectorAll('.fav').forEach(function(cb){
+        const code=cb.dataset.code; cb.checked=selectedTests.some(function(t){return t.code===code;});
+      });
     }
 
-    const combinedNote=buildCombinedNoteText();
+    // ----- History checks helpers -----
+    function isoDateMonthsAgo(m){ const d=new Date(); d.setMonth(d.getMonth()-m); return d.toISOString(); }
+    function isoDateDaysAgo(dy){ const d=new Date(Date.now()-dy*24*60*60*1000); return d.toISOString(); }
 
-    selectedTests.forEach(t=>{
-      const category=(t.kind==='IMAG')?CAT.IMAG:CAT.PATH;
-      const srFullUrl = uuidURN();
-      const srResource = {
-        resourceType:'ServiceRequest',
-        meta: { profile: [AU_PROFILES.SR_DIAG] },
-        status:'active',
-        intent:'order',
-        priority: (t.priority || 'routine'),
-        category:[category],
-        code:{ coding:[{system:'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display },
-        subject:{reference:patientRef},
-        requester:{ reference: roleRef },
-        requisition: groupIdentifier,
-        reasonCode:buildReasonCodeArray(),
-        note: combinedNote ? [{text:combinedNote}] : [],
-        authoredOn: now
+    async function fhirCount(resourceType, params){
+      const tryDateParams = params.tryDateParams || ['authored','date','issued','effective','_lastUpdated'];
+      const codeParamOrder = [];
+      if(params.code)      codeParamOrder.push({k:'code', v:params.code});
+      if(params.codeBelow) codeParamOrder.push({k:'code:below', v:params.codeBelow});
+      if(params.codeIn)    codeParamOrder.push({k:'code:in', v:params.codeIn});
+      if(codeParamOrder.length===0) codeParamOrder.push(null);
+
+      for(const codeParam of codeParamOrder){
+        for(const dateParam of tryDateParams){
+          try{
+            const url=new URL(FHIR_BASE+'/'+resourceType);
+            for(const kv of Object.entries(params.base||{})){ url.searchParams.append(kv[0], kv[1]); }
+            url.searchParams.append('_summary','count');
+            url.searchParams.append('_total','accurate');
+            if(codeParam){ url.searchParams.append(codeParam.k, codeParam.v); }
+            if(params.sinceISO) url.searchParams.append(dateParam, 'ge'+params.sinceISO);
+            setDebugUrl(url.toString());
+            const r=await fetch(url.toString(),{headers:{Accept:'application/fhir+json'}});
+            if(!r.ok) continue;
+            const j=await r.json();
+            if(typeof j.total==='number') return j.total;
+            if(Array.isArray(j.entry)) return j.entry.length;
+          }catch(e){ console.warn('count',resourceType,e); }
+        }
+      }
+      return 0;
+    }
+
+    async function manualCountSRSubsumed(patientId, sinceISO){
+      try{
+        const url=new URL(FHIR_BASE+'/ServiceRequest');
+        url.searchParams.set('subject', 'Patient/'+patientId);
+        url.searchParams.set('authored', 'ge'+sinceISO);
+        url.searchParams.set('_elements', 'code');
+        url.searchParams.set('_count', '200');
+        setDebugUrl(url.toString());
+        const r=await fetch(url.toString(),{headers:{Accept:'application/fhir+json'}});
+        if(!r.ok) return 0;
+        const j=await r.json();
+        const entries = Array.isArray(j.entry) ? j.entry : [];
+        let cnt=0;
+        for(const e of entries){
+          const res=e.resource;
+          const codings=(res && res.code && res.code.coding || []).filter(function(c){ return (c.system||'').indexOf('snomed')>-1 && c.code; });
+          let hit=false;
+          for(const c of codings){
+            if(await snomedSubsumes(XRAY_PARENT, c.code)){ hit=true; break; }
+          }
+          if(hit) cnt++;
+        }
+        return cnt;
+      }catch(e){ console.warn('manualCountSRSubsumed',e); return 0; }
+    }
+
+    async function hasRecentHbA1c(patientId){
+      const since = isoDateMonthsAgo(6);
+      const base  = { subject: 'Patient/'+patientId };
+
+      const n = await fhirCount('ServiceRequest', {
+        base: base,
+        sinceISO: since,
+        code: 'http://snomed.info/sct|'+HBA1C_CODE,
+        tryDateParams:['authored','_lastUpdated']
+      });
+      if(n>0) return true;
+
+      try{
+        const url=new URL(FHIR_BASE+'/ServiceRequest');
+        url.searchParams.set('subject', 'Patient/'+patientId);
+        url.searchParams.set('authored', 'ge'+since);
+        url.searchParams.set('_elements', 'code');
+        url.searchParams.set('_count', '200');
+        setDebugUrl(url.toString());
+        const r=await fetch(url.toString(),{headers:{Accept:'application/fhir+json'}});
+        if(!r.ok) return false;
+        const j=await r.json();
+        const entries = Array.isArray(j.entry) ? j.entry : [];
+        for(const e of entries){
+          const codings = (e && e.resource && e.resource.code && e.resource.code.coding) || [];
+          if (codings.some(function(c){ return (c.system||'').indexOf('snomed')>-1 && c.code === HBA1C_CODE; })) {
+            return true;
+          }
+        }
+      }catch(e){ console.warn('HbA1c fallback failed', e); }
+      return false;
+    }
+
+    async function countRecentXRays(patientId){
+      const since = isoDateDaysAgo(30);
+      const base = { subject: 'Patient/'+patientId };
+
+      let n = await fhirCount('ServiceRequest', {
+        base: base, sinceISO: since,
+        codeBelow: 'http://snomed.info/sct|'+XRAY_PARENT,
+        codeIn:    'http://snomed.info/sct?fhir_vs=ecl/<<'+XRAY_PARENT,
+        tryDateParams:['authored','_lastUpdated']
+      });
+      if(n===0){
+        n = await manualCountSRSubsumed(patientId, since);
+      }
+      if(n>=3) return n;
+
+      n += await fhirCount('DiagnosticReport', {
+        base: base, sinceISO: since,
+        codeBelow: 'http://snomed.info/sct|'+XRAY_PARENT,
+        codeIn:    'http://snomed.info/sct?fhir_vs=ecl/<<'+XRAY_PARENT,
+        tryDateParams:['issued','effective','date','_lastUpdated']
+      });
+
+      return n;
+    }
+
+    // ----- Per-test & group warnings -----
+    const GROUP_RAD_WARN = 'Requested tests involve substantial radiation exposure';
+
+    function ensureWarnSet(t){ if(!t.warnSet) t.warnSet = new Set(); return t.warnSet; }
+    function setWarn(t, msg, on){ const ws=ensureWarnSet(t); const before=ws.size; if(on) ws.add(msg); else ws.delete(msg); return ws.size!==before; }
+    function warnText(t){ return t.warnSet && t.warnSet.size ? Array.from(t.warnSet).join(' • ') : ''; }
+
+    async function checkTestHistoryWarning(test){
+      try{
+        const pid = currentPatientResource && currentPatientResource.id; if(!pid) return false;
+        let changed=false;
+
+        if(test.code===HBA1C_CODE){
+          const hasHb = await hasRecentHbA1c(pid);
+          changed = setWarn(test, 'Patient has already had a HbA1c recently', hasHb) || changed;
+        }
+
+        const isXray = await snomedSubsumes(XRAY_PARENT, test.code);
+        if(isXray){
+          const cnt = await countRecentXRays(pid);
+          changed = setWarn(test, 'Patient has already 3 recent X-Rays', cnt>=3) || changed;
+        }
+        return changed;
+      }catch(e){ console.warn('history warn', e); return false; }
+    }
+
+    async function applyRadiationGroupWarning(){
+      const codes = selectedTests.map(function(t){return t.code;});
+      let xrayCount = 0;
+      for(const c of codes){
+        if(await snomedSubsumes(XRAY_PARENT, c)) xrayCount++;
+      }
+      const on = xrayCount >= 3;
+      let changed=false;
+      selectedTests.forEach(function(t){ changed = setWarn(t, GROUP_RAD_WARN, on) || changed; });
+      if(changed) renderSelectedTests();
+    }
+
+    // ----- Selected tests UI -----
+    function addSelectedTest(test){
+      const existing = selectedTests.find(function(t){return t.code===test.code && t.display===test.display;});
+      if(!existing){
+        if(!test.priority) test.priority = 'routine';
+        ensureWarnSet(test);
+        selectedTests.push(test);
+        checkTestHistoryWarning(test).then(function(changed){ if(changed) renderSelectedTests(); });
+        applyRadiationGroupWarning();
+      }
+      renderSelectedTests();
+      computeAndRenderSuggestions();
+      document.querySelectorAll('.fav[data-code=\"'+test.code+'\"]').forEach(function(cb){cb.checked=true;});
+    }
+    function removeSelectedTestByCode(code){
+      selectedTests = selectedTests.filter(function(t){return t.code!==code;});
+      renderSelectedTests();
+      computeAndRenderSuggestions();
+      applyRadiationGroupWarning();
+      document.querySelectorAll('.fav[data-code=\"'+code+'\"]').forEach(function(cb){cb.checked=false;});
+    }
+    function renderSelectedTests(){
+      const ul = document.querySelector('#selected-tests');
+      ul.innerHTML = '';
+      selectedTests.forEach(function(t){
+        const li = document.createElement('li');
+        li.className = 'flex items-center justify-between py-1 gap-3';
+
+        const leftWrap = document.createElement('div');
+        leftWrap.className='flex flex-col';
+        const titleRow = document.createElement('div');
+        titleRow.className='flex items-center';
+        const title = document.createElement('span');
+        title.textContent = t.display;
+        titleRow.appendChild(title);
+        const warningStr = warnText(t);
+        if(warningStr){
+          const icon = document.createElement('span');
+          icon.textContent = '⚠️';
+          icon.className='ml-2';
+          icon.title = warningStr;
+          titleRow.appendChild(icon);
+        }
+        leftWrap.appendChild(titleRow);
+        if(warningStr){
+          const note = document.createElement('div');
+          note.className='text-xs text-amber-700';
+          note.textContent = warningStr;
+          leftWrap.appendChild(note);
+        }
+
+        const controls = document.createElement('div');
+        controls.className = 'flex items-center gap-2';
+
+        const PRIORITIES = ['routine','urgent','asap','stat'];
+        const pBtn = document.createElement('button');
+        pBtn.className = 'text-xs px-2 py-1 rounded border';
+        pBtn.title = 'Toggle priority';
+        pBtn.textContent = 'priority: '+(t.priority || 'routine');
+        pBtn.onclick = function(){
+          const idx = PRIORITIES.indexOf(t.priority || 'routine');
+          t.priority = PRIORITIES[(idx + 1) % PRIORITIES.length];
+          pBtn.textContent = 'priority: '+t.priority;
+        };
+
+        const rm = document.createElement('button');
+        rm.textContent = 'Remove';
+        rm.className = 'text-red-600 text-sm';
+        rm.onclick = function(){ removeSelectedTestByCode(t.code); };
+
+        controls.appendChild(pBtn);
+        controls.appendChild(rm);
+
+        li.appendChild(leftWrap);
+        li.appendChild(controls);
+        ul.appendChild(li);
+      });
+    }
+
+    // ----- Tabs -----
+    document.getElementById('pathology-tab').addEventListener('click', function(){
+      document.getElementById('pathology-tab').classList.add('border-b-2','border-blue-600','font-semibold');
+      document.getElementById('radiology-tab').classList.remove('border-b-2','border-blue-600','font-semibold');
+      document.getElementById('pathology-panel').classList.remove('hidden'); document.getElementById('radiology-panel').classList.add('hidden');
+    });
+    document.getElementById('radiology-tab').addEventListener('click', function(){
+      document.getElementById('radiology-tab').classList.add('border-b-2','border-blue-600','font-semibold');
+      document.getElementById('pathology-tab').classList.remove('border-b-2','border-blue-600','font-semibold');
+      document.getElementById('radiology-panel').classList.remove('hidden'); document.getElementById('pathology-panel').classList.add('hidden');
+    });
+    document.getElementById('doctor-select').addEventListener('change',function(e){ renderFavsForUser(e.target.value); updateSpecialtyDisplay(e.target.value); });
+
+    // ----- Search boxes -----
+    function setupSearch(inputSel, listSel, vsCanonicalUrl, kind){
+      const inp=document.querySelector(inputSel), list=document.querySelector(listSel); let to=null;
+      inp.addEventListener('input', function(){
+        if(to) clearTimeout(to);
+        const q=inp.value;
+        if(!q||q.length<2){ list.innerHTML=''; return; }
+        list.innerHTML='<li class=\"p-2 text-gray-400 italic\">Loading...</li>';
+        to=setTimeout(async function(){
+          const items=await expandFromOntoserver(vsCanonicalUrl,q);
+          list.innerHTML='';
+          const top=items.slice(0,5);
+          if(!top.length){ list.innerHTML='<li class=\"p-2 text-gray-500\">No matches</li>'; return; }
+          top.forEach(function(it){
+            const li=document.createElement('li'); li.className='p-2 hover:bg-gray-100 cursor-pointer';
+            li.textContent=it.display||it.code||'—';
+            li.onclick=function(){ addSelectedTest({system:it.system||'http://snomed.info/sct', code:it.code, display:it.display||it.code, kind:kind}); list.innerHTML=''; inp.value=''; };
+            list.appendChild(li);
+          });
+        }, 250);
+      });
+    }
+    setupSearch('#pathology-search','#pathology-results',VS.PATH,'PATH');
+    setupSearch('#radiology-search','#radiology-results',VS.IMAG,'IMAG');
+
+    // ----- Specialty label (inline in header) -----
+    function updateSpecialtyDisplay(name){
+      const sp = roleSpecialties[name];
+      const el = document.getElementById('doctor-specialty');
+      const text = sp ? ('Specialty: '+sp.display) : '';
+      el.textContent = text;
+      if(text){ el.classList.remove('hidden'); } else { el.classList.add('hidden'); }
+    }
+
+    // ----- Pregnancy status dropdown -----
+    async function populatePregnancyStatus(){
+      const sel = document.getElementById('pregnancy-status');
+      try{
+        const url = ONTO_BASE+'?url='+encodeURIComponent(VS.PREGNANCY)+'&count=50';
+        setDebugUrl(url);
+        const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
+        const j= r.ok ? await r.json() : null;
+        const items = j && j.expansion && j.expansion.contains ? j.expansion.contains : [];
+        let options = items;
+        if(!options.length){
+          options = [
+            { system: 'http://snomed.info/sct', code: '77386006', display: 'Pregnant (finding)' },
+            { system: 'http://snomed.info/sct', code: '60001007', display: 'Not pregnant (finding)' },
+            { system: 'http://snomed.info/sct', code: '261665006', display: 'Unknown (qualifier value)' }
+          ];
+        }
+        options.forEach(function(o){
+          const opt = document.createElement('option');
+          opt.value = o.code;
+          opt.textContent = o.display || o.code;
+          opt.dataset.system = o.system || 'http://snomed.info/sct';
+          sel.appendChild(opt);
+        });
+      }catch(e){
+        console.warn('pregnancy status expand failed', e);
+      }
+    }
+
+    // ----- Practitioner/Role entries -----
+    function buildPractitionerAndRoleEntries(selectedName){
+      const pracRes = practitionerResources[selectedName];
+      const pracFullUrl = uuidURN();
+      const roleFullUrl = uuidURN();
+      const s = roleSpecialties[selectedName];
+      const practitionerRole = {
+        resourceType: 'PractitionerRole',
+        meta: { profile: ['http://hl7.org.au/fhir/StructureDefinition/au-practitionerrole'] },
+        active: true,
+        practitioner: { reference: pracFullUrl }
+      };
+      if(s){
+        practitionerRole.specialty = [{ coding: [{ system: s.system, code: s.code, display: s.display }], text: s.display }];
+      }
+      const practitionerEntry = { fullUrl: pracFullUrl, resource: pracRes, request: { method: 'POST', url: 'Practitioner' } };
+      const roleEntry = { fullUrl: roleFullUrl, resource: practitionerRole, request: { method: 'POST', url: 'PractitionerRole' } };
+      return { practitionerEntry:practitionerEntry, roleEntry:roleEntry, roleRef: roleFullUrl };
+    }
+
+    // ----- Patient builders -----
+    function buildPatientResourceFromForm(){
+      const name=(nameInp.value||'').trim()||'John Citizen';
+      const parts=name.split(/\s+/); const given=parts[0]||'John'; const family=parts.length>1?parts[parts.length-1]:'Citizen';
+      const imgSrc=document.getElementById('patient-photo').src||'defaultProfile.jpg';
+      const patient={ resourceType:'Patient', name:[{use:'official', family:family, given:[given]}], gender:document.getElementById('patient-gender').value||'unknown', birthDate:document.getElementById('patient-dob').value||''};
+      if(imgSrc && imgSrc.indexOf('defaultProfile.jpg')===-1){
+        if(imgSrc.indexOf('data:')===0){ const parts2=imgSrc.split(','); const contentType=(parts2[0].match(/data:(.*);base64/)||[])[1]||'image/jpeg'; const base64=parts2[1]||''; patient.photo=[{contentType:contentType,data:base64}]; }
+        else { patient.photo=[{url:imgSrc}]; }
+      }
+      if(patientAddress){ patient.address=[patientAddress]; }
+      return patient;
+    }
+    function providePatientRefAndEntry(){
+      if(currentPatientResource && currentPatientResource.id){
+        return { patientRef: 'Patient/'+currentPatientResource.id, entry: null };
+      }
+      const newPat = buildPatientResourceFromForm();
+      const full = uuidURN();
+      return { patientRef: full, entry: { fullUrl: full, resource: newPat, request:{method:'POST', url:'Patient'} } };
+    }
+
+    // ----- Build Bundle -----
+    function buildBundle(){
+      const preq = providePatientRefAndEntry();
+      const patientRef = preq.patientRef;
+      const patientEntry = preq.entry;
+      const doctorName = document.getElementById('doctor-select').value || 'Dr Confident Cane Toad';
+      const entries=[];
+      if(patientEntry) entries.push(patientEntry);
+
+      const pr = buildPractitionerAndRoleEntries(doctorName);
+      const practitionerEntry = pr.practitionerEntry;
+      const roleEntry = pr.roleEntry;
+      const roleRef = pr.roleRef;
+      entries.push(practitionerEntry, roleEntry);
+
+      const now = new Date().toISOString();
+
+      const requisitionId = newUUID();
+      lastRequisitionId = requisitionId;
+      const groupIdentifier = {
+        system: PLACER_SYS,
+        value: requisitionId,
+        type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'PGN', display: 'Placer group number' }] }
       };
 
-      // Fasting instruction via ECL membership
-      if(fastingCodeSet.has(t.code)){
-        srResource.patientInstruction = "fast of at least 8h, but no more than 16h";
-      }
-
-      // Pregnancy supportingInfo
-      if(pregObsFullUrl){
-        srResource.supportingInfo = (srResource.supportingInfo||[]);
-        srResource.supportingInfo.push({ reference: pregObsFullUrl });
-      }
-
-      entries.push({ fullUrl: srFullUrl, resource: srResource, request:{method:'POST', url:'ServiceRequest'} });
-
-      // Diagnostic Request Task (AU profile)
-      const diagTaskFullUrl = uuidURN();
-      const diagTask = {
+      const groupTaskFullUrl = uuidURN();
+      const groupTask = {
         resourceType: 'Task',
-        meta: { profile: [AU_PROFILES.TASK_DIAG] },
-        identifier: [{ system: PLACER_SYS, value: newUUID() }],
-        groupIdentifier,
-        partOf: [{ reference: groupTaskFullUrl }],
+        meta: { profile: [AU_PROFILES.TASK_GROUP] },
+        identifier: [{ system: PLACER_SYS, value: requisitionId }],
+        groupIdentifier: groupIdentifier,
         status: 'requested',
         intent: 'order',
-        priority: (t.priority || 'routine'),
-        focus: { reference: srFullUrl },
         for: { reference: patientRef },
         authoredOn: now,
         requester: { reference: roleRef }
       };
-      entries.push({ fullUrl: diagTaskFullUrl, resource: diagTask, request: { method: 'POST', url: 'Task' } });
-    });
+      entries.push({ fullUrl: groupTaskFullUrl, resource: groupTask, request: { method: 'POST', url: 'Task' } });
 
-    const bundle={ resourceType:'Bundle', type:'transaction', entry:entries };
-    viewer.show(bundle);
-    return { bundle, requisitionId };
-  }
-  document.getElementById('build-bundle').addEventListener('click', ()=>{ buildBundle(); });
-
-  // ----- QR modal -----
-  const qrBackdrop = $("#qr-backdrop");
-  const qrClose = $("#qr-close");
-  const qrOpen = $("#qr-open");
-  const qrCopy = $("#qr-copy");
-  const qrUrlEl = $("#qr-url");
-  function showQr(url){
-    qrUrlEl.textContent = url || '';
-    const box = $("#qrcode"); box.innerHTML='';
-    new QRCode(box, { text: url || '', width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
-    qrBackdrop.style.display = 'flex';
-  }
-  qrClose.addEventListener('click', ()=> qrBackdrop.style.display='none');
-  qrOpen.addEventListener('click', ()=> { const u = qrUrlEl.textContent.trim(); if(u) window.open(u, "_blank"); });
-  qrCopy.addEventListener('click', async ()=> { try{ await navigator.clipboard.writeText(qrUrlEl.textContent.trim()); const b=qrCopy; const t=b.textContent; b.textContent='Copied!'; setTimeout(()=>b.textContent=t,1200);}catch{} });
-
-  // Resolve Task Group absolute URL via PGN search
-  async function resolveTaskGroupUrlFromServer(){
-    try{
-      if(!lastRequisitionId) return null;
-      const url = new URL(`${FHIR_BASE}/Task`);
-      url.searchParams.set('identifier', lastRequisitionId);
-      url.searchParams.set('_count','5');
-      const r = await fetch(url.toString(), { headers: { Accept: 'application/fhir+json' } });
-      if(!r.ok) return null;
-      const j = await r.json();
-      const entries = Array.isArray(j.entry) ? j.entry : [];
-      let group = null;
-      for(const e of entries){
-        const res = e.resource;
-        const profiles = res?.meta?.profile || [];
-        if(profiles.includes(AU_PROFILES.TASK_GROUP)) { group = res; break; }
+      const pregSel = document.getElementById('pregnancy-status');
+      const pregCode = (pregSel && pregSel.value) ? pregSel.value : '';
+      let pregObsFullUrl = null;
+      if(pregCode){
+        pregObsFullUrl = uuidURN();
+        const sys = (pregSel.selectedOptions && pregSel.selectedOptions[0] && pregSel.selectedOptions[0].dataset.system) || 'http://snomed.info/sct';
+        const disp = (pregSel.selectedOptions && pregSel.selectedOptions[0] && pregSel.selectedOptions[0].textContent) || '';
+        const pregObs = {
+          resourceType: 'Observation',
+          meta: { profile: ['http://hl7.org/fhir/uv/ips/StructureDefinition/Observation-pregnancy-status-uv-ips'] },
+          status: 'final',
+          code: { coding:[{system:'http://loinc.org',code:'82810-3',display:'Pregnancy status'}], text: 'Pregnancy status' },
+          subject: { reference: patientRef },
+          effectiveDateTime: now,
+          valueCodeableConcept: { coding:[{system: sys, code: pregCode, display: disp}], text: disp }
+        };
+        entries.push({ fullUrl: pregObsFullUrl, resource: pregObs, request:{method:'POST', url:'Observation'} });
       }
-      if(!group){
-        for(const e of entries){ const res = e.resource; if(res && !res.focus) { group = res; break; } }
-      }
-      if(!group || !group.id) return null;
-      return `${FHIR_BASE.replace(/\/$/,'')}/Task/${group.id}`;
-    }catch(e){ console.warn('resolveTaskGroupUrlFromServer', e); return null; }
-  }
 
-  // ----- Send to server (with spinner) -----
-  const sendingOverlay = document.getElementById('sending-overlay');
-  const sendBtn = document.getElementById('send-btn');
+      const combinedNote=buildCombinedNoteText();
 
-  document.getElementById('send-btn').addEventListener('click', async ()=>{
-    const out=$("#server-response");
-    out.textContent='Sending…';
-    const { bundle } = buildBundle();
+      selectedTests.forEach(function(t){
+        const category=(t.kind==='IMAG')?CAT.IMAG:CAT.PATH;
+        const srFullUrl = uuidURN();
+        const srResource = {
+          resourceType:'ServiceRequest',
+          meta: { profile: [AU_PROFILES.SR_DIAG] },
+          status:'active',
+          intent:'order',
+          priority: (t.priority || 'routine'),
+          category:[category],
+          code:{ coding:[{system:'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display },
+          subject:{reference:patientRef},
+          requester:{ reference: roleRef },
+          requisition: groupIdentifier,
+          reasonCode:buildReasonCodeArray(),
+          note: combinedNote ? [{text:combinedNote}] : [],
+          authoredOn: now
+        };
 
-    // show spinner + disable controls
-    sendingOverlay.style.display = 'flex';
-    sendBtn.classList.add('btn-disabled');
-
-    try{
-      const r=await fetch(FHIR_BASE, {
-        method:'POST',
-        headers:{'Content-Type':'application/fhir+json','Accept':'application/fhir+json'},
-        body: JSON.stringify(bundle)
-      });
-      const text=await r.text();
-      out.textContent=`Response ${r.status}:\n`+text;
-
-      if(r.status===200){
-        let groupUrl = await resolveTaskGroupUrlFromServer();
-
-        if(!groupUrl){
-          try{
-            const j = JSON.parse(text);
-            const entries = Array.isArray(j?.entry) ? j.entry : [];
-            for(const e of entries){
-              const loc = e?.response?.location || e?.location || null;
-              if(loc && /\/Task\/.+/.test(loc)){
-                groupUrl = loc.startsWith('http') ? loc : `${FHIR_BASE.replace(/\/$/,'')}/${loc.replace(/^\//,'')}`;
-                break;
-              }
-            }
-          }catch(e){ console.warn('Could not parse response JSON for location', e); }
+        if(fastingCodeSet.has(t.code)){
+          srResource.patientInstruction = 'fast of at least 8h, but no more than 16h';
         }
 
-        if(groupUrl){ showQr(groupUrl); }
-      }
-    }catch(e){
-      console.error(e);
-      out.textContent='Network error: '+e.message;
-    } finally {
-      // hide spinner + re-enable
-      sendingOverlay.style.display = 'none';
-      sendBtn.classList.remove('btn-disabled');
-    }
-  });
+        if(pregObsFullUrl){
+          srResource.supportingInfo = srResource.supportingInfo || [];
+          srResource.supportingInfo.push({ reference: pregObsFullUrl });
+        }
 
-  // ----- Boot -----
-  renderFavsForUser($("#doctor-select").value||'Dr Confident Cane Toad');
-  updateSpecialtyDisplay($("#doctor-select").value||'Dr Confident Cane Toad');
-  computeAndRenderSuggestions();
-  populatePregnancyStatus();
-  preloadFastingCodes();
-  if(location.protocol==='file:') showStatus('Running as file:// — some browsers block fetch. Use a local server for full functionality.');
-  (async ()=>{
-    try{
-      const pingUrl = `${ONTO_BASE}?url=${encodeURIComponent(VS.PATH)}&count=20&filter=${encodeURIComponent('glucose')}`;
-      setDebugUrl(pingUrl);
-      const ping=await fetch(pingUrl,{headers:{Accept:'application/fhir+json'}});
-      if(!ping.ok) throw new Error(ping.status);
-    }catch(e){ showError('Cannot reach Ontoserver. See console for details.'); }
+        entries.push({ fullUrl: srFullUrl, resource: srResource, request:{method:'POST', url:'ServiceRequest'} });
+
+        const diagTaskFullUrl = uuidURN();
+        const diagTask = {
+          resourceType: 'Task',
+          meta: { profile: [AU_PROFILES.TASK_DIAG] },
+          identifier: [{ system: PLACER_SYS, value: newUUID() }],
+          groupIdentifier: groupIdentifier,
+          partOf: [{ reference: groupTaskFullUrl }],
+          status: 'requested',
+          intent: 'order',
+          priority: (t.priority || 'routine'),
+          focus: { reference: srFullUrl },
+          for: { reference: patientRef },
+          authoredOn: now,
+          requester: { reference: roleRef }
+        };
+        entries.push({ fullUrl: diagTaskFullUrl, resource: diagTask, request: { method: 'POST', url: 'Task' } });
+      });
+
+      const bundle={ resourceType:'Bundle', type:'transaction', entry:entries };
+      viewer.show(bundle);
+      return { bundle:bundle, requisitionId:requisitionId };
+    }
+    document.getElementById('build-bundle').addEventListener('click', function(){ buildBundle(); });
+
+    // ----- QR modal -----
+    const qrBackdrop = document.getElementById('qr-backdrop');
+    const qrClose = document.getElementById('qr-close');
+    const qrOpen = document.getElementById('qr-open');
+    const qrCopy = document.getElementById('qr-copy');
+    const qrUrlEl = document.getElementById('qr-url');
+    function showQr(url){
+      qrUrlEl.textContent = url || '';
+      const box = document.getElementById('qrcode'); box.innerHTML='';
+      new QRCode(box, { text: url || '', width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+      qrBackdrop.style.display = 'flex';
+    }
+    qrClose.addEventListener('click', function(){ qrBackdrop.style.display='none'; });
+    qrOpen.addEventListener('click', function(){ const u = (qrUrlEl.textContent||'').trim(); if(u) window.open(u, '_blank'); });
+    qrCopy.addEventListener('click', async function(){ try{ await navigator.clipboard.writeText((qrUrlEl.textContent||'').trim()); const b=qrCopy; const t=b.textContent; b.textContent='Copied!'; setTimeout(function(){b.textContent=t;},1200);}catch(_e){} });
+
+    // Resolve Task Group absolute URL via PGN search
+    async function resolveTaskGroupUrlFromServer(){
+      try{
+        if(!lastRequisitionId) return null;
+        const url = new URL(FHIR_BASE+'/Task');
+        url.searchParams.set('identifier', lastRequisitionId);
+        url.searchParams.set('_count','5');
+        const r = await fetch(url.toString(), { headers: { Accept: 'application/fhir+json' } });
+        if(!r.ok) return null;
+        const j = await r.json();
+        const entries = Array.isArray(j.entry) ? j.entry : [];
+        let group = null;
+        for(const e of entries){
+          const res = e.resource;
+          const profiles = (res && res.meta && res.meta.profile) || [];
+          if(profiles.indexOf(AU_PROFILES.TASK_GROUP)>-1) { group = res; break; }
+        }
+        if(!group){
+          for(const e of entries){ const res = e.resource; if(res && !res.focus) { group = res; break; } }
+        }
+        if(!group || !group.id) return null;
+        return FHIR_BASE.replace(/\/$/,'')+'/Task/'+group.id;
+      }catch(e){ console.warn('resolveTaskGroupUrlFromServer', e); return null; }
+    }
+
+    // ----- Send to server (with spinner) -----
+    const sendingOverlay = document.getElementById('sending-overlay');
+    const sendBtn = document.getElementById('send-btn');
+
+    document.getElementById('send-btn').addEventListener('click', async function(){
+      const out=document.getElementById('server-response');
+      out.textContent='Sending...';
+      const built = buildBundle();
+      const bundle = built.bundle;
+
+      // show spinner + disable controls
+      sendingOverlay.style.display = 'flex';
+      sendBtn.classList.add('btn-disabled');
+
+      try{
+        const r=await fetch(FHIR_BASE, {
+          method:'POST',
+          headers:{'Content-Type':'application/fhir+json','Accept':'application/fhir+json'},
+          body: JSON.stringify(bundle)
+        });
+        const text=await r.text();
+        out.textContent='Response '+r.status+':\n'+text;
+
+        if(r.status===200){
+          let groupUrl = await resolveTaskGroupUrlFromServer();
+
+          if(!groupUrl){
+            try{
+              const j = JSON.parse(text);
+              const entries = Array.isArray(j && j.entry ? j.entry : []) ? j.entry : [];
+              for(const e of entries){
+                const loc = (e && e.response && e.response.location) || (e && e.location) || null;
+                if(loc && /\/Task\/.+/.test(loc)){
+                  groupUrl = loc.indexOf('http')===0 ? loc : (FHIR_BASE.replace(/\/$/,'')+'/'+loc.replace(/^\//,''));
+                  break;
+                }
+              }
+            }catch(err){ console.warn('Could not parse response JSON for location', err); }
+          }
+
+          if(groupUrl){ showQr(groupUrl); }
+        }
+      }catch(e){
+        console.error(e);
+        out.textContent='Network error: '+e.message;
+      } finally {
+        // hide spinner + re-enable
+        sendingOverlay.style.display = 'none';
+        sendBtn.classList.remove('btn-disabled');
+      }
+    });
+
+    // ----- Boot -----
+    renderFavsForUser(document.getElementById('doctor-select').value||'Dr Confident Cane Toad');
+    updateSpecialtyDisplay(document.getElementById('doctor-select').value||'Dr Confident Cane Toad');
+    computeAndRenderSuggestions();
+    populatePregnancyStatus();
+    preloadFastingCodes();
+    updatePtToggleVisuals();
+    if(location.protocol==='file:') showStatus('Running as file:// — some browsers block fetch. Use a local server for full functionality.');
+    (async function(){
+      try{
+        const pingUrl = ONTO_BASE+'?url='+encodeURIComponent(VS.PATH)+'&count=20&filter='+encodeURIComponent('glucose');
+        setDebugUrl(pingUrl);
+        const ping=await fetch(pingUrl,{headers:{Accept:'application/fhir+json'}});
+        if(!ping.ok) throw new Error(ping.status);
+      }catch(e){ showError('Cannot reach Ontoserver. See console for details.'); }
+    })();
   })();
-})();
-</script>
+  </script>
 </body>
 </html>
