@@ -215,19 +215,7 @@
   <!-- cross -->
   <path d="M12 10v6M9 13h6"/>
 </svg>
-
-
-
-
-
-
-
-
 </div>
-
-
-
-
 
         <div>
           <div class="text-lg font-semibold">FHIR AU eRequesting</div>
@@ -359,6 +347,12 @@
         <div>
           <input id="pathology-search" class="border rounded w-full p-2" placeholder="Search pathology tests...">
           <ul id="pathology-results" class="mt-2 border rounded bg-white"></ul>
+
+          <!-- New: free text custom pathology -->
+          <div class="mt-3 flex items-center gap-2">
+            <input id="pathology-custom" class="flex-1 border rounded p-2" placeholder="Add a custom pathology test (free text)">
+            <button id="pathology-custom-add" class="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
+          </div>
         </div>
       </div>
 
@@ -378,6 +372,12 @@
         <div>
           <input id="radiology-search" class="border rounded w-full p-2" placeholder="Search radiology tests...">
           <ul id="radiology-results" class="mt-2 border rounded bg-white"></ul>
+
+          <!-- New: free text custom radiology -->
+          <div class="mt-3 flex items-center gap-2">
+            <input id="radiology-custom" class="flex-1 border rounded p-2" placeholder="Add a custom radiology test (free text)">
+            <button id="radiology-custom-add" class="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
+          </div>
         </div>
       </div>
     </section>
@@ -901,6 +901,7 @@
       return readOutcomeFromParameters(j);
     }
     async function snomedSubsumes(parent, child){
+      if(!parent || !child) return false;
       const key = parent+'|'+child; if(subsumesCache.has(key)) return subsumesCache.get(key);
       try{
         let resp = await callSubsumes(parent, child);
@@ -916,7 +917,7 @@
 
     // ----- Suggestions engine (single list mirrored) -----
     async function computeSuggestions(){
-      const codes = (reasonTags||[]).filter(function(t){ return (t.system||'http://snomed.info/sct').indexOf('snomed')>-1; }).map(function(t){ return t.code; });
+      const codes = (reasonTags||[]).filter(function(t){ return (t.system||'http://snomed.info/sct').includes('snomed'); }).map(function(t){ return t.code; });
       if(!codes.length) return [];
       const suggestions = new Set();
       for(const rule of SUGGESTION_RULES){
@@ -929,7 +930,7 @@
         }
         if(match){ rule.tests.forEach(function(tc){ suggestions.add(tc); }); }
       }
-      const selectedCodes = new Set(selectedTests.map(function(t){return t.code;}));
+      const selectedCodes = new Set(selectedTests.map(function(t){return t.code;}).filter(Boolean));
       return Array.from(suggestions).filter(function(c){ return !selectedCodes.has(c); });
     }
 
@@ -993,7 +994,7 @@
         cb.addEventListener('change', function(e){
           const ds = e.target.dataset;
           if(e.target.checked) addSelectedTest({code:ds.code,system:ds.system,display:ds.display,kind:ds.kind});
-          else removeSelectedTestByCode(ds.code);
+          else removeSelectedTestByIdOrCode(ds.code);
         });
       });
       document.querySelectorAll('.fav').forEach(function(cb){
@@ -1128,6 +1129,7 @@
     async function checkTestHistoryWarning(test){
       try{
         const pid = currentPatientResource && currentPatientResource.id; if(!pid) return false;
+        if(!test.code) return false; // skip uncoded free-text tests
         let changed=false;
 
         if(test.code===HBA1C_CODE){
@@ -1145,7 +1147,7 @@
     }
 
     async function applyRadiationGroupWarning(){
-      const codes = selectedTests.map(function(t){return t.code;});
+      const codes = selectedTests.map(function(t){return t.code;}).filter(Boolean);
       let xrayCount = 0;
       for(const c of codes){
         if(await snomedSubsumes(XRAY_PARENT, c)) xrayCount++;
@@ -1158,8 +1160,15 @@
 
     // ----- Selected tests UI -----
     function addSelectedTest(test){
-      const existing = selectedTests.find(function(t){return t.code===test.code && t.display===test.display;});
-      if(!existing){
+      // Assign a stable key for both coded and free-text items
+      if(!test._key) test._key = newUUID();
+
+      // Deduplicate: coded by code, uncoded by (display, kind)
+      const exists = test.code
+        ? selectedTests.some(function(t){return t.code===test.code;})
+        : selectedTests.some(function(t){return !t.code && t.display.trim().toLowerCase()===test.display.trim().toLowerCase() && t.kind===test.kind});
+
+      if(!exists){
         if(!test.priority) test.priority = 'routine';
         ensureWarnSet(test);
         selectedTests.push(test);
@@ -1168,15 +1177,24 @@
       }
       renderSelectedTests();
       computeAndRenderSuggestions();
-      document.querySelectorAll('.fav[data-code=\"'+test.code+'\"]').forEach(function(cb){cb.checked=true;});
+      if(test.code){
+        document.querySelectorAll('.fav[data-code=\"'+test.code+'\"]').forEach(function(cb){cb.checked=true;});
+      }
     }
-    function removeSelectedTestByCode(code){
-      selectedTests = selectedTests.filter(function(t){return t.code!==code;});
+
+    function removeSelectedTestByIdOrCode(idOrCode){
+      selectedTests = selectedTests.filter(function(t){
+        if(idOrCode && idOrCode.startsWith && idOrCode.length>20){ return t._key !== idOrCode; } // looks like our uuid key
+        return t.code !== idOrCode;
+      });
       renderSelectedTests();
       computeAndRenderSuggestions();
       applyRadiationGroupWarning();
-      document.querySelectorAll('.fav[data-code=\"'+code+'\"]').forEach(function(cb){cb.checked=false;});
+      if(idOrCode && !(idOrCode.startsWith && idOrCode.length>20)){
+        document.querySelectorAll('.fav[data-code=\"'+idOrCode+'\"]').forEach(function(cb){cb.checked=false;});
+      }
     }
+
     function renderSelectedTests(){
       const ul = document.querySelector('#selected-tests');
       ul.innerHTML = '';
@@ -1189,7 +1207,7 @@
         const titleRow = document.createElement('div');
         titleRow.className='flex items-center';
         const title = document.createElement('span');
-        title.textContent = t.display;
+        title.textContent = t.display + (t.code ? '' : ' (custom test)');
         titleRow.appendChild(title);
         const warningStr = warnText(t);
         if(warningStr){
@@ -1224,7 +1242,7 @@
         const rm = document.createElement('button');
         rm.textContent = 'Remove';
         rm.className = 'text-red-600 text-sm';
-        rm.onclick = function(){ removeSelectedTestByCode(t.code); };
+        rm.onclick = function(){ removeSelectedTestByIdOrCode(t.code || t._key); };
 
         controls.appendChild(pBtn);
         controls.appendChild(rm);
@@ -1272,6 +1290,24 @@
     }
     setupSearch('#pathology-search','#pathology-results',VS.PATH,'PATH');
     setupSearch('#radiology-search','#radiology-results',VS.IMAG,'IMAG');
+
+    // ----- New: free-text custom adders -----
+    function setupCustomAdder(inputSel, btnSel, kind){
+      const inp = document.querySelector(inputSel);
+      const btn = document.querySelector(btnSel);
+      const add = ()=> {
+        const txt = (inp.value||'').trim();
+        if(!txt) return;
+        addSelectedTest({ display: txt, kind: kind, _key: newUUID() }); // no code/system
+        inp.value='';
+      };
+      btn.addEventListener('click', add);
+      inp.addEventListener('keydown', function(e){
+        if(e.key==='Enter'){ e.preventDefault(); add(); }
+      });
+    }
+    setupCustomAdder('#pathology-custom','#pathology-custom-add','PATH');
+    setupCustomAdder('#radiology-custom','#radiology-custom-add','IMAG');
 
     // ----- Specialty label (inline in header) -----
     function updateSpecialtyDisplay(name){
@@ -1416,6 +1452,12 @@
       selectedTests.forEach(function(t){
         const category=(t.kind==='IMAG')?CAT.IMAG:CAT.PATH;
         const srFullUrl = uuidURN();
+
+        // Build ServiceRequest.code: text-only for uncoded tests
+        const srCode = t.code
+          ? { coding:[{system:'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display }
+          : { text: t.display };
+
         const srResource = {
           resourceType:'ServiceRequest',
           meta: { profile: [AU_PROFILES.SR_DIAG] },
@@ -1423,7 +1465,7 @@
           intent:'order',
           priority: (t.priority || 'routine'),
           category:[category],
-          code:{ coding:[{system:'http://snomed.info/sct', code:t.code, display:t.display}], text:t.display },
+          code: srCode,
           subject:{reference:patientRef},
           requester:{ reference: roleRef },
           requisition: groupIdentifier,
@@ -1432,7 +1474,7 @@
           authoredOn: now
         };
 
-        if(fastingCodeSet.has(t.code)){
+        if(t.code && fastingCodeSet.has(t.code)){
           srResource.patientInstruction = 'fast of at least 8h, but no more than 16h';
         }
 
