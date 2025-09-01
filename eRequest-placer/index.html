@@ -312,15 +312,20 @@
       <!-- Clinical Notes -->
       <section class="bg-white p-4 rounded-2xl shadow">
         <label class="block font-medium mb-1">Clinical Notes</label>
-        <textarea id="clinical-notes" class="w-full border rounded p-2 h-60" placeholder="Optional clinical context for the request"></textarea>
+        <textarea id="clinical-notes" class="w-full border rounded p-2 h-50" placeholder="Optional clinical context for the request"></textarea>
+
+        <div id="notes-suggestions" class="mt-2 hidden">
+          <div class="text-xs text-gray-500 mb-1">Autocomplete suggestions</div>
+          <div id="notes-suggestion-list" class="flex flex-wrap gap-2"></div>
+        </div>
+
         <div class="mt-2">
           <div class="text-xs text-gray-500 mb-1">Reason tags</div>
           <div id="notes-tags" class="flex flex-wrap gap-2"></div>
         </div>
-        <div id="notes-suggestions" class="mt-2 hidden">
-          <div class="text-xs text-gray-500 mb-1">Suggestions</div>
-          <div id="notes-suggestion-list" class="flex flex-wrap gap-2"></div>
-        </div>
+
+        
+
       </section>
     </div>
 
@@ -828,17 +833,44 @@
       top.forEach(it=>{
         const btn=document.createElement('button'); btn.type='button'; btn.className='px-2 py-1 rounded border text-xs hover:bg-gray-50';
         btn.textContent=it.display||it.code||'—';
-        btn.onclick=()=>{
-          const code=it.code, system=it.system||'http://snomed.info/sct', display=it.display||it.code;
-          if(!reasonTags.some(t=>t.code===code && t.system===system)){
-            reasonTags.push({system:system,code:code,display:display});
-            renderReasonTags();
-          }
-          const notes=document.getElementById('clinical-notes');
-          notes.value = "";   // <-- clear clinical notes
-          notesAnchor = 0;
-          box.classList.add('hidden');
-        };
+        btn.onclick = () => {
+        const code = it.code;
+        const system = it.system || 'http://snomed.info/sct';
+        const display = it.display || it.code;
+
+        // Add tag chip if not already present
+        if (!reasonTags.some(t => t.code === code && t.system === system)) {
+          reasonTags.push({ system, code, display });
+          renderReasonTags();
+        }
+
+        const notes = document.getElementById('clinical-notes');
+        const start = notes.selectionStart;
+        const text  = notes.value;
+
+        // Replace the text typed since the last anchor with the display name + space
+        const before    = text.slice(0, notesAnchor);
+        const insertion = display + ' ';
+        const after     = text.slice(start);
+        notes.value     = before + insertion + after;
+
+        // New caret position (after the space)
+        const newPos = before.length + insertion.length;
+
+        // Restore focus and caret (RAF helps on some browsers/mobile)
+        notes.focus();
+        requestAnimationFrame(() => {
+          try { notes.setSelectionRange(newPos, newPos); } catch {}
+        });
+
+        // Update anchor for the next suggestion
+        notesAnchor = newPos;
+
+        // Hide suggestions
+        box.classList.add('hidden');
+      };
+
+
         list.appendChild(btn);
       });
       box.classList.remove('hidden');
