@@ -830,8 +830,14 @@
         btn.textContent=it.display||it.code||'—';
         btn.onclick=()=>{
           const code=it.code, system=it.system||'http://snomed.info/sct', display=it.display||it.code;
-          if(!reasonTags.some(t=>t.code===code && t.system===system)){ reasonTags.push({system:system,code:code,display:display}); renderReasonTags(); }
-          const notes=document.getElementById('clinical-notes'); notesAnchor=(notes.value||'').length; box.classList.add('hidden');
+          if(!reasonTags.some(t=>t.code===code && t.system===system)){
+            reasonTags.push({system:system,code:code,display:display});
+            renderReasonTags();
+          }
+          const notes=document.getElementById('clinical-notes');
+          notes.value = "";   // <-- clear clinical notes
+          notesAnchor = 0;
+          box.classList.add('hidden');
         };
         list.appendChild(btn);
       });
