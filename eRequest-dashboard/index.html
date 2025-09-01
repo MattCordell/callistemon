@@ -233,14 +233,19 @@
       const serverOptions = [
         "https://server.fire.ly",
         "https://hapi.fhir.org/baseR4",
-        "https://r4.smarthealthit.org",
-        "https://demo.pathling.app/fhir",
-        "http://fhir.oridashi.com.au",
+        //"https://demo.pathling.app/fhir",
         "https://pyroserver.azurewebsites.net/pyro",
-        "https://smile.sparked-fhir.com/ereq/fhir"
+        "https://smile.sparked-fhir.com/ereq/fhir",
+        "https://erequesting.aidbox.beda.software/fhir"
       ];
 
       const [baseUrl, setBaseUrl] = useState(() => (typeof localStorage !== "undefined" && localStorage.getItem("fhirBase")) || serverOptions[0]);
+      const serverPresets = useMemo(() => {
+        const set = new Set(serverOptions);
+        if (baseUrl && !set.has(baseUrl)) set.add(baseUrl);
+        return Array.from(set);
+      }, [baseUrl]);
+      
       const [txBase, setTxBase] = useState(() => (typeof localStorage !== "undefined" && localStorage.getItem("txBase")) || DEFAULT_TX);
 
       const [mode, setMode] = useState("incoming");
@@ -318,13 +323,14 @@
           let bundle;
           try {
             const query = new URLSearchParams();
-            query.set("_count", "50");
+            query.set("_count", "25");
             query.append("_include", "ServiceRequest:subject");
             query.append("_include", "ServiceRequest:performer");
             query.append("_include:iterate", "PractitionerRole:practitioner");
             query.append("_include:iterate", "PractitionerRole:organization");
             query.append("_revinclude", "Task:based-on");
             query.append("_revinclude", "Task:focus");
+            query.append("_lastUpdated", "ge1900-01-01");
             query.append("_sort", "-authored,-_lastUpdated");
 
             bundle = await fhirGET(baseUrl, "ServiceRequest?" + query.toString());
@@ -343,7 +349,9 @@
               // Fallback: try with just basic parameters
               try {
                 const simpleQuery = new URLSearchParams();
-                simpleQuery.set("_count", "50");
+                simpleQuery.set("_count", "25");
+                // Add a harmless filter so servers that forbid empty searches will accept it
+                simpleQuery.set("_lastUpdated", "ge1900-01-01");
                 bundle = await fhirGET(baseUrl, "ServiceRequest?" + simpleQuery.toString());
                 
                 // Fetch patients separately if we got ServiceRequests
@@ -352,8 +360,8 @@
                 }
               } catch (e2) {
                 // If even the simple query fails, try absolute minimal
-                console.log("Basic query failed, trying minimal query");
-                bundle = await fhirGET(baseUrl, "ServiceRequest");
+                console.log("Basic query failed, trying minimal query (with trivial filter)");
+                bundle = await fhirGET(baseUrl, "ServiceRequest?_lastUpdated=ge1900-01-01");
                 if (bundle && bundle.entry) {
                   await fetchMissingPatients(bundle);
                 }
@@ -727,7 +735,7 @@
 
       const exampleQueries =
         "FHIR GET " + baseUrl.replace(/\/$/, "") +
-        "/ServiceRequest?_count=50&_include=ServiceRequest:subject&_include=ServiceRequest:performer&_include:iterate=PractitionerRole:practitioner&_include:iterate=PractitionerRole:organization&_revinclude=Task:based-on&_revinclude=Task:focus&_sort=-authored,-_lastUpdated\n" +
+        "/ServiceRequest?_count=25&_include=ServiceRequest:subject&_include=ServiceRequest:performer&_include:iterate=PractitionerRole:practitioner&_include:iterate=PractitionerRole:organization&_revinclude=Task:based-on&_revinclude=Task:focus&_sort=-authored,-_lastUpdated\n" +
         "$expand (ECL) " + txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=http://snomed.info/sct?fhir_vs=ecl/%3C%3CSCTID\n" +
         "$expand (site) " + txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=" + "https://healthterminologies.gov.au/fhir/ValueSet/body-site-1";
 
@@ -739,21 +747,29 @@
                 <h1 className="text-3xl font-bold tracking-tight">eRequest Dashboard</h1>
                 <p className="text-slate-300">Browse ServiceRequests from your target FHIR server.</p>
               </div>
+
+              
               <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
                 <label className="flex flex-col gap-1">
                   <span className="text-sm text-slate-300">FHIR Server</span>
-                  <input
-                    list="fhir-presets"
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[30rem] max-w-full"
-                    placeholder="https://server.fire.ly"
-                    value={baseUrl}
-                    onChange={(e) => setBaseUrl(e.target.value)}
-                  />
-                  <datalist id="fhir-presets">
-                    {["https://server.fire.ly","https://hapi.fhir.org/baseR4","https://r4.smarthealthit.org","https://demo.pathling.app/fhir","http://fhir.oridashi.com.au","https://pyroserver.azurewebsites.net/pyro","https://smile.sparked-fhir.com/ereq/fhir"].map(u => (<option key={u} value={u}>{u}</option>))}
-                  </datalist>
+                  <div className="flex gap-2 items-stretch">
+                    <select
+                      className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 min-w-[18rem]"
+                      value={serverPresets.includes(baseUrl) ? baseUrl : ""}
+                      onChange={(e) => { const v = e.target.value; if (v) setBaseUrl(v); }}
+                    >
+                      <option value="">Choose a preset…</option>
+                      {serverPresets.map(u => (<option key={u} value={u}>{u}</option>))}
+                    </select>
+                    <input
+                      className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[22rem] max-w-full"
+                      placeholder="Or type a custom URL"
+                      value={baseUrl}
+                      onChange={(e) => setBaseUrl(e.target.value)}
+                    />
+                  </div>
                 </label>
-
+                
                 <label className="flex flex-col gap-1">
                   <span className="text-sm text-slate-300">Terminology Server</span>
                   <input
@@ -776,6 +792,10 @@
                   {loading ? "Loading..." : "Fetch"}
                 </button>
               </div>
+
+
+
+              
             </header>
 
             <div className="flex gap-2">
