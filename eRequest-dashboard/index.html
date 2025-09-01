@@ -235,7 +235,9 @@
         "https://hapi.fhir.org/baseR4",
         "https://r4.smarthealthit.org",
         "https://demo.pathling.app/fhir",
-        "http://fhir.oridashi.com.au"
+        "http://fhir.oridashi.com.au",
+        "https://pyroserver.azurewebsites.net/pyro",
+        "https://smile.sparked-fhir.com/ereq/fhir"
       ];
 
       const [baseUrl, setBaseUrl] = useState(() => (typeof localStorage !== "undefined" && localStorage.getItem("fhirBase")) || serverOptions[0]);
@@ -312,22 +314,86 @@
         if (!canSearch) return;
         setError(""); setLoading(true);
         try {
-          const query = new URLSearchParams();
-          query.set("_count", "50");
-          query.append("_include", "ServiceRequest:subject");
-          query.append("_include", "ServiceRequest:performer");
-          query.append("_include:iterate", "PractitionerRole:practitioner");
-          query.append("_include:iterate", "PractitionerRole:organization");
-          query.append("_revinclude", "Task:based-on");
-          query.append("_revinclude", "Task:focus");
-          query.append("_sort", "-authoredon,-_lastUpdated");
+          // Try full query first
+          let bundle;
+          try {
+            const query = new URLSearchParams();
+            query.set("_count", "50");
+            query.append("_include", "ServiceRequest:subject");
+            query.append("_include", "ServiceRequest:performer");
+            query.append("_include:iterate", "PractitionerRole:practitioner");
+            query.append("_include:iterate", "PractitionerRole:organization");
+            query.append("_revinclude", "Task:based-on");
+            query.append("_revinclude", "Task:focus");
+            query.append("_sort", "-authored,-_lastUpdated");
 
-          const bundle = await fhirGET(baseUrl, "ServiceRequest?" + query.toString());
+            bundle = await fhirGET(baseUrl, "ServiceRequest?" + query.toString());
+            // If the server didn’t honor _include, pull Patients individually
+            if (bundle && bundle.entry) {
+              const hasPatients = bundle.entry.some(e => e.resource && e.resource.resourceType === "Patient");
+              if (!hasPatients) {
+                await fetchMissingPatients(bundle);
+              }
+            }
+          } catch (e) {
+            // Check if it's a "not-supported" error for advanced parameters
+            const errorMsg = String(e && (e.message || e)).toLowerCase();
+            if (errorMsg.includes("not-supported") || errorMsg.includes("not supported") || errorMsg.includes("400")) {
+              console.log("Server doesn't support advanced parameters, falling back to basic query");
+              // Fallback: try with just basic parameters
+              try {
+                const simpleQuery = new URLSearchParams();
+                simpleQuery.set("_count", "50");
+                bundle = await fhirGET(baseUrl, "ServiceRequest?" + simpleQuery.toString());
+                
+                // Fetch patients separately if we got ServiceRequests
+                if (bundle && bundle.entry) {
+                  await fetchMissingPatients(bundle);
+                }
+              } catch (e2) {
+                // If even the simple query fails, try absolute minimal
+                console.log("Basic query failed, trying minimal query");
+                bundle = await fhirGET(baseUrl, "ServiceRequest");
+                if (bundle && bundle.entry) {
+                  await fetchMissingPatients(bundle);
+                }
+              }
+            } else {
+              throw e; // Re-throw if it's not a parameter support issue
+            }
+          }
+
           applyBundle(bundle, true);
           if (resetSelection) setSelectedPatientRef("");
         } catch (e) {
           setError(String(e && (e.message || e)));
         } finally { setLoading(false); }
+      }
+
+      async function fetchMissingPatients(bundle) {
+        const patientRefs = new Set();
+        const entries = (bundle && bundle.entry) || [];
+        
+        // Collect unique patient references
+        for (let i = 0; i < entries.length; i++) {
+          const sr = entries[i] && entries[i].resource;
+          if (sr && sr.resourceType === "ServiceRequest") {
+            const pref = normalizePatientRef(srPatientRef(sr));
+            if (pref) patientRefs.add(pref);
+          }
+        }
+
+        // Fetch patients individually (fallback for servers without _include support)
+        for (const pref of patientRefs) {
+          try {
+            const patientId = pref.replace("Patient/", "");
+            const patient = await fhirGET(baseUrl, "Patient/" + patientId);
+            if (patient && !bundle.entry) bundle.entry = [];
+            bundle.entry.push({ resource: patient });
+          } catch (e) {
+            console.warn("Failed to fetch patient " + pref + ":", e);
+          }
+        }
       }
 
       async function loadMore() {
@@ -337,6 +403,15 @@
           const res = await fetch(nextLink, { headers: { Accept: "application/fhir+json" } });
           if (!res.ok) throw new Error("FHIR GET next -> " + res.status);
           const bundle = await res.json();
+          
+          // For fallback servers, we might need to fetch patients separately
+          if (bundle && bundle.entry) {
+            const hasPatients = bundle.entry.some(e => e.resource && e.resource.resourceType === "Patient");
+            if (!hasPatients) {
+              await fetchMissingPatients(bundle);
+            }
+          }
+          
           applyBundle(bundle, false);
         } catch (e) { setError(String(e && (e.message || e))); } finally { setLoading(false); }
       }
@@ -558,6 +633,7 @@
         const rows = srList.map((sr) => {
           const pref = normalizePatientRef(srPatientRef(sr));
           const p = patientMap[pref];
+          const fallbackDisplay = (sr && sr.subject && sr.subject.display) ? String(sr.subject.display).trim() : "";
           const srRef = "ServiceRequest/" + sr.id;
           const task = taskBySrId[srRef];
           const priority = sr && sr.priority ? String(sr.priority) : "";
@@ -571,7 +647,7 @@
             id: sr.id,
             date: srAuthoredOn(sr),
             patientRef: pref,
-            patientName: patientName(p),
+            patientName: patientName(p) || fallbackDisplay || "(no name)",
             testName: srCodeText(sr),
             categoryText: srCategoryText(sr),
             status: sr.status || "",
@@ -651,7 +727,7 @@
 
       const exampleQueries =
         "FHIR GET " + baseUrl.replace(/\/$/, "") +
-        "/ServiceRequest?_count=50&_include=ServiceRequest:subject&_include=ServiceRequest:performer&_include:iterate=PractitionerRole:practitioner&_include:iterate=PractitionerRole:organization&_revinclude=Task:based-on&_revinclude=Task:focus&_sort=-authoredon,-_lastUpdated\n" +
+        "/ServiceRequest?_count=50&_include=ServiceRequest:subject&_include=ServiceRequest:performer&_include:iterate=PractitionerRole:practitioner&_include:iterate=PractitionerRole:organization&_revinclude=Task:based-on&_revinclude=Task:focus&_sort=-authored,-_lastUpdated\n" +
         "$expand (ECL) " + txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=http://snomed.info/sct?fhir_vs=ecl/%3C%3CSCTID\n" +
         "$expand (site) " + txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=" + "https://healthterminologies.gov.au/fhir/ValueSet/body-site-1";
 
@@ -674,7 +750,7 @@
                     onChange={(e) => setBaseUrl(e.target.value)}
                   />
                   <datalist id="fhir-presets">
-                    {["https://server.fire.ly","https://hapi.fhir.org/baseR4","https://r4.smarthealthit.org","https://demo.pathling.app/fhir","http://fhir.oridashi.com.au"].map(u => (<option key={u} value={u}>{u}</option>))}
+                    {["https://server.fire.ly","https://hapi.fhir.org/baseR4","https://r4.smarthealthit.org","https://demo.pathling.app/fhir","http://fhir.oridashi.com.au","https://pyroserver.azurewebsites.net/pyro","https://smile.sparked-fhir.com/ereq/fhir"].map(u => (<option key={u} value={u}>{u}</option>))}
                   </datalist>
                 </label>
 
@@ -919,13 +995,32 @@
                       <h3 className="font-semibold">ServiceRequests</h3>
                       {selectedPatientRef ? (
                         <ul className="mt-2 space-y-2">
-                          {selectedPatientSRs.map((r) => (
-                            <li key={r.id} className="bg-slate-900/40 border border-slate-800 rounded-xl p-2">
-                              <div className="text-sm font-medium">{r.testName}</div>
-                              <div className="text-xs text-slate-400">{formatDateTime(r.date)} — {r.categoryText || ""}</div>
-                              <div className="text-xs uppercase text-slate-300">{r.status}</div>
-                            </li>
-                          ))}
+                          {selectedPatientSRs.map((r) => {
+                            const srRef = "ServiceRequest/" + r.id;
+                            const task = taskBySrId[srRef];
+                            const taskUrl = task ? baseUrl.replace(/\/$/, "") + "/Task/" + task.id : null;
+                            
+                            return (
+                              <li key={r.id} className="bg-slate-900/40 border border-slate-800 rounded-xl p-2">
+                                <div className="text-sm font-medium">{r.testName}</div>
+                                <div className="text-xs text-slate-400">{formatDateTime(r.date)} — {r.categoryText || ""}</div>
+                                <div className="text-xs uppercase text-slate-300">{r.status}</div>
+                                {taskUrl && (
+                                  <div className="text-xs text-indigo-300 mt-1">
+                                    <span className="text-slate-400">Task: </span>
+                                    <a 
+                                      href={taskUrl} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="underline hover:text-indigo-200"
+                                    >
+                                      {taskUrl}
+                                    </a>
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
                           {selectedPatientSRs.length === 0 && (
                             <li className="text-slate-400 text-sm">No SRs loaded for this patient (yet).</li>
                           )}
