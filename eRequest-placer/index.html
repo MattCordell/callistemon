@@ -401,8 +401,9 @@
       </div>
 
       <details>
-        <summary>
-          Request Bundle (click to expand)
+        <summary class="flex items-center gap-2">
+          <span>Request Bundle (click to expand)</span>
+          <button id="copy-bundle" type="button" class="ml-2 text-xs px-2 py-1 rounded border bg-white hover:bg-gray-50">Copy</button>
         </summary>
         <div id="json-viewer" class="border rounded p-2 bg-gray-50 mt-2"></div>
       </details>
@@ -455,6 +456,14 @@
           <span class="block text-sm font-medium">FHIR Server URL</span>
           <input id="fhir-base" class="border rounded w-full p-2 mono" value="https://server.fire.ly" placeholder="https://your.fhir.server"/>
         </label>
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-600">Presets</label>
+          <select id="server-preset" class="border rounded p-2 text-sm">
+            <option value="https://server.fire.ly" selected>Firely (default)</option>
+            <option value="https://pyroserver.azurewebsites.net/pyro">Pyro</option>
+          </select>
+          <button id="apply-preset" class="text-xs px-2 py-1 rounded border bg-white">Apply</button>
+        </div>
         <button id="apply-fhir-base" class="h-10 px-4 bg-blue-600 text-white rounded">Use this server</button>
         <div class="text-xs text-gray-600">All queries and transaction POSTs use this base. Default shown above.</div>
       </div>
@@ -512,6 +521,17 @@
     const serverClose  = document.getElementById('server-close');
     serverToggle.addEventListener('click', ()=> serverPanel.classList.toggle('hidden'));
     serverClose.addEventListener('click', ()=> serverPanel.classList.add('hidden'));
+
+    // Server presets
+    const serverPreset = document.getElementById('server-preset');
+    const applyPreset = document.getElementById('apply-preset');
+    if(serverPreset && applyPreset){
+      applyPreset.addEventListener('click', ()=>{
+        const v = serverPreset.value;
+        if(v){ fhirBaseInput.value = v; FHIR_BASE = v.replace(/\/+$/,''); showStatus('Using FHIR server: ' + FHIR_BASE); }
+      });
+    }
+
 
     const debugPanel = document.getElementById('debug-panel');
     const debugToggle = document.getElementById('debug-toggle');
@@ -1470,9 +1490,9 @@
           requester:{ reference: roleRef },
           requisition: groupIdentifier,
           reasonCode:buildReasonCodeArray(),
-          note: combinedNote ? [{text:combinedNote}] : [],
           authoredOn: now
         };
+        if(combinedNote){ srResource.note = [{ text: combinedNote }]; }
 
         if(t.code && fastingCodeSet.has(t.code)){
           srResource.patientInstruction = 'fast of at least 8h, but no more than 16h';
@@ -1505,9 +1525,50 @@
 
       const bundle={ resourceType:'Bundle', type:'transaction', entry:entries };
       viewer.show(bundle);
+      window.__lastBundle = bundle;
+      window.__lastBundle = bundle;
       return { bundle:bundle, requisitionId:requisitionId };
     }
     document.getElementById('build-bundle').addEventListener('click', function(){ buildBundle(); });
+
+    // Copy bundle to clipboard
+    (function(){
+      const btn = document.getElementById('copy-bundle');
+      if(btn){
+        btn.addEventListener('click', async function(ev){
+          ev.stopPropagation();
+          const data = window.__lastBundle ? JSON.stringify(window.__lastBundle, null, 2) : '';
+          if(!data){ return; }
+          try{ await navigator.clipboard.writeText(data); const old=btn.textContent; btn.textContent='Copied!'; setTimeout(()=>btn.textContent=old, 1200);}catch(e){}
+        });
+      }
+    })();
+    // Copy bundle button
+    (function(){
+      const btn = document.getElementById('copy-bundle');
+      if(btn){
+        btn.addEventListener('click', async function(ev){
+          ev.stopPropagation();
+          const btnEl = btn;
+          try{
+            const data = window.__lastBundle ? JSON.stringify(window.__lastBundle, null, 2) : (document.getElementById('json-viewer')?.innerText || '');
+            if(!data) return;
+            await navigator.clipboard.writeText(data);
+            const old = btnEl.textContent; btnEl.textContent = 'Copied!'; setTimeout(()=>btnEl.textContent = old, 1200);
+          }catch(e){ console.warn('copy failed', e); }
+        });
+      }
+    })();
+    // Server preset handlers
+    (function(){
+      const sel = document.getElementById('server-preset');
+      const apply = document.getElementById('apply-preset');
+      const inp = document.getElementById('fhir-base');
+      if(sel && apply && inp){
+        sel.addEventListener('change', function(){ inp.value = this.value; });
+        apply.addEventListener('click', function(){ inp.value = sel.value; });
+      }
+    })();
 
     // ----- QR modal -----
     const qrBackdrop = document.getElementById('qr-backdrop');
