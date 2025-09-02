@@ -466,9 +466,17 @@
           <select id="server-preset" class="border rounded p-2 text-sm">
             <option value="https://server.fire.ly" selected>Firely (default)</option>
             <option value="https://pyroserver.azurewebsites.net/pyro">Pyro</option>
+          
+            <option value="https://erequesting.aidbox.beda.software/fhir">Aidbox (auth)</option>
+            <option value="https://smile.sparked-fhir.com/ereq/fhir/DEFAULT">Smile (auth, DEFAULT)</option>
           </select>
           <button id="apply-preset" class="text-xs px-2 py-1 rounded border bg-white">Apply</button>
         </div>
+        <div class="flex items-center gap-2">
+          <button id="auth-manage" class="text-xs px-2 py-1 rounded border bg-white">Auth…</button>
+          <span id="auth-hint" class="text-xs text-blue-900"></span>
+        </div>
+
         <button id="apply-fhir-base" class="h-10 px-4 bg-blue-600 text-white rounded">Use this server</button>
         <div class="text-xs text-gray-600">All queries and transaction POSTs use this base. Default shown above.</div>
       </div>
@@ -520,6 +528,45 @@
       showStatus('Using FHIR server: ' + FHIR_BASE);
     });
 
+
+    // ===== Server Basic Auth helpers =====
+    const AUTH_SERVERS = [
+      { prefix: "https://erequesting.aidbox.beda.software/fhir", user: "root",   storageKey: "auth_pwd_erequesting_aidbox", nice: "Aidbox" },
+      { prefix: "https://smile.sparked-fhir.com/ereq/fhir/DEFAULT", user: "placer", storageKey: "auth_pwd_smile_default",    nice: "Smile (DEFAULT)" }
+    ];
+    function matchAuthConfig(base){
+      if(!base) return null;
+      const b = String(base).replace(/\/+$/,'').toLowerCase();
+      for(const cfg of AUTH_SERVERS){
+        if(b.startsWith(cfg.prefix.toLowerCase())) return cfg;
+      }
+      return null;
+    }
+    function getPwd(key){ try{ return sessionStorage.getItem(key)||""; }catch{ return ""; } }
+    function setPwd(key, v){ try{ sessionStorage.setItem(key, (v||"")); }catch{} }
+    function basicHeader(user, pwd){
+      if(!user || !pwd) return "";
+      try { return "Basic " + btoa(user + ":" + pwd); } catch { return ""; }
+    }
+    function maybePromptPasswordFor(base){
+      const cfg = matchAuthConfig(base);
+      const authHint = document.getElementById('auth-hint');
+      if(!cfg) { if(authHint) authHint.textContent = ""; return; }
+      const existing = getPwd(cfg.storageKey);
+      if(authHint) authHint.textContent = cfg.nice + " requires authentication" + (existing ? " (saved this tab)" : "");
+      if(!existing){
+        const entered = window.prompt(
+          `Password required for ${cfg.nice}\\n${cfg.prefix}\\n\\nUsername: ${cfg.user}\\n\\nEnter password:`,
+          ""
+        );
+        if(entered!==null && String(entered).trim()){
+          setPwd(cfg.storageKey, String(entered).trim());
+          if(authHint) authHint.textContent = cfg.nice + " authentication saved for this tab";
+        }
+      }
+    }
+
+
     // Floating panels toggles
     const serverPanel = document.getElementById('server-panel');
     const serverToggle = document.getElementById('server-toggle');
@@ -530,10 +577,34 @@
     // Server presets
     const serverPreset = document.getElementById('server-preset');
     const applyPreset = document.getElementById('apply-preset');
+const authManageBtn = document.getElementById('auth-manage');
     if(serverPreset && applyPreset){
       applyPreset.addEventListener('click', ()=>{
         const v = serverPreset.value;
         if(v){ fhirBaseInput.value = v; FHIR_BASE = v.replace(/\/+$/,''); showStatus('Using FHIR server: ' + FHIR_BASE); }
+      });
+    }
+
+    // Manage auth
+    if (authManageBtn) {
+      authManageBtn.addEventListener('click', ()=>{
+        const base = (fhirBaseInput && fhirBaseInput.value) || FHIR_BASE;
+        const cfg = matchAuthConfig(base);
+        if(!cfg){ alert("The current server does not require Basic auth."); return; }
+        const current = getPwd(cfg.storageKey);
+        const entered = window.prompt(
+          `Manage password for ${cfg.nice}\n${cfg.prefix}\n\nUsername: ${cfg.user}\nCurrent: ${current? "••••••" : "(none)"}\n\nEnter new password (leave blank to clear):`,
+          ""
+        );
+        if(entered===null) return;
+        if(String(entered).trim()){
+          setPwd(cfg.storageKey, String(entered).trim());
+          showStatus("Saved password for " + cfg.nice);
+        } else {
+          setPwd(cfg.storageKey, "");
+          showStatus("Cleared saved password for " + cfg.nice);
+        }
+        maybePromptPasswordFor(base);
       });
     }
 
@@ -543,6 +614,31 @@
     const debugClose  = document.getElementById('debug-close');
     debugToggle.addEventListener('click', ()=> debugPanel.classList.toggle('hidden'));
     debugClose.addEventListener('click', ()=> debugPanel.classList.add('hidden'));
+
+    
+    // ===== Monkey-patch fetch to add Basic Auth for FHIR_BASE =====
+    if (!window.__origFetch) {
+      window.__origFetch = window.fetch.bind(window);
+      window.fetch = (input, init={}) => {
+        try {
+          const url = (typeof input === 'string') ? input : (input && input.url) || '';
+          if (url && FHIR_BASE && url.toLowerCase().startsWith(FHIR_BASE.replace(/\/+$/,'').toLowerCase())) {
+            const cfg = matchAuthConfig(FHIR_BASE);
+            if (cfg) {
+              const pwd = getPwd(cfg.storageKey);
+              const auth = basicHeader(cfg.user, pwd);
+              if (auth) {
+                const newInit = Object.assign({}, init);
+                newInit.headers = Object.assign({ Accept: 'application/fhir+json' }, init && init.headers || {}, { Authorization: auth });
+                return window.__origFetch(input, newInit);
+              }
+            }
+          }
+        } catch (e) { /* fall through */ }
+        // default
+        return window.__origFetch(input, init);
+      };
+    }
 
     // Ontoserver + terminology
     const ONTO_BASE = "https://tx.ontoserver.csiro.au/fhir/ValueSet/$expand";
