@@ -235,7 +235,7 @@
         "https://hapi.fhir.org/baseR4",
         //"https://demo.pathling.app/fhir",
         "https://pyroserver.azurewebsites.net/pyro",
-        "https://smile.sparked-fhir.com/ereq/fhir",
+        "https://smile.sparked-fhir.com/ereq/fhir/DEFAULT",
         "https://erequesting.aidbox.beda.software/fhir"
       ];
 
@@ -268,19 +268,21 @@
 
       const MODALITY_OPTIONS = [
         { code: "34945008", display: "Angiocardiography" },
+        { code: "77477000", display: "Computed tomography" },
+        { code: "44491008", display: "Fluoroscopy" },
         { code: "1753581000168106", display: "Imaging procedure with contrast" },
         { code: "719259006", display: "Imaging procedure without contrast" },
         { code: "113091000", display: "Magnetic resonance imaging" },
+        { code: "71651007", display: "Mammography" },
         { code: "169283005", display: "Medical photography" },
         { code: "373205008", display: "Nuclear medicine imaging" },
+        { code: "168537006", display: "Plain X-ray" },
+        //{ code: "363680008", display: "Radiographic imaging procedure" }, // Not working as expected ???
         { code: "367385006", display: "Total body scan" },
         { code: "16310003", display: "Ultrasound" },
-        { code: "371576000", display: "Video imaging" },
-        { code: "77477000", display: "Computed tomography" },
-        { code: "44491008", display: "Fluoroscopy" },
-        { code: "71651007", display: "Mammography" },
-        { code: "168537006", display: "Plain X-ray" }
+        { code: "371576000", display: "Video imaging" }
       ];
+
       const [selectedModality, setSelectedModality] = useState("");
       const [modalityCodes, setModalityCodes] = useState(new Set());
       const [modalityLoading, setModalityLoading] = useState(false);
