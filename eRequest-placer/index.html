@@ -1294,7 +1294,7 @@ const authManageBtn = document.getElementById('auth-manage');
         const isXray = await snomedSubsumes(XRAY_PARENT, test.code);
         if(isXray){
           const cnt = await countRecentXRays(pid);
-          changed = setWarn(test, 'Patient has already 3 recent X-Rays', cnt>=3) || changed;
+          changed = setWarn(test, `Patient has already had ${cnt} recent X-Rays`, cnt >= 1) || changed;
         }
         return changed;
       }catch(e){ console.warn('history warn', e); return false; }
