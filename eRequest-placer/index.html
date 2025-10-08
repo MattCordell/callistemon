@@ -1255,7 +1255,7 @@ const authManageBtn = document.getElementById('auth-manage');
       let n = await fhirCount('ServiceRequest', {
         base: base, sinceISO: since,
         codeBelow: 'http://snomed.info/sct|'+XRAY_PARENT,
-        codeIn:    'http://snomed.info/sct?fhir_vs=ecl/<<'+XRAY_PARENT,
+        codeIn:    'http://snomed.info/sct?fhir_vs=ecl/<<'+ XRAY_PARENT + "&count=5000",
         tryDateParams:['authored','_lastUpdated']
       });
       if(n===0){

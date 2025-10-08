@@ -194,7 +194,7 @@
     }
     async function expandEclToCodes(txBase, ecl) {
       const vsUrl = "http://snomed.info/sct?fhir_vs=ecl/" + encodeURIComponent(ecl);
-      const url = txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=" + encodeURIComponent(vsUrl) + "&count=2000";
+      const url = txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=" + encodeURIComponent(vsUrl) + "&count=5000";
       const { ok, status, data, text } = await fetchJson(url);
       if (!ok) throw new Error("$expand ECL failed: " + status + (text ? " — " + text : ""));
       const contains = (data && data.expansion && data.expansion.contains) || [];
