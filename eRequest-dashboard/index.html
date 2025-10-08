@@ -493,7 +493,7 @@
         pollingRef.current = setInterval(() => {
           if (loading) return;
           fetchFirstPage({ resetSelection: false });
-        }, 42000);
+        }, 420000); //millisecond refresh rate
         return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
       }, [polling, baseUrl, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
