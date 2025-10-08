@@ -735,9 +735,10 @@
 
       const selectedPhotoSrc = getPatientPhotoSrc(selectedPatient, baseUrl);
 
+      //Fetch first 150 service requests
       const exampleQueries =
         "FHIR GET " + baseUrl.replace(/\/$/, "") +
-        "/ServiceRequest?_count=25&_include=ServiceRequest:subject&_include=ServiceRequest:performer&_include:iterate=PractitionerRole:practitioner&_include:iterate=PractitionerRole:organization&_revinclude=Task:based-on&_revinclude=Task:focus&_sort=-authored,-_lastUpdated\n" +
+        "/ServiceRequest?_count=150&_include=ServiceRequest:subject&_include=ServiceRequest:performer&_include:iterate=PractitionerRole:practitioner&_include:iterate=PractitionerRole:organization&_revinclude=Task:based-on&_revinclude=Task:focus&_sort=-authored,-_lastUpdated\n" +
         "$expand (ECL) " + txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=http://snomed.info/sct?fhir_vs=ecl/%3C%3CSCTID\n" +
         "$expand (site) " + txBase.replace(/\/$/, "") + "/ValueSet/$expand?url=" + "https://healthterminologies.gov.au/fhir/ValueSet/body-site-1";
 
