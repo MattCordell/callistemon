@@ -1001,7 +1001,8 @@ const authManageBtn = document.getElementById('auth-manage');
       const tagDisplays=(reasonTags||[]).map(function(t){return t.display;}).filter(Boolean);
       if(!tagDisplays.length) return notes;
       const tagLine='Reason tags: '+Array.from(new Set(tagDisplays)).join('; ');
-      return notes ? (notes+'\n'+tagLine) : tagLine;
+      //return notes ? (notes+'\n'+tagLine) : tagLine;
+      return notes
     }
 
     // ----- Ontoserver helpers -----
