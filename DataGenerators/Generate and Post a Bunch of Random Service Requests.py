@@ -1,5 +1,6 @@
 import requests
 import uuid
+import time
 from fhir.resources.R4B.bundle import Bundle
 from RandomFunctions import Random_FHIR_Person
 from RandomFunctions import Random_FHIR_ServiceRequest
@@ -20,11 +21,14 @@ PersonGenerator = Random_FHIR_Person()
 ServiceGenerator = Random_FHIR_ServiceRequest()
 
 #loop through as many times as you want to generate and post randomised data
-for _ in range(18):
+for _ in range(3):
     #generate some randomised data
     patient = PersonGenerator.NewPatient()
-    practioner = PersonGenerator.NewPractitioner()
-    referral = ServiceGenerator.NewRandomRequest(patient=patient, requester=practioner)
+    #practioner = PersonGenerator.NewPractitioner()
+    #referral = ServiceGenerator.NewRandomRequest(patient=patient, requester=practioner)
+    
+    #wait 2 seconds to avoid overwhelming the server
+    time.sleep(1)
 
     #Post a bundle with ServiceRequest and referenced patient+requester
     bundle = Bundle(type='transaction', 
