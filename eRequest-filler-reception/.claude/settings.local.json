@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(xargs cat:*)",
+      "Bash(cat:*)",
+      "Bash(sort:*)",
+      "Bash(copy index.html index.html.backup)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
