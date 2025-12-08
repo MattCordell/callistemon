@@ -68,14 +68,28 @@ function initElements() {
 /**
  * Update the application status display
  * @param {string} message - Status message to display
- * @param {string} [type] - Status type: 'error', 'ok', or undefined for default
+ * @param {string} [type] - Status type: 'error', 'ok', 'loading', or undefined for default
  */
 function setStatus(message, type) {
   if (!elements.status) return;
 
-  elements.status.textContent = message;
+  // Clear existing content
+  elements.status.textContent = "";
   elements.status.className = "status";
 
+  // Add loading spinner if type is 'loading'
+  if (type === "loading") {
+    const spinner = document.createElement("span");
+    spinner.className = "spinner";
+    spinner.setAttribute("aria-label", "Loading");
+    elements.status.appendChild(spinner);
+  }
+
+  // Add message text
+  const textNode = document.createTextNode(message);
+  elements.status.appendChild(textNode);
+
+  // Add type-specific classes
   if (type === "error") {
     elements.status.classList.add("error");
   } else if (type === "ok") {
@@ -133,25 +147,79 @@ async function fhirGET(url, params = {}, timeoutMs = CONFIG.FHIR_SERVER.timeout)
 }
 
 /**
- * Read a specific FHIR resource by type and ID
+ * Retry a function with exponential backoff
+ * @param {Function} fn - Async function to retry
+ * @param {number} [maxRetries] - Maximum number of retry attempts
+ * @param {number} [initialDelay] - Initial delay in milliseconds
+ * @returns {Promise<any>} Result of the function
+ */
+async function retryWithBackoff(fn, maxRetries = CONFIG.FHIR_SERVER.retryCount, initialDelay = 1000) {
+  let lastError;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      // Don't retry on client errors (4xx) or validation errors
+      if (error.message.includes('400') ||
+          error.message.includes('401') ||
+          error.message.includes('403') ||
+          error.message.includes('404') ||
+          error.message.includes('Invalid')) {
+        throw error;
+      }
+
+      // Only retry on network errors and 5xx server errors
+      const isRetryable = error.name === 'TypeError' || // Network error
+                         error.message.includes('timed out') ||
+                         error.message.includes('500') ||
+                         error.message.includes('502') ||
+                         error.message.includes('503') ||
+                         error.message.includes('504');
+
+      if (!isRetryable || attempt === maxRetries - 1) {
+        throw error;
+      }
+
+      // Exponential backoff: delay = initialDelay * 2^attempt
+      const delay = initialDelay * Math.pow(2, attempt);
+      const jitter = Math.random() * 0.3 * delay; // Add up to 30% jitter
+      const totalDelay = delay + jitter;
+
+      console.log(`Retry attempt ${attempt + 1}/${maxRetries} after ${Math.round(totalDelay)}ms...`);
+      await new Promise(resolve => setTimeout(resolve, totalDelay));
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * Read a specific FHIR resource by type and ID with automatic retry
  * @param {string} baseUrl - FHIR server base URL
  * @param {string} resourceType - FHIR resource type (e.g., 'Task', 'Patient')
  * @param {string} id - Resource ID
  * @returns {Promise<Object>} FHIR resource
  */
 async function readResource(baseUrl, resourceType, id) {
-  return fhirGET(`${baseUrl}/${resourceType}/${encodeURIComponent(id)}`);
+  return retryWithBackoff(() =>
+    fhirGET(`${baseUrl}/${resourceType}/${encodeURIComponent(id)}`)
+  );
 }
 
 /**
- * Search for FHIR resources
+ * Search for FHIR resources with automatic retry
  * @param {string} baseUrl - FHIR server base URL
  * @param {string} resourceType - FHIR resource type
  * @param {Object} query - Search parameters
  * @returns {Promise<Object>} FHIR Bundle
  */
 async function searchResources(baseUrl, resourceType, query) {
-  return fhirGET(`${baseUrl}/${resourceType}`, query);
+  return retryWithBackoff(() =>
+    fhirGET(`${baseUrl}/${resourceType}`, query)
+  );
 }
 
 /**
@@ -775,8 +843,9 @@ async function startQrScanner() {
   };
 
   try {
+    setStatus("Starting camera…", "loading");
     await qrScanner.start({ facingMode: "environment" }, config, onSuccess, onError);
-    setStatus("QR reader active");
+    setStatus("QR reader active", "ok");
   } catch (error) {
     console.error('QR scanner start failed:', error);
     setStatus("QR reader unavailable — paste a URL instead", "error");
@@ -915,7 +984,7 @@ async function handleLoadClick() {
     return;
   }
 
-  setStatus("Fetching…");
+  setStatus("Fetching…", "loading");
 
   try {
     await loadFromTaskUrl(url);

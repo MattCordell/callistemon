@@ -86,11 +86,12 @@ export const CONFIG = {
  * External library configuration
  */
 export const EXTERNAL_LIBS = {
-  // html5-qrcode library URL with version pinning
+  // html5-qrcode library URL with version pinning and SRI
   qrCodeLibrary: {
-    url: 'https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js',
-    // TODO: Add SRI hash for security
-    integrity: null,
-    crossorigin: 'anonymous'
+    url: 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js',
+    // Subresource Integrity hash (SHA-512)
+    integrity: 'sha512-r6rDA7W6ZeQhvl8S7yRVQUKVHdexq+GAlNkNNqVC7YyIV+NwqCTJe2hDWCiffTyRNOeGEzRRJ9ifvRm/HCzGYg==',
+    crossorigin: 'anonymous',
+    referrerpolicy: 'no-referrer'
   }
 };
