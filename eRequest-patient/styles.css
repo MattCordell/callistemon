@@ -1,0 +1,317 @@
+/* ============================================
+   AU eRequesting - Consumer App Stylesheet
+   Patient-friendly mint theme
+   ============================================ */
+
+/* CSS Variables */
+:root {
+  --bg-gradient: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 50%, #99f6e4 100%);
+  --panel: #fefefe;
+  --muted: #335c52;
+  --text: #0f172a;
+  --brand: #10b981;
+  --danger: #ef4444;
+  --ok: #16a34a;
+  --border: #86efac;
+  --chip: #d1fae5;
+}
+
+/* Base Styles */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "InterVariable", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: var(--bg-gradient);
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* Layout */
+.container {
+  width: 100%;
+  max-width: 1100px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.app-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  width: 100%;
+}
+
+/* Header */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--brand);
+  color: white;
+}
+
+header h1 {
+  font-size: 18px;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+header .badge {
+  font-size: 12px;
+  color: #d1fae5;
+}
+
+/* Content Area */
+.content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  padding: 16px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.row {
+  display: grid;
+  gap: 6px;
+}
+
+/* Typography */
+h2,
+h3 {
+  margin-bottom: 4px;
+  margin-top: 0;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--brand);
+  color: white;
+  border: 1px solid var(--brand);
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.btn:hover {
+  background: #059669;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--brand);
+}
+
+.btn.small {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+/* Form Elements */
+.input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--text);
+}
+
+/* Divider */
+.hr {
+  height: 1px;
+  background: var(--border);
+  margin: 10px 0;
+  border: 0;
+}
+
+/* Chips */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  background: var(--chip);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+#instructions .chip {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 14px;
+  background: #ccfbf1;
+  border-color: #5eead4;
+}
+
+/* Lists */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ServiceRequest Item */
+.sr-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #ecfdf5;
+  border-radius: 8px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+}
+
+.sr-name {
+  font-weight: 600;
+}
+
+.sr-status {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.sr-status .chip {
+  font-size: 12px;
+  padding: 2px 8px;
+}
+
+/* Patient Avatar */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  background: #bbf7d0;
+  display: block;
+}
+
+.placeholder {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #bbf7d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+/* Status */
+.status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #ecfdf5;
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+}
+
+.success {
+  color: var(--ok);
+}
+
+/* QR Reader */
+.qr-area {
+  display: none;
+}
+
+.show {
+  display: block !important;
+}
+
+/* Visibility Controls */
+#detailsPanel {
+  display: none;
+}
+
+#loadPanel {
+  grid-column: 1/-1;
+}
+
+#searchAgainBtn {
+  display: none;
+  background: var(--chip);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+#searchAgainBtn.show {
+  display: inline-flex !important;
+}
+
+/* Notes Section */
+#notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+#notes div {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
