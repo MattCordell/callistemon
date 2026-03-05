@@ -22,7 +22,7 @@
   ],
   "description": "A CodeSystem supplement that adds consumer information and clinical reference URLs to SNOMED CT pathology test concepts. Provides links to Pathology Tests Explained (a consumer-friendly resource) and the RCPA Manual (a clinical reference for pathology test selection and interpretation).",
   "content": "supplement",
-  "supplements": "http://snomed.info/sct",
+  "supplements": "http://snomed.info/sct|http://snomed.info/sct/32506021000036107/version/20260228",
   "property": [
     {
       "code": "pathologyTestsExplainedUrl",

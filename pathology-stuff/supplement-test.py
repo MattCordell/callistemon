@@ -1,14 +1,14 @@
 """
 FHIR CodeSystem Supplement Tester for Ontoserver R4
 
-Tests supplement retrieval strategies against r4.ontoserver.csiro.au.
+Tests supplement integration using the useSupplement parameter on $expand.
 
-KEY FINDING: The R4 Ontoserver OperationDefinition for $lookup shows
-`useSupplement` with cardinality 0..0 — it's an R5 feature, not available
-on this R4 server. Supplement properties/designations are NOT merged into
-$lookup or $expand results automatically.
-
-WORKAROUND: Read the supplement resource directly and merge client-side.
+KEY FINDINGS:
+- useSupplement on $expand WORKS: designations are searchable, properties
+  returned as R5 backport extensions.
+- useSupplement on $lookup is 0..0 (not supported on R4 or R5 Ontoserver).
+- The supplement must have a versioned 'supplements' canonical reference
+  e.g. "http://snomed.info/sct|http://snomed.info/sct/32506021000036107/version/20260228"
 """
 
 import requests
@@ -16,8 +16,13 @@ import json
 
 BASE_URL = "https://r4.ontoserver.csiro.au/fhir"
 SUPPLEMENT_URL = "https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement"
+SUPPLEMENT_REF = f"{SUPPLEMENT_URL}|1.0.0"
 SNOMED_SYSTEM = "http://snomed.info/sct"
+SPIA_VS = "https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3"
+BOOST_VS = "http://snomed.info/sct?fhir_vs=refset/933412481000036103"
 TEST_CODES = ["26604007", "444164000", "55235003"]  # FBC, UEC, CRP
+SUPPLEMENT_PROPERTIES = ["pathologyTestsExplainedUrl", "rcpaManualUrl", "requiredSpecimen"]
+R5_PROP_EXT = "http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property"
 
 HEADERS = {"Accept": "application/fhir+json"}
 
@@ -38,10 +43,31 @@ def print_separator(title: str, num: int):
     print(f"{'=' * 70}")
 
 
+def extract_r5_properties(concept: dict) -> dict:
+    """Extract supplement properties from R5 backport extensions on a concept."""
+    props = {}
+    for ext in concept.get("extension", []):
+        if ext.get("url") != R5_PROP_EXT:
+            continue
+        sub_exts = ext.get("extension", [])
+        code_ext = next((e for e in sub_exts if e.get("url") == "code"), None)
+        value_ext = next((e for e in sub_exts if e.get("url") == "value"), None)
+        if not code_ext:
+            continue
+        code = code_ext.get("valueCode", "")
+        value = (
+            (value_ext.get("valueString") if value_ext else None)
+            or (value_ext.get("valueCode") if value_ext else None)
+            or ""
+        )
+        if code in SUPPLEMENT_PROPERTIES:
+            props[code] = value
+    return props
+
+
 # ── TEST 1: Verify supplement is loaded ───────────────────────────────
 
 def test_supplement_loaded():
-    """Confirm the supplement exists and inspect its structure."""
     print_separator("Verify supplement is loaded on Ontoserver", 1)
 
     resp = requests.get(
@@ -51,93 +77,140 @@ def test_supplement_loaded():
     )
     print(f"  HTTP {resp.status_code}")
 
-    if resp.status_code != 200:
-        print(f"  ERROR: {pretty(resp.json())}")
-        return None
-
     bundle = resp.json()
     total = bundle.get("total", 0)
     print(f"  Found: {total} matching CodeSystem(s)")
 
     if total == 0:
         print("  Supplement NOT loaded.")
-        return None
+        return False
 
     entry = bundle["entry"][0]["resource"]
-    cs_id = entry.get("id")
-    print(f"  id: {cs_id}")
+    print(f"  id: {entry.get('id')}")
     print(f"  content: {entry.get('content')}")
     print(f"  supplements: {entry.get('supplements')}")
-
-    props = entry.get("property", [])
-    print(f"  Declared properties: {[p['code'] for p in props]}")
-
-    return cs_id
+    print(f"  Declared properties: {[p['code'] for p in entry.get('property', [])]}")
+    return True
 
 
-# ── TEST 2: Standard $lookup (no supplement merging expected) ─────────
+# ── TEST 2: $expand with useSupplement + explicit properties ─────────
 
-def test_standard_lookup():
-    """Show that $lookup returns only standard SNOMED properties."""
-    print_separator("Standard $lookup (baseline - no supplement data expected)", 2)
+def test_expand_with_supplement_properties():
+    """$expand requesting specific supplement properties via useSupplement."""
+    print_separator("$expand with useSupplement + explicit property params", 2)
 
-    resp = requests.get(
-        f"{BASE_URL}/CodeSystem/$lookup",
-        params={"system": SNOMED_SYSTEM, "code": TEST_CODES[0]},
-        headers=HEADERS
-    )
+    params = [
+        ("url", SPIA_VS),
+        ("filter", "full blood"),
+        ("count", "3"),
+        ("includeDesignations", "true"),
+        ("useSupplement", SUPPLEMENT_REF),
+        ("property", "pathologyTestsExplainedUrl"),
+        ("property", "rcpaManualUrl"),
+        ("property", "requiredSpecimen"),
+    ]
+
+    resp = requests.get(f"{BASE_URL}/ValueSet/$expand", params=params, headers=HEADERS)
     print(f"  HTTP {resp.status_code}")
     data = resp.json()
-    save_response("test2_standard_lookup.json", data)
+    save_response("test2_expand_supplement_props.json", data)
 
-    all_params = data.get("parameter", [])
-    properties = [p for p in all_params if p.get("name") == "property"]
-    prop_codes = []
-    for prop in properties:
-        parts = {pt["name"]: pt for pt in prop.get("part", [])}
-        prop_codes.append(parts.get("code", {}).get("valueCode", ""))
+    if resp.status_code != 200:
+        print(f"  ERROR: {pretty(data)}")
+        return
 
-    print(f"  Properties returned: {prop_codes}")
-    print(f"  (No supplement properties - this is expected on R4)")
+    for c in data.get("expansion", {}).get("contains", []):
+        print(f"\n  {c['code']} - {c.get('display')}")
+        props = extract_r5_properties(c)
+        if props:
+            print(f"  Supplement properties ({len(props)}):")
+            for code, val in props.items():
+                print(f"    {code}: {val}")
+        else:
+            print(f"  (no supplement properties for this code)")
 
 
-# ── TEST 3: $lookup requesting supplement properties explicitly ───────
+# ── TEST 3: $expand filter search for supplement designation ──────────
 
-def test_lookup_with_property_filter():
-    """Request supplement property codes — server won't find them."""
-    print_separator("$lookup requesting supplement property codes", 3)
+def test_expand_filter_supplement_designation():
+    """Search for 'UEC' — a synonym only in the supplement."""
+    print_separator("$expand filter 'UEC' (supplement-only synonym)", 3)
 
-    params = {
-        "resourceType": "Parameters",
-        "parameter": [
-            {"name": "system", "valueUri": SNOMED_SYSTEM},
-            {"name": "code", "valueCode": TEST_CODES[0]},
-            {"name": "property", "valueCode": "pathologyTestsExplainedUrl"},
-            {"name": "property", "valueCode": "rcpaManualUrl"},
-            {"name": "property", "valueCode": "requiredSpecimen"},
-        ]
-    }
+    params = [
+        ("url", SPIA_VS),
+        ("filter", "UEC"),
+        ("count", "5"),
+        ("includeDesignations", "true"),
+        ("useSupplement", SUPPLEMENT_REF),
+        ("property", "pathologyTestsExplainedUrl"),
+        ("property", "rcpaManualUrl"),
+        ("property", "requiredSpecimen"),
+    ]
 
-    resp = requests.post(
-        f"{BASE_URL}/CodeSystem/$lookup",
-        json=params,
-        headers={**HEADERS, "Content-Type": "application/fhir+json"}
-    )
+    resp = requests.get(f"{BASE_URL}/ValueSet/$expand", params=params, headers=HEADERS)
     print(f"  HTTP {resp.status_code}")
     data = resp.json()
-    save_response("test3_lookup_property_filter.json", data)
+    save_response("test3_expand_filter_UEC.json", data)
 
-    all_params = data.get("parameter", [])
-    properties = [p for p in all_params if p.get("name") == "property"]
-    print(f"  Properties returned: {len(properties)}")
-    print(f"  (Expected: 0 — R4 Ontoserver doesn't merge supplement properties)")
+    if resp.status_code != 200:
+        print(f"  ERROR: {pretty(data)}")
+        return
+
+    contains = data.get("expansion", {}).get("contains", [])
+    print(f"  Results for 'UEC': {len(contains)}")
+    for c in contains:
+        print(f"\n  {c['code']} - {c.get('display')}")
+
+        # Show designations (should include UEC, EUC from supplement)
+        for d in c.get("designation", []):
+            use = d.get("use", {})
+            print(f"    DESIG [{use.get('display', '')}]: {d.get('value')}")
+
+        props = extract_r5_properties(c)
+        if props:
+            print(f"  Supplement properties:")
+            for code, val in props.items():
+                print(f"    {code}: {val}")
 
 
-# ── TEST 4: ValueSet $expand with property request ────────────────────
+# ── TEST 4: $expand with boost ────────────────────────────────────────
 
-def test_valueset_expand():
-    """Expand a ValueSet requesting supplement properties and designations."""
-    print_separator("ValueSet $expand requesting supplement properties", 4)
+def test_expand_with_boost():
+    """$expand with useSupplement and _boost for common pathology tests."""
+    print_separator("$expand with useSupplement + _boost", 4)
+
+    params = [
+        ("url", SPIA_VS),
+        ("filter", "blood"),
+        ("count", "5"),
+        ("includeDesignations", "true"),
+        ("useSupplement", SUPPLEMENT_REF),
+        ("property", "pathologyTestsExplainedUrl"),
+        ("property", "rcpaManualUrl"),
+        ("property", "requiredSpecimen"),
+        ("_boost", BOOST_VS),
+    ]
+
+    resp = requests.get(f"{BASE_URL}/ValueSet/$expand", params=params, headers=HEADERS)
+    print(f"  HTTP {resp.status_code}")
+    data = resp.json()
+    save_response("test4_expand_boost.json", data)
+
+    if resp.status_code != 200:
+        print(f"  ERROR: {pretty(data)}")
+        return
+
+    for c in data.get("expansion", {}).get("contains", []):
+        props = extract_r5_properties(c)
+        has_supp = " (has supplement)" if props else ""
+        print(f"  {c['code']} - {c.get('display')}{has_supp}")
+
+
+# ── TEST 5: $expand for multiple codes with supplement ────────────────
+
+def test_expand_inline_valueset():
+    """Expand an inline ValueSet for specific codes with useSupplement."""
+    print_separator("$expand inline ValueSet with useSupplement", 5)
 
     params = {
         "resourceType": "Parameters",
@@ -155,6 +228,7 @@ def test_valueset_expand():
                 }
             },
             {"name": "includeDesignations", "valueBoolean": True},
+            {"name": "useSupplement", "valueCanonical": SUPPLEMENT_REF},
             {"name": "property", "valueString": "pathologyTestsExplainedUrl"},
             {"name": "property", "valueString": "rcpaManualUrl"},
             {"name": "property", "valueString": "requiredSpecimen"},
@@ -168,144 +242,39 @@ def test_valueset_expand():
     )
     print(f"  HTTP {resp.status_code}")
     data = resp.json()
-    save_response("test4_valueset_expand.json", data)
+    save_response("test5_expand_inline.json", data)
 
     if resp.status_code != 200:
         print(f"  ERROR: {pretty(data)}")
         return
 
-    contains = data.get("expansion", {}).get("contains", [])
-    for c in contains:
-        desigs = c.get("designation", [])
-        props = c.get("property", [])
+    for c in data.get("expansion", {}).get("contains", []):
         print(f"\n  {c['code']} - {c.get('display')}")
-        print(f"    Designations: {len(desigs)} (SNOMED only, no supplement designations)")
-        print(f"    Properties: {len(props)} (expected: 0 on R4)")
-
-
-# ── TEST 5: Text filter search for supplement designation ─────────────
-
-def test_expand_filter_synonym():
-    """Search for 'UEC' — a designation only in the supplement."""
-    print_separator("$expand filter search for 'UEC' (supplement-only synonym)", 5)
-
-    resp = requests.get(
-        f"{BASE_URL}/ValueSet/$expand",
-        params={
-            "url": "http://snomed.info/sct?fhir_vs=ecl/< 108252007",
-            "filter": "UEC",
-            "includeDesignations": "true",
-            "count": "10",
-        },
-        headers=HEADERS
-    )
-    print(f"  HTTP {resp.status_code}")
-    data = resp.json()
-    save_response("test5_filter_UEC.json", data)
-
-    contains = data.get("expansion", {}).get("contains", [])
-    print(f"  Results for 'UEC': {len(contains)}")
-    if len(contains) == 0:
-        print(f"  (Expected: 0 — supplement designations aren't indexed for search on R4)")
-    for c in contains:
-        print(f"    {c['code']} - {c.get('display')}")
-
-
-# ── TEST 6: WORKAROUND — Client-side supplement merge ─────────────────
-
-def test_client_side_merge():
-    """The practical workaround: read the supplement resource directly,
-    then merge its properties/designations with $lookup results client-side."""
-    print_separator("WORKAROUND: Client-side supplement merge", 6)
-
-    # Step 1: Read the supplement resource to get all concept data
-    print("  Step 1: Reading supplement resource directly...")
-    resp = requests.get(
-        f"{BASE_URL}/CodeSystem",
-        params={"url": SUPPLEMENT_URL, "_count": "1"},
-        headers=HEADERS
-    )
-    bundle = resp.json()
-    cs_id = bundle["entry"][0]["resource"]["id"]
-
-    resp = requests.get(f"{BASE_URL}/CodeSystem/{cs_id}", headers=HEADERS)
-    supplement = resp.json()
-    print(f"  Loaded supplement with {len(supplement.get('concept', []))} concepts")
-
-    # Build a lookup index from supplement concepts
-    supplement_index = {}
-    for concept in supplement.get("concept", []):
-        code = concept["code"]
-        supplement_index[code] = {
-            "properties": {
-                p["code"]: p.get("valueString", p.get("valueCode", ""))
-                for p in concept.get("property", [])
-            },
-            "designations": [
-                {
-                    "value": d.get("value"),
-                    "language": d.get("language", "en"),
-                    "use": d.get("use", {})
-                }
-                for d in concept.get("designation", [])
-            ]
-        }
-
-    # Step 2: For each test code, do a standard $lookup then merge
-    for code in TEST_CODES:
-        print(f"\n  Step 2: $lookup for {code}, then merge supplement data...")
-
-        resp = requests.get(
-            f"{BASE_URL}/CodeSystem/$lookup",
-            params={"system": SNOMED_SYSTEM, "code": code},
-            headers=HEADERS
-        )
-        data = resp.json()
-
-        # Extract display from $lookup
-        all_params = data.get("parameter", [])
-        display = next(
-            (p["valueString"] for p in all_params if p["name"] == "display"), ""
-        )
-        print(f"    SNOMED display: {display}")
-
-        # Merge supplement data
-        supp = supplement_index.get(code)
-        if supp:
-            print(f"    SUPPLEMENT properties:")
-            for prop_code, prop_val in supp["properties"].items():
-                print(f"      {prop_code}: {prop_val}")
-
-            if supp["designations"]:
-                print(f"    SUPPLEMENT designations:")
-                for d in supp["designations"]:
-                    use_display = d["use"].get("display", "")
-                    print(f"      [{use_display}] {d['value']}")
+        props = extract_r5_properties(c)
+        if props:
+            for code, val in props.items():
+                print(f"    {code}: {val}")
         else:
-            print(f"    (No supplement data for this code)")
+            print(f"    (no supplement properties)")
 
-    save_response("test6_merged_supplement_index.json", supplement_index)
+        # Count designations
+        desigs = c.get("designation", [])
+        print(f"    Designations: {len(desigs)}")
 
 
 if __name__ == "__main__":
-    cs_id = test_supplement_loaded()
-    if not cs_id:
+    loaded = test_supplement_loaded()
+    if not loaded:
         print("\nSupplement not found — cannot continue.")
         exit(1)
 
-    test_standard_lookup()
-    test_lookup_with_property_filter()
-    test_valueset_expand()
-    test_expand_filter_synonym()
-
-    print("\n" + "~" * 70)
-    print("  Tests 2-5 confirm: R4 Ontoserver does NOT merge supplement data")
-    print("  into $lookup or $expand. The useSupplement parameter is 0..0 (R5).")
-    print("  See: r4.ontoserver.csiro.au/fhir/OperationDefinition/CodeSystem-t-lookup")
-    print("~" * 70)
-
-    test_client_side_merge()
+    test_expand_with_supplement_properties()
+    test_expand_filter_supplement_designation()
+    test_expand_with_boost()
+    test_expand_inline_valueset()
 
     print("\n" + "=" * 70)
     print("  ALL TESTS COMPLETE")
+    print("  Key: useSupplement on $expand works for both designations")
+    print("  and properties (via R5 backport extensions on R4).")
     print("=" * 70)

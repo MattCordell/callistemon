@@ -200,15 +200,15 @@
     <div class="container">
         <h1>Pathology Test Lookup</h1>
         <p class="subtitle">
-            SNOMED CT CodeSystem Supplement demo — client-side merge of supplement
-            properties with terminology server results.
+            SNOMED CT CodeSystem Supplement demo — supplement designations and properties
+            returned via <code>useSupplement</code> + explicit <code>property</code> params on <code>$expand</code>.
         </p>
 
         <div class="search-wrapper">
             <input
                 type="text"
                 id="search"
-                placeholder="Search pathology tests (e.g. FBC, liver, glucose)..."
+                placeholder="Search pathology tests (e.g. FBC, UEC, liver, glucose)..."
                 autocomplete="off"
             />
             <div class="dropdown" id="dropdown"></div>
@@ -225,54 +225,42 @@
         <div class="footer">
             ValueSet: SPIA Requesting Pathology Terminology Reference Set<br>
             Boosted by: SCTAU Common Pathology Reference Set<br>
-            Supplement properties merged client-side from Ontoserver
+            Supplement properties via <code>useSupplement</code> + explicit <code>property</code> params (R5 backport extensions)
         </div>
     </div>
 
 <script>
-const ONTOSERVER   = 'https://r4.ontoserver.csiro.au/fhir';
-const VALUESET_URL = 'https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3';
-const BOOST_URL    = 'http://snomed.info/sct?fhir_vs=refset/933412481000036103';
+const ONTOSERVER     = 'https://r4.ontoserver.csiro.au/fhir';
+const VALUESET_URL   = 'https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3';
+const BOOST_URL      = 'http://snomed.info/sct?fhir_vs=refset/933412481000036103';
 const SUPPLEMENT_URL = 'https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement';
+const R5_PROP_EXT    = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property';
 
-let supplementIndex = {};
-let debounceTimer   = null;
-let activeIndex     = -1;
+let debounceTimer = null;
+let activeIndex   = -1;
+let expandResults = [];  // store full concept data from last expansion
 
-// ── Load supplement on startup ──────────────────────────────────────
-async function loadSupplement() {
-    // Find the supplement by canonical URL, then read the full resource
-    const searchResp = await fetch(
-        `${ONTOSERVER}/CodeSystem?url=${encodeURIComponent(SUPPLEMENT_URL)}&_count=1`,
-        { headers: { 'Accept': 'application/fhir+json' } }
-    );
-    const bundle = await searchResp.json();
-    const entries = bundle.entry || [];
-    if (entries.length === 0) {
-        console.warn('Supplement not found on server');
-        return;
-    }
-
-    const csId = entries[0].resource.id;
-    const csResp = await fetch(
-        `${ONTOSERVER}/CodeSystem/${csId}`,
-        { headers: { 'Accept': 'application/fhir+json' } }
-    );
-    const cs = await csResp.json();
-
-    // Build lookup index keyed by SNOMED code
-    for (const concept of (cs.concept || [])) {
-        const props = {};
-        for (const p of (concept.property || [])) {
-            props[p.code] = p.valueString || p.valueCode || '';
+// ── Extract supplement properties from R5 backport extensions ────────
+function extractSupplementProperties(concept) {
+    const props = {};
+    for (const ext of (concept.extension || [])) {
+        if (ext.url !== R5_PROP_EXT) continue;
+        const subExts = ext.extension || [];
+        const codeExt  = subExts.find(e => e.url === 'code');
+        const valueExt = subExts.find(e => e.url === 'value');
+        if (!codeExt) continue;
+        const code = codeExt.valueCode;
+        const value = valueExt?.valueString
+                   || valueExt?.valueCode
+                   || valueExt?.valueBoolean
+                   || '';
+        // Only collect supplement properties (skip standard SNOMED ones)
+        if (['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen'].includes(code)) {
+            props[code] = value;
         }
-        supplementIndex[concept.code] = props;
     }
-
-    console.log(`Supplement loaded: ${Object.keys(supplementIndex).length} concepts`);
+    return props;
 }
-
-loadSupplement();
 
 // ── Search / expand ─────────────────────────────────────────────────
 const searchInput = document.getElementById('search');
@@ -320,21 +308,25 @@ async function expandValueSet(filter) {
     dropdown.classList.add('open');
     activeIndex = -1;
 
-    const params = new URLSearchParams({
-        url:                  VALUESET_URL,
-        filter:               filter,
-        count:                '15',
-        includeDesignations:  'true',
-        _boost:               BOOST_URL,
-    });
+    const params = new URLSearchParams([
+        ['url',                 VALUESET_URL],
+        ['filter',              filter],
+        ['count',               '15'],
+        ['includeDesignations', 'true'],
+        ['useSupplement',       `${SUPPLEMENT_URL}|1.0.0`],
+        ['property',            'pathologyTestsExplainedUrl'],
+        ['property',            'rcpaManualUrl'],
+        ['property',            'requiredSpecimen'],
+        ['_boost',              BOOST_URL],
+    ]);
 
     try {
         const resp = await fetch(`${ONTOSERVER}/ValueSet/$expand?${params}`, {
             headers: { 'Accept': 'application/fhir+json' }
         });
         const data = await resp.json();
-        const concepts = data.expansion?.contains || [];
-        renderDropdown(concepts);
+        expandResults = data.expansion?.contains || [];
+        renderDropdown(expandResults);
     } catch (err) {
         dropdown.innerHTML = '<div class="spinner">Error searching</div>';
         console.error(err);
@@ -347,9 +339,9 @@ function renderDropdown(concepts) {
         return;
     }
 
-    dropdown.innerHTML = concepts.map((c, i) => `
+    dropdown.innerHTML = concepts.map((c) => `
         <div class="dropdown-item" data-code="${c.code}" data-display="${escapeAttr(c.display || '')}">
-            <div>${c.display || c.code}</div>
+            <div>${escapeHtml(c.display || c.code)}</div>
             <div class="code">SNOMED CT ${c.code}</div>
         </div>
     `).join('');
@@ -361,32 +353,31 @@ function renderDropdown(concepts) {
     dropdown.classList.add('open');
 }
 
-function escapeAttr(s) {
-    return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-}
-
 function closeDropdown() {
     dropdown.classList.remove('open');
     dropdown.innerHTML = '';
     activeIndex = -1;
 }
 
-// ── Selection & supplement merge ────────────────────────────────────
+// ── Selection — properties already available from $expand ───────────
 function selectConcept(code, display) {
     searchInput.value = display;
     closeDropdown();
 
-    const card      = document.getElementById('resultCard');
-    const header    = document.getElementById('resultDisplay');
-    const codeEl    = document.getElementById('resultCode');
-    const body      = document.getElementById('resultBody');
+    const card   = document.getElementById('resultCard');
+    const header = document.getElementById('resultDisplay');
+    const codeEl = document.getElementById('resultCode');
+    const body   = document.getElementById('resultBody');
 
     header.textContent = display;
     codeEl.textContent = `SNOMED CT  ${code}`;
 
-    const supp = supplementIndex[code];
+    // Find the full concept from the expansion results
+    const concept = expandResults.find(c => c.code === code);
+    const supp = concept ? extractSupplementProperties(concept) : {};
+    const hasData = Object.keys(supp).length > 0;
 
-    if (!supp) {
+    if (!hasData) {
         body.innerHTML = '<p class="no-data">No supplement data available for this test.</p>';
         card.classList.add('visible');
         return;
@@ -435,6 +426,10 @@ function infoRow(iconClass, emoji, label, contentHtml) {
                 ${contentHtml}
             </div>
         </div>`;
+}
+
+function escapeAttr(s) {
+    return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 }
 
 function escapeHtml(s) {
