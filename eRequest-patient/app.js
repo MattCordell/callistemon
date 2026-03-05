@@ -544,20 +544,6 @@ function renderChipList(container, items, emptyMessage) {
   }
 }
 
-/**
- * Escape HTML special characters to prevent XSS
- * @param {string} str - String to escape
- * @returns {string} Escaped string
- */
-function escapeHtml(str) {
-  return String(str ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 // ============================================
 // Main Render Function
 // ============================================
@@ -622,23 +608,25 @@ function renderRequisitionDetails(data) {
 // ============================================
 
 /**
- * Open the patient info modal with an iframe showing the external page
+ * Open the patient info modal showing the target page in an iframe.
+ * The external page loads its content dynamically via JS, so we use an
+ * iframe (which executes scripts) rather than trying to fetch & parse
+ * the static HTML (which would be empty).
  * @param {string} testName - Display name of the test
  * @param {string} url - URL to pathologyTestsExplained page
  */
 function openInfoModal(testName, url) {
   elements.modalTitle.textContent = testName;
-  elements.modalBody.innerHTML = '';
+  elements.modalLink.href = url;
+  elements.infoModal.classList.add('open');
 
+  elements.modalBody.innerHTML = '';
   const iframe = document.createElement('iframe');
-  iframe.src = url;
+  iframe.src = url + '#summary';
   iframe.className = 'modal-iframe';
   iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
   iframe.title = testName + ' — Pathology Tests Explained';
   elements.modalBody.appendChild(iframe);
-
-  elements.modalLink.href = url;
-  elements.infoModal.classList.add('open');
 }
 
 /**
@@ -646,7 +634,6 @@ function openInfoModal(testName, url) {
  */
 function closeInfoModal() {
   elements.infoModal.classList.remove('open');
-  // Remove iframe to stop loading and free resources
   elements.modalBody.innerHTML = '';
 }
 
