@@ -641,8 +641,8 @@ const authManageBtn = document.getElementById('auth-manage');
     }
 
     // Ontoserver + terminology
-    const ONTO_BASE = "https://tx.ontoserver.csiro.au/fhir/ValueSet/$expand";
-    const TERM_BASE = "https://tx.ontoserver.csiro.au/fhir";
+    const ONTO_BASE = "https://r4.ontoserver.csiro.au/fhir/ValueSet/$expand";
+    const TERM_BASE = "https://r4.ontoserver.csiro.au/fhir";
     const VS = {
       PATH: "https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3",
       IMAG: "https://ranzcr.com/fhir/ValueSet/radiology-referral-1",
@@ -663,6 +663,11 @@ const authManageBtn = document.getElementById('auth-manage');
     const ECL_FASTING = '^1072351000168102 {{ term = "fasting" }}';
     const VS_ECL_FASTING = 'http://snomed.info/sct?fhir_vs=ecl/' + encodeURIComponent(ECL_FASTING);
     const fastingCodeSet = new Set();
+
+    // Boost + supplement for pathology search
+    const BOOST_URL      = 'http://snomed.info/sct?fhir_vs=refset/933412481000036103';
+    const SUPPLEMENT_URL = 'https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement';
+    const R5_PROP_EXT    = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property';
 
     const CAT = {
       PATH: { coding: [{ system: "http://snomed.info/sct", code: "108252007", display: "Laboratory procedure" }] },
@@ -1005,13 +1010,36 @@ const authManageBtn = document.getElementById('auth-manage');
       return notes
     }
 
+    // ----- Extract supplement properties from R5 backport extensions -----
+    function extractSupplementProperties(concept) {
+      var props = {};
+      (concept.extension || []).forEach(function(ext) {
+        if (ext.url !== R5_PROP_EXT) return;
+        var subExts = ext.extension || [];
+        var codeExt  = subExts.find(function(e){ return e.url === 'code'; });
+        var valueExt = subExts.find(function(e){ return e.url === 'value'; });
+        if (!codeExt) return;
+        var code = codeExt.valueCode;
+        var value = (valueExt && (valueExt.valueString || valueExt.valueCode)) || '';
+        if (['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen'].includes(code)) {
+          props[code] = value;
+        }
+      });
+      return props;
+    }
+
     // ----- Ontoserver helpers -----
-    async function expandFromOntoserver(vsCanonicalUrl, filter){
+    async function expandFromOntoserver(vsCanonicalUrl, filter, opts){
+      opts = opts || {};
       try{
         const base = new URL(ONTO_BASE);
         base.searchParams.set('url', vsCanonicalUrl);
         if(filter && filter.trim().length) base.searchParams.set('filter', filter);
-        base.searchParams.set('count', '50');
+        base.searchParams.set('count', opts.count || '50');
+        if(opts.includeDesignations) base.searchParams.set('includeDesignations', 'true');
+        if(opts.useSupplement) base.searchParams.set('useSupplement', opts.useSupplement);
+        if(opts.properties) opts.properties.forEach(function(p){ base.searchParams.append('property', p); });
+        if(opts.boost) base.searchParams.set('_boost', opts.boost);
         const url = base.toString();
         setDebugUrl(url);
         const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
@@ -1380,6 +1408,34 @@ const authManageBtn = document.getElementById('auth-manage');
           leftWrap.appendChild(note);
         }
 
+        // Supplement info (specimen, links)
+        if(t.supplementProps && Object.keys(t.supplementProps).length){
+          const suppRow = document.createElement('div');
+          suppRow.className='flex flex-wrap gap-3 mt-0.5 text-xs text-gray-500';
+          if(t.supplementProps.requiredSpecimen){
+            const sp = document.createElement('span');
+            sp.textContent = '🧪 ' + t.supplementProps.requiredSpecimen;
+            suppRow.appendChild(sp);
+          }
+          if(t.supplementProps.pathologyTestsExplainedUrl){
+            const a = document.createElement('a');
+            a.href = t.supplementProps.pathologyTestsExplainedUrl;
+            a.target='_blank'; a.rel='noopener';
+            a.className='text-indigo-500 hover:underline';
+            a.textContent = 'Patient info ↗';
+            suppRow.appendChild(a);
+          }
+          if(t.supplementProps.rcpaManualUrl){
+            const a = document.createElement('a');
+            a.href = t.supplementProps.rcpaManualUrl;
+            a.target='_blank'; a.rel='noopener';
+            a.className='text-indigo-500 hover:underline';
+            a.textContent = 'RCPA Manual ↗';
+            suppRow.appendChild(a);
+          }
+          if(suppRow.children.length) leftWrap.appendChild(suppRow);
+        }
+
         const controls = document.createElement('div');
         controls.className = 'flex items-center gap-2';
 
@@ -1422,7 +1478,7 @@ const authManageBtn = document.getElementById('auth-manage');
     document.getElementById('doctor-select').addEventListener('change',function(e){ renderFavsForUser(e.target.value); updateSpecialtyDisplay(e.target.value); });
 
     // ----- Search boxes -----
-    function setupSearch(inputSel, listSel, vsCanonicalUrl, kind){
+    function setupSearch(inputSel, listSel, vsCanonicalUrl, kind, expandOpts){
       const inp=document.querySelector(inputSel), list=document.querySelector(listSel); let to=null;
       inp.addEventListener('input', function(){
         if(to) clearTimeout(to);
@@ -1430,20 +1486,33 @@ const authManageBtn = document.getElementById('auth-manage');
         if(!q||q.length<2){ list.innerHTML=''; return; }
         list.innerHTML='<li class=\"p-2 text-gray-400 italic\">Loading...</li>';
         to=setTimeout(async function(){
-          const items=await expandFromOntoserver(vsCanonicalUrl,q);
+          const items=await expandFromOntoserver(vsCanonicalUrl,q,expandOpts);
           list.innerHTML='';
           const top=items.slice(0,5);
           if(!top.length){ list.innerHTML='<li class=\"p-2 text-gray-500\">No matches</li>'; return; }
           top.forEach(function(it){
             const li=document.createElement('li'); li.className='p-2 hover:bg-gray-100 cursor-pointer';
             li.textContent=it.display||it.code||'—';
-            li.onclick=function(){ addSelectedTest({system:it.system||'http://snomed.info/sct', code:it.code, display:it.display||it.code, kind:kind}); list.innerHTML=''; inp.value=''; };
+            li.onclick=function(){
+              var test = {system:it.system||'http://snomed.info/sct', code:it.code, display:it.display||it.code, kind:kind};
+              if(expandOpts && expandOpts.useSupplement){
+                test.supplementProps = extractSupplementProperties(it);
+              }
+              addSelectedTest(test);
+              list.innerHTML=''; inp.value='';
+            };
             list.appendChild(li);
           });
         }, 250);
       });
     }
-    setupSearch('#pathology-search','#pathology-results',VS.PATH,'PATH');
+    setupSearch('#pathology-search','#pathology-results',VS.PATH,'PATH', {
+      includeDesignations: true,
+      useSupplement: SUPPLEMENT_URL + '|1.0.0',
+      properties: ['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen'],
+      boost: BOOST_URL,
+      count: '15'
+    });
     setupSearch('#radiology-search','#radiology-results',VS.IMAG,'IMAG');
 
     // ----- New: free-text custom adders -----
