@@ -1341,6 +1341,25 @@ const authManageBtn = document.getElementById('auth-manage');
       if(changed) renderSelectedTests();
     }
 
+    // ----- Fetch supplement properties for a single code -----
+    async function fetchSupplementProps(test){
+      try{
+        const items = await expandFromOntoserver(VS.PATH, test.display, {
+          useSupplement: SUPPLEMENT_URL + '|1.0.0',
+          properties: ['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen'],
+          count: '20'
+        });
+        const match = items.find(function(it){ return it.code === test.code; });
+        if(match){
+          var props = extractSupplementProperties(match);
+          if(Object.keys(props).length){
+            test.supplementProps = props;
+            renderSelectedTests();
+          }
+        }
+      }catch(e){ console.warn('fetchSupplementProps', e); }
+    }
+
     // ----- Selected tests UI -----
     function addSelectedTest(test){
       // Assign a stable key for both coded and free-text items
@@ -1357,6 +1376,10 @@ const authManageBtn = document.getElementById('auth-manage');
         selectedTests.push(test);
         checkTestHistoryWarning(test).then(function(changed){ if(changed) renderSelectedTests(); });
         applyRadiationGroupWarning();
+        // Fetch supplement props if missing for pathology tests
+        if(test.kind === 'PATH' && test.code && !test.supplementProps){
+          fetchSupplementProps(test);
+        }
       }
       renderSelectedTests();
       computeAndRenderSuggestions();
@@ -1413,9 +1436,18 @@ const authManageBtn = document.getElementById('auth-manage');
           const suppRow = document.createElement('div');
           suppRow.className='flex flex-wrap gap-3 mt-0.5 text-xs text-gray-500';
           if(t.supplementProps.requiredSpecimen){
-            const sp = document.createElement('span');
-            sp.textContent = '🧪 ' + t.supplementProps.requiredSpecimen;
-            suppRow.appendChild(sp);
+            const toggle = document.createElement('button');
+            toggle.type='button';
+            toggle.className='text-indigo-500 hover:underline';
+            toggle.textContent = '🧪 Specimen';
+            const specDetail = document.createElement('span');
+            specDetail.textContent = ' — ' + t.supplementProps.requiredSpecimen;
+            specDetail.style.display = 'none';
+            toggle.onclick = function(){ specDetail.style.display = specDetail.style.display === 'none' ? 'inline' : 'none'; };
+            const specWrap = document.createElement('span');
+            specWrap.appendChild(toggle);
+            specWrap.appendChild(specDetail);
+            suppRow.appendChild(specWrap);
           }
           if(t.supplementProps.pathologyTestsExplainedUrl){
             const a = document.createElement('a');
