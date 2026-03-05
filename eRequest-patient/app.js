@@ -30,7 +30,13 @@ const elements = {
   avatarWrap: null,
   instructions: null,
   notes: null,
-  srList: null
+  srList: null,
+  // Modal elements
+  infoModal: null,
+  modalClose: null,
+  modalTitle: null,
+  modalBody: null,
+  modalLink: null
 };
 
 /**
@@ -59,6 +65,12 @@ function initElements() {
   elements.instructions = document.getElementById("instructions");
   elements.notes = document.getElementById("notes");
   elements.srList = document.getElementById("srList");
+  // Modal
+  elements.infoModal = document.getElementById("infoModal");
+  elements.modalClose = document.getElementById("modalClose");
+  elements.modalTitle = document.getElementById("modalTitle");
+  elements.modalBody = document.getElementById("modalBody");
+  elements.modalLink = document.getElementById("modalLink");
 }
 
 // ============================================
@@ -605,6 +617,103 @@ function renderRequisitionDetails(data) {
   setStatus("Loaded", "ok");
 }
 
+// ============================================
+// Patient Info Modal
+// ============================================
+
+/**
+ * Open the patient info modal with an iframe showing the external page
+ * @param {string} testName - Display name of the test
+ * @param {string} url - URL to pathologyTestsExplained page
+ */
+function openInfoModal(testName, url) {
+  elements.modalTitle.textContent = testName;
+  elements.modalBody.innerHTML = '';
+
+  const iframe = document.createElement('iframe');
+  iframe.src = url;
+  iframe.className = 'modal-iframe';
+  iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+  iframe.title = testName + ' — Pathology Tests Explained';
+  elements.modalBody.appendChild(iframe);
+
+  elements.modalLink.href = url;
+  elements.infoModal.classList.add('open');
+}
+
+/**
+ * Close the patient info modal
+ */
+function closeInfoModal() {
+  elements.infoModal.classList.remove('open');
+  // Remove iframe to stop loading and free resources
+  elements.modalBody.innerHTML = '';
+}
+
+/**
+ * Extract supplement properties from R5 backport extensions on an $expand concept
+ * @param {Object} concept - A concept from ValueSet $expand contains
+ * @returns {Object} Map of property code to value
+ */
+function extractSupplementProperties(concept) {
+  const props = {};
+  for (const ext of (concept.extension || [])) {
+    if (ext.url !== CONFIG.TERMINOLOGY.r5PropertyExtension) continue;
+    const subExts = ext.extension || [];
+    const codeExt = subExts.find(e => e.url === 'code');
+    const valueExt = subExts.find(e => e.url === 'value');
+    if (!codeExt) continue;
+    const code = codeExt.valueCode;
+    const value = valueExt?.valueString || valueExt?.valueCode || '';
+    if (code === 'pathologyTestsExplainedUrl') {
+      props[code] = value;
+    }
+  }
+  return props;
+}
+
+/**
+ * Fetch supplement properties for SNOMED codes via Ontoserver $expand
+ * @param {Array<{code: string, display: string}>} snomedCodes - Codes to look up
+ * @returns {Promise<Map<string, Object>>} Map of SNOMED code to supplement properties
+ */
+async function fetchSupplementForCodes(snomedCodes) {
+  const result = new Map();
+  if (!snomedCodes.length) return result;
+
+  const supplement = `${CONFIG.TERMINOLOGY.supplementUrl}|${CONFIG.TERMINOLOGY.supplementVersion}`;
+
+  // Use each code's display as filter to find it in the valueset
+  const fetches = snomedCodes.map(async ({ code, display }) => {
+    try {
+      const url = new URL(CONFIG.TERMINOLOGY.expandUrl);
+      url.searchParams.set('url', CONFIG.TERMINOLOGY.pathologyValueSet);
+      url.searchParams.set('filter', display);
+      url.searchParams.set('count', '20');
+      url.searchParams.set('useSupplement', supplement);
+      url.searchParams.append('property', 'pathologyTestsExplainedUrl');
+
+      const resp = await fetch(url.toString(), {
+        headers: { 'Accept': 'application/fhir+json' }
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const match = (data.expansion?.contains || []).find(c => c.code === code);
+      if (match) {
+        const props = extractSupplementProperties(match);
+        if (Object.keys(props).length) {
+          result.set(code, props);
+        }
+      }
+    } catch (e) {
+      console.warn(`Supplement lookup failed for ${code}:`, e);
+    }
+  });
+
+  await Promise.all(fetches);
+  return result;
+}
+
 /**
  * Render the ServiceRequests list
  * @param {Array} serviceRequests - Array of ServiceRequest resources
@@ -621,6 +730,11 @@ function renderServiceRequests(serviceRequests, srToTask) {
     return;
   }
 
+  // Collect SNOMED codes for supplement lookup
+  const snomedCodes = [];
+  const infoLinkSlots = new Map(); // code -> DOM element to insert link into
+  const codeDisplayNames = new Map(); // code -> test display name
+
   serviceRequests.forEach(sr => {
     const task = srToTask.get(sr.id);
     const taskStatus = task?.status || "unknown";
@@ -636,6 +750,18 @@ function renderServiceRequests(serviceRequests, srToTask) {
     nameDiv.style.minWidth = "180px";
     nameDiv.style.flex = "1 1 auto";
     nameDiv.textContent = testName;
+
+    // Patient info link slot (populated after supplement fetch)
+    const infoSlot = document.createElement("span");
+    nameDiv.appendChild(infoSlot);
+
+    // Track SNOMED code for supplement lookup
+    const coding = (sr.code?.coding || []).find(c => c.system === 'http://snomed.info/sct');
+    if (coding?.code) {
+      snomedCodes.push({ code: coding.code, display: coding.display || testName });
+      infoLinkSlots.set(coding.code, infoSlot);
+      codeDisplayNames.set(coding.code, testName);
+    }
 
     // Status chips container
     const chipsDiv = document.createElement("div");
@@ -662,6 +788,32 @@ function renderServiceRequests(serviceRequests, srToTask) {
     item.appendChild(chipsDiv);
     elements.srList.appendChild(item);
   });
+
+  // Fetch supplement data and populate patient info links
+  if (snomedCodes.length) {
+    fetchSupplementForCodes(snomedCodes).then(supplementMap => {
+      for (const [code, props] of supplementMap) {
+        const slot = infoLinkSlots.get(code);
+        if (slot && props.pathologyTestsExplainedUrl) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = " — Patient info \u2197";
+          btn.style.background = "none";
+          btn.style.border = "none";
+          btn.style.cursor = "pointer";
+          btn.style.fontWeight = "400";
+          btn.style.fontSize = "0.85em";
+          btn.style.color = "#6366f1";
+          btn.style.padding = "0";
+          btn.style.fontFamily = "inherit";
+          const displayName = codeDisplayNames.get(code) || code;
+          const infoUrl = props.pathologyTestsExplainedUrl;
+          btn.addEventListener("click", () => openInfoModal(displayName, infoUrl));
+          slot.appendChild(btn);
+        }
+      }
+    });
+  }
 
   // Warning if results may be truncated
   if (serviceRequests.length >= CONFIG.FHIR_SERVER.pageSize) {
@@ -1048,6 +1200,12 @@ function initializeApp() {
   elements.searchAgainBtn.addEventListener("click", handleSearchAgain);
   elements.switchDesktopBtn.addEventListener("click", showDesktopMode);
   elements.qrImageInput.addEventListener("change", handleQrImageUpload);
+
+  // Modal close handlers
+  elements.modalClose.addEventListener("click", closeInfoModal);
+  elements.infoModal.addEventListener("click", (e) => {
+    if (e.target === elements.infoModal) closeInfoModal();
+  });
 
   // Cleanup on page unload
   window.addEventListener("beforeunload", stopQrScanner);

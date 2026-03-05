@@ -68,6 +68,17 @@ export const CONFIG = {
   },
 
   /**
+   * Terminology Server Configuration (Ontoserver)
+   */
+  TERMINOLOGY: {
+    expandUrl: 'https://r4.ontoserver.csiro.au/fhir/ValueSet/$expand',
+    supplementUrl: 'https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement',
+    supplementVersion: '1.0.0',
+    pathologyValueSet: 'https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3',
+    r5PropertyExtension: 'http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property'
+  },
+
+  /**
    * Validation Configuration
    */
   VALIDATION: {
