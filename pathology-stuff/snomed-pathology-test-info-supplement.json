@@ -1,0 +1,1025 @@
+{
+  "resourceType": "CodeSystem",
+  "id": "snomed-pathology-test-info-supplement",
+  "url": "https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement",
+  "version": "1.0.0",
+  "name": "SNOMEDPathologyTestInfoSupplement",
+  "title": "SNOMED CT Pathology Test Information Supplement",
+  "status": "draft",
+  "experimental": true,
+  "date": "2026-02-19",
+  "publisher": "Matt Cordell",
+  "contact": [
+    {
+      "name": "Matt Cordell",
+      "telecom": [
+        {
+          "system": "url",
+          "value": "https://github.com/MattCordell/callistemon"
+        }
+      ]
+    }
+  ],
+  "description": "A CodeSystem supplement that adds consumer information and clinical reference URLs to SNOMED CT pathology test concepts. Provides links to Pathology Tests Explained (a consumer-friendly resource) and the RCPA Manual (a clinical reference for pathology test selection and interpretation).",
+  "content": "supplement",
+  "supplements": "http://snomed.info/sct",
+  "property": [
+    {
+      "code": "pathologyTestsExplainedUrl",
+      "description": "URL to the corresponding entry on Pathology Tests Explained (pathologytestsexplained.org.au), a consumer-friendly resource providing plain-language information about the test.",
+      "type": "string"
+    },
+    {
+      "code": "rcpaManualUrl",
+      "description": "URL to the corresponding entry in the RCPA Manual (rcpa.edu.au), providing clinical guidance on test selection and interpretation for practitioners.",
+      "type": "string"
+    },
+    {
+      "code": "requiredSpecimen",
+      "description": "Specimen requirements for the test, as described in the RCPA Manual.",
+      "type": "string"
+    }
+  ],
+  "concept": [
+    {
+      "code": "49466006",
+      "display": "Adrenocorticotropic hormone measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=ACTH (Adrenocorticotropic hormone)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/A/ACTH"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "5 mL blood in EDTA tube, collected on ice; plasma separated and frozen immediately. Collect sample between 0800-0900 h."
+        }
+      ]
+    },
+    {
+      "code": "359788000",
+      "display": "Antinuclear antibody measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Antinuclear Ab"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/A/Antinuclear-Ab"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "5 mL blood in SST/Serum tube."
+        }
+      ]
+    },
+    {
+      "code": "3116009",
+      "display": "Blood coagulation panel",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Coagulation profile (blood clotting)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/C/Coagulation-profile"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "Blood collected in 3.2% citrate \"blue top\" tube at a ratio of 9 parts blood: 1 part citrate; 2 or 3 mL blood collection tubes are most common (+ 5 mL of EDTA anticoagulated blood if a full blood count is to be performed)."
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "coagulation profile"
+        }
+      ]
+    },
+    {
+      "code": "30088009",
+      "display": "Blood culture",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Blood culture"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/B/Blood-culture"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "The volume of blood collected (min 20 mL in adults) is a critical factor in determining positivity. Aerobic and Non-aerobic culture bottles (1 set) to be collected using aseptic technique for adults; Paediatric - collect one paediatric bottle. Multiple samples from different sites can assist in detection of infection."
+        }
+      ]
+    },
+    {
+      "code": "91308007",
+      "display": "Blood gases, arterial measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Blood gases (arterial)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/B/Blood-gas-arterial"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "1 mL arterial blood collected anaerobically in a heparinised syringe and transported rapidly to the laboratory in a capped syringe with the needle removed. An appropriately collected 'arterialised' capillary blood specimen may have values close to those of arterial blood. Fractional concentration of inspired O2 [FiO2] should be specified on request form."
+        }
+      ]
+    },
+    {
+      "code": "20099001",
+      "display": "Blood typing, ABO, Rho(D) and RBC antibody screening",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Blood group antibody screen"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/B/Blood-group-and-antibody-screen"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "4-10 mL blood in EDTA tube."
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "Blood Group and antibodies"
+        },
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "GRP and Abs"
+        }
+      ]
+    },
+    {
+      "code": "55235003",
+      "display": "C-reactive protein measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=C-reactive protein"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/C/C-Reactive-protein"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "5 mL blood in SST/Serum tube."
+        }
+      ]
+    },
+    {
+      "code": "440685005",
+      "display": "Calculation of international normalised ratio",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=INR"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/I/INR"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "4.5 mL blood added to 0.5 mL citrate."
+        }
+      ]
+    },
+    {
+      "code": "1257431000168105",
+      "display": "Cervical Co-test",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Cervical co-test"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/C/Cervical-screening-test"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "Self collect HPV cervical screening swab available under supervision of Health Care provider for molecular pathology based cervical screening. Liquid based cytology sample if indicated by the Cervical Cancer screening programme or supervising gynaecologist."
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "CST Cervical Co-test (HPV LBC)"
+        }
+      ]
+    },
+    {
+      "code": "70648006",
+      "display": "D-dimer assay",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=D-dimer"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/D/D-Dimer"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "Citrate plasma."
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "Fibrinogen degradation products (FDP)"
+        }
+      ]
+    },
+    {
+      "code": "416838001",
+      "display": "Erythrocyte sedimentation rate measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Erythrocyte sedimentation rate (ESR)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/E/Erythrocyte-sedimentation-rate"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "2 mL blood added to 0.5 mL citrate, or special tube provided by laboratory."
+        }
+      ]
+    },
+    {
+      "code": "271062006",
+      "display": "Fasting blood glucose measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Glucose"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/G/Glucose"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "5 mL blood in fluoride-oxalate tube is the preferred specimen. Collection in plain or lithium heparin tubes is only satisfactory if the specimen is delivered promptly to the laboratory."
+        }
+      ]
+    },
+    {
+      "code": "252150008",
+      "display": "Fasting lipid profile",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Lipid profile (cholesterol and triglycerides)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/L/Lipids"
+        }
+      ]
+    },
+    {
+      "code": "26604007",
+      "display": "Full blood count",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Full blood count"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/F/Full-blood-count"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "5 mL blood in EDTA. 2 mL blood in special paediatric EDTA tube."
+        }
+      ]
+    },
+    {
+      "code": "401287001",
+      "display": "Genital microscopy, culture and sensitivities",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Genital MCS (Genital Microscopy, Culture and Sensitivity)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/G/Genital-swab"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "Cervical swab collected from the endocervical canal during speculum examination; Vaginal swab; Combined low vaginal/rectal swab for detection of Group B streptococcus in pregnancy; Swab of urethral discharge and/or urethral sampling using fine swab. Patient self collect may be validated for some specimens. For detection of Chlamydia trachomatis and Neisseria gonorrhoeae by NAAT collect a swab. First stream urine specimens are an alternative to genital swabs for detection of some organisms."
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "Vaginal Swab MCS"
+        },
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "Genital MCS"
+        }
+      ]
+    },
+    {
+      "code": "43396009",
+      "display": "Haemoglobin A1c measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=HbA1c"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/H/HbA1c"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "5 mL blood in EDTA tube."
+        }
+      ]
+    },
+    {
+      "code": "65911000",
+      "display": "Hepatitis B surface antibody measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Hepatitis B surface antibody"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/H/Hepatitis-B-serology"
+        }
+      ]
+    },
+    {
+      "code": "252416005",
+      "display": "Histopathology test",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "Tissue pathology"
+        },
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "surgical pathology"
+        }
+      ]
+    },
+    {
+      "code": "171121004",
+      "display": "HIV screening",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=HIV serology"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/H/HIV-serology"
+        }
+      ]
+    },
+    {
+      "code": "67900009",
+      "display": "Human chorionic gonadotropin measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=HCG (Human chorionic gonadotrophin)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/H/HCG"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "quantitative HCG"
+        }
+      ]
+    },
+    {
+      "code": "104780002",
+      "display": "Lipids measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Lipid profile (cholesterol and triglycerides)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/L/Lipids"
+        }
+      ]
+    },
+    {
+      "code": "26958001",
+      "display": "Liver function test",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=LFT (Liver function tests)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/L/Liver-function-tests"
+        }
+      ]
+    },
+    {
+      "code": "398381009",
+      "display": "Neisseria gonorrhoeae nucleic acid assay",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Neisseria gonorrhoeae nucleic acid"
+        }
+      ]
+    },
+    {
+      "code": "46093004",
+      "display": "Paracetamol measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Paracetamol level"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/P/Paracetamol"
+        }
+      ]
+    },
+    {
+      "code": "63476009",
+      "display": "Prostate specific antigen measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Prostate specific antigen"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/P/Prostate-specific-antigen"
+        }
+      ]
+    },
+    {
+      "code": "396451008",
+      "display": "Prothrombin time",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Prothrombin time (Internationalised normalised ratio)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/P/Prothrombin-time"
+        }
+      ]
+    },
+    {
+      "code": "271061004",
+      "display": "Random blood glucose measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Glucose"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/G/Glucose"
+        },
+        {
+          "code": "requiredSpecimen",
+          "valueString": "5 mL blood in fluoride-oxalate tube is the preferred specimen. Collection in plain or lithium heparin tubes is only satisfactory if the specimen is delivered promptly to the laboratory."
+        }
+      ]
+    },
+    {
+      "code": "54921001",
+      "display": "Rheumatoid factor measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Rheumatoid factor (RF)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/R/Rheumatoid-factor"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "RF"
+        }
+      ]
+    },
+    {
+      "code": "1445431000168101",
+      "display": "SARS-CoV-2 nucleic acid assay",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=SARS-CoV-2 (COVID-19) tests"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/S/SARS-CoV-2-nucleic-acid"
+        }
+      ]
+    },
+    {
+      "code": "1454651000168108",
+      "display": "SARS-CoV-2 serology",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=SARS-Cov-2 Serology (COVID-19 Antibody)"
+        }
+      ]
+    },
+    {
+      "code": "271535005",
+      "display": "Serum cortisol measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Cortisol"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/C/Cortisol"
+        }
+      ]
+    },
+    {
+      "code": "398245009",
+      "display": "Serum creatine kinase measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=CK (Creatine kinase)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/C/Creatine-kinase"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "CK"
+        },
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "CPK"
+        }
+      ]
+    },
+    {
+      "code": "269872007",
+      "display": "Serum digoxin measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Digoxin level"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/D/Digoxin"
+        }
+      ]
+    },
+    {
+      "code": "273971007",
+      "display": "Serum follicle stimulating hormone measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Follicle stimulating hormone (FSH)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/F/Follicle-stimulating-hormone"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "FSH"
+        }
+      ]
+    },
+    {
+      "code": "313837000",
+      "display": "Serum free T4 measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Free T4 (thyroxine)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/F/Free-T4"
+        }
+      ]
+    },
+    {
+      "code": "391084000",
+      "display": "Serum ionised calcium measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Ionised calcium"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/C/Calcium"
+        }
+      ]
+    },
+    {
+      "code": "269820002",
+      "display": "Serum iron tests",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Iron studies"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/I/Iron-studies"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "Iron studies"
+        },
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "Fe studies"
+        }
+      ]
+    },
+    {
+      "code": "273969007",
+      "display": "Serum LH measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Luteinising hormone (LH)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/L/Luteinising-hormone"
+        }
+      ]
+    },
+    {
+      "code": "271232007",
+      "display": "Serum lipase measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Lipase"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/L/Lipase"
+        }
+      ]
+    },
+    {
+      "code": "271541003",
+      "display": "Serum parathyroid hormone measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Parathyroid Hormone (PTH)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/P/Parathyroid-hormone"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "PTH"
+        },
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "intact parathyroid hormone"
+        }
+      ]
+    },
+    {
+      "code": "270973006",
+      "display": "Serum testosterone measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Testosterone"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/T/Testosterone-Total"
+        }
+      ]
+    },
+    {
+      "code": "313440008",
+      "display": "Serum TSH measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Thyroid stimulating hormone (TSH)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/T/Thyroid-stimulating-hormone"
+        }
+      ]
+    },
+    {
+      "code": "273966000",
+      "display": "Serum urate measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Urate (Uric Acid)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/U/Urate"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "Uric acid"
+        }
+      ]
+    },
+    {
+      "code": "271216009",
+      "display": "Serum vitamin B12 measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Vitamin B12 and folate"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/V/Vitamin-B12"
+        }
+      ]
+    },
+    {
+      "code": "35650009",
+      "display": "Thyroid function test",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Thyroid Function Tests"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/T/Thyroid-stimulating-hormone"
+        }
+      ]
+    },
+    {
+      "code": "828431000168100",
+      "display": "Total serum calcium, magnesium and phosphate measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Calcium, phosphate and magnesium"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/C/Calcium"
+        }
+      ]
+    },
+    {
+      "code": "444164000",
+      "display": "Urea, electrolytes and creatinine measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Electrolytes, urea and creatinine"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/E/Electrolytes"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "UEC"
+        },
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "EUC"
+        }
+      ]
+    },
+    {
+      "code": "271075006",
+      "display": "Urine albumin/creatinine ratio measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Albumin-creatinine ratio"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/A/Albumin-urine"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "microalbumin"
+        },
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "Urine ACR"
+        }
+      ]
+    },
+    {
+      "code": "401324008",
+      "display": "Urine microscopy, culture and sensitivities",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=MCS Urine (Urine culture)"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/M/MCS-urine"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "MCS Urine"
+        }
+      ]
+    },
+    {
+      "code": "12199005",
+      "display": "Vitamin D, 25-hydroxy measurement",
+      "property": [
+        {
+          "code": "pathologyTestsExplainedUrl",
+          "valueString": "https://www.pathologytestsexplained.org.au/ptests.php?q=Vitamin D"
+        },
+        {
+          "code": "rcpaManualUrl",
+          "valueString": "https://www.rcpa.edu.au/Manuals/RCPA-Manual/Pathology-Tests/V/Vitamin-D"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "Vitamin D (25-OH)"
+        }
+      ]
+    }
+  ]
+}

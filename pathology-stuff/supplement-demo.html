@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathology Test Info — CodeSystem Supplement Demo</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 3rem 1rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 640px;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 2rem;
+        }
+
+        /* ── Search box ─────────────────────────────── */
+        .search-wrapper {
+            position: relative;
+        }
+
+        #search {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.15s;
+            background: #fff;
+        }
+
+        #search:focus { border-color: #6366f1; }
+
+        #search::placeholder { color: #9ca3af; }
+
+        .dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-top: 4px;
+            max-height: 320px;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+            z-index: 10;
+            display: none;
+        }
+
+        .dropdown.open { display: block; }
+
+        .dropdown-item {
+            padding: 0.6rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.9rem;
+        }
+
+        .dropdown-item:last-child { border-bottom: none; }
+        .dropdown-item:hover,
+        .dropdown-item.active { background: #eef2ff; }
+
+        .dropdown-item .code {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+
+        .spinner {
+            padding: 1rem;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 0.85rem;
+        }
+
+        /* ── Result card ────────────────────────────── */
+        .result-card {
+            margin-top: 1.5rem;
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+            display: none;
+        }
+
+        .result-card.visible { display: block; }
+
+        .result-header {
+            padding: 1rem 1.25rem;
+            background: #6366f1;
+            color: #fff;
+        }
+
+        .result-header h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .result-header .snomed-code {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+
+        .result-body {
+            padding: 1.25rem;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .info-row:last-child { border-bottom: none; }
+
+        .info-icon {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .info-icon.explain { background: #dbeafe; }
+        .info-icon.rcpa    { background: #fce7f3; }
+        .info-icon.specimen { background: #d1fae5; }
+
+        .info-content { flex: 1; min-width: 0; }
+
+        .info-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #6b7280;
+            margin-bottom: 0.2rem;
+        }
+
+        .info-content a {
+            color: #6366f1;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .info-content a:hover { text-decoration: underline; }
+
+        .info-text {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #374151;
+        }
+
+        .no-data {
+            color: #9ca3af;
+            font-style: italic;
+            font-size: 0.85rem;
+            padding: 1rem 0;
+        }
+
+        .footer {
+            margin-top: 2rem;
+            font-size: 0.75rem;
+            color: #9ca3af;
+            text-align: center;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Pathology Test Lookup</h1>
+        <p class="subtitle">
+            SNOMED CT CodeSystem Supplement demo — client-side merge of supplement
+            properties with terminology server results.
+        </p>
+
+        <div class="search-wrapper">
+            <input
+                type="text"
+                id="search"
+                placeholder="Search pathology tests (e.g. FBC, liver, glucose)..."
+                autocomplete="off"
+            />
+            <div class="dropdown" id="dropdown"></div>
+        </div>
+
+        <div class="result-card" id="resultCard">
+            <div class="result-header">
+                <h2 id="resultDisplay"></h2>
+                <div class="snomed-code" id="resultCode"></div>
+            </div>
+            <div class="result-body" id="resultBody"></div>
+        </div>
+
+        <div class="footer">
+            ValueSet: SPIA Requesting Pathology Terminology Reference Set<br>
+            Boosted by: SCTAU Common Pathology Reference Set<br>
+            Supplement properties merged client-side from Ontoserver
+        </div>
+    </div>
+
+<script>
+const ONTOSERVER   = 'https://r4.ontoserver.csiro.au/fhir';
+const VALUESET_URL = 'https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3';
+const BOOST_URL    = 'http://snomed.info/sct?fhir_vs=refset/933412481000036103';
+const SUPPLEMENT_URL = 'https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement';
+
+let supplementIndex = {};
+let debounceTimer   = null;
+let activeIndex     = -1;
+
+// ── Load supplement on startup ──────────────────────────────────────
+async function loadSupplement() {
+    // Find the supplement by canonical URL, then read the full resource
+    const searchResp = await fetch(
+        `${ONTOSERVER}/CodeSystem?url=${encodeURIComponent(SUPPLEMENT_URL)}&_count=1`,
+        { headers: { 'Accept': 'application/fhir+json' } }
+    );
+    const bundle = await searchResp.json();
+    const entries = bundle.entry || [];
+    if (entries.length === 0) {
+        console.warn('Supplement not found on server');
+        return;
+    }
+
+    const csId = entries[0].resource.id;
+    const csResp = await fetch(
+        `${ONTOSERVER}/CodeSystem/${csId}`,
+        { headers: { 'Accept': 'application/fhir+json' } }
+    );
+    const cs = await csResp.json();
+
+    // Build lookup index keyed by SNOMED code
+    for (const concept of (cs.concept || [])) {
+        const props = {};
+        for (const p of (concept.property || [])) {
+            props[p.code] = p.valueString || p.valueCode || '';
+        }
+        supplementIndex[concept.code] = props;
+    }
+
+    console.log(`Supplement loaded: ${Object.keys(supplementIndex).length} concepts`);
+}
+
+loadSupplement();
+
+// ── Search / expand ─────────────────────────────────────────────────
+const searchInput = document.getElementById('search');
+const dropdown    = document.getElementById('dropdown');
+
+searchInput.addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const filter = searchInput.value.trim();
+
+    if (filter.length < 2) {
+        closeDropdown();
+        return;
+    }
+
+    debounceTimer = setTimeout(() => expandValueSet(filter), 250);
+});
+
+searchInput.addEventListener('keydown', (e) => {
+    const items = dropdown.querySelectorAll('.dropdown-item');
+    if (!items.length) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, items.length - 1);
+        updateActive(items);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        updateActive(items);
+    } else if (e.key === 'Enter' && activeIndex >= 0) {
+        e.preventDefault();
+        items[activeIndex].click();
+    } else if (e.key === 'Escape') {
+        closeDropdown();
+    }
+});
+
+function updateActive(items) {
+    items.forEach((el, i) => el.classList.toggle('active', i === activeIndex));
+    items[activeIndex]?.scrollIntoView({ block: 'nearest' });
+}
+
+async function expandValueSet(filter) {
+    dropdown.innerHTML = '<div class="spinner">Searching…</div>';
+    dropdown.classList.add('open');
+    activeIndex = -1;
+
+    const params = new URLSearchParams({
+        url:                  VALUESET_URL,
+        filter:               filter,
+        count:                '15',
+        includeDesignations:  'true',
+        _boost:               BOOST_URL,
+    });
+
+    try {
+        const resp = await fetch(`${ONTOSERVER}/ValueSet/$expand?${params}`, {
+            headers: { 'Accept': 'application/fhir+json' }
+        });
+        const data = await resp.json();
+        const concepts = data.expansion?.contains || [];
+        renderDropdown(concepts);
+    } catch (err) {
+        dropdown.innerHTML = '<div class="spinner">Error searching</div>';
+        console.error(err);
+    }
+}
+
+function renderDropdown(concepts) {
+    if (concepts.length === 0) {
+        dropdown.innerHTML = '<div class="spinner">No results</div>';
+        return;
+    }
+
+    dropdown.innerHTML = concepts.map((c, i) => `
+        <div class="dropdown-item" data-code="${c.code}" data-display="${escapeAttr(c.display || '')}">
+            <div>${c.display || c.code}</div>
+            <div class="code">SNOMED CT ${c.code}</div>
+        </div>
+    `).join('');
+
+    dropdown.querySelectorAll('.dropdown-item').forEach(el => {
+        el.addEventListener('click', () => selectConcept(el.dataset.code, el.dataset.display));
+    });
+
+    dropdown.classList.add('open');
+}
+
+function escapeAttr(s) {
+    return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+function closeDropdown() {
+    dropdown.classList.remove('open');
+    dropdown.innerHTML = '';
+    activeIndex = -1;
+}
+
+// ── Selection & supplement merge ────────────────────────────────────
+function selectConcept(code, display) {
+    searchInput.value = display;
+    closeDropdown();
+
+    const card      = document.getElementById('resultCard');
+    const header    = document.getElementById('resultDisplay');
+    const codeEl    = document.getElementById('resultCode');
+    const body      = document.getElementById('resultBody');
+
+    header.textContent = display;
+    codeEl.textContent = `SNOMED CT  ${code}`;
+
+    const supp = supplementIndex[code];
+
+    if (!supp) {
+        body.innerHTML = '<p class="no-data">No supplement data available for this test.</p>';
+        card.classList.add('visible');
+        return;
+    }
+
+    let html = '';
+
+    // Test Explanation link
+    html += infoRow(
+        'explain', '📖', 'Test Explanation',
+        supp.pathologyTestsExplainedUrl
+            ? `<a href="${escapeAttr(supp.pathologyTestsExplainedUrl)}" target="_blank" rel="noopener">
+                 Pathology Tests Explained — view consumer information ↗
+               </a>`
+            : '<span class="info-text" style="color:#9ca3af;">Not available</span>'
+    );
+
+    // RCPA Manual link
+    html += infoRow(
+        'rcpa', '🩺', 'RCPA Manual',
+        supp.rcpaManualUrl
+            ? `<a href="${escapeAttr(supp.rcpaManualUrl)}" target="_blank" rel="noopener">
+                 RCPA Manual — clinical guidance ↗
+               </a>`
+            : '<span class="info-text" style="color:#9ca3af;">Not available</span>'
+    );
+
+    // Specimen requirements
+    html += infoRow(
+        'specimen', '🧪', 'Specimen Requirements',
+        supp.requiredSpecimen
+            ? `<span class="info-text">${escapeHtml(supp.requiredSpecimen)}</span>`
+            : '<span class="info-text" style="color:#9ca3af;">Not available</span>'
+    );
+
+    body.innerHTML = html;
+    card.classList.add('visible');
+}
+
+function infoRow(iconClass, emoji, label, contentHtml) {
+    return `
+        <div class="info-row">
+            <div class="info-icon ${iconClass}">${emoji}</div>
+            <div class="info-content">
+                <div class="info-label">${label}</div>
+                ${contentHtml}
+            </div>
+        </div>`;
+}
+
+function escapeHtml(s) {
+    const el = document.createElement('span');
+    el.textContent = s;
+    return el.innerHTML;
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-wrapper')) closeDropdown();
+});
+</script>
+</body>
+</html>
