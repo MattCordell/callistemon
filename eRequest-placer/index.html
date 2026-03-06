@@ -909,6 +909,8 @@ const authManageBtn = document.getElementById('auth-manage');
       patientAddress=(Array.isArray(p.address)&&p.address.length)?p.address[0]:null;
       currentPatientResource = p;
       fillPatientForm({ nameText:name, birthDate:p.birthDate||'', gender:p.gender||'unknown', photoUrl:photoUrl||'defaultProfile.jpg', addressText: patientAddress?formatAddress(patientAddress):'—' });
+      const pregSel = document.getElementById('pregnancy-status');
+      if(pregSel){ pregSel.value = (p.gender === 'male') ? '60001007' : '261665006'; }
       setPatientLocked(true);
     }
 
