@@ -459,14 +459,14 @@
       <div class="p-4 space-y-2">
         <label class="block">
           <span class="block text-sm font-medium">FHIR Server URL</span>
-          <input id="fhir-base" class="border rounded w-full p-2 mono" value="https://server.fire.ly" placeholder="https://your.fhir.server"/>
+          <input id="fhir-base" class="border rounded w-full p-2 mono" value="https://server.callistemon.site/fhir" placeholder="https://your.fhir.server"/>
         </label>
         <div class="flex items-center gap-2">
           <label class="text-sm text-gray-600">Presets</label>
           <select id="server-preset" class="border rounded p-2 text-sm">
-            <option value="https://server.fire.ly" selected>Firely (default)</option>
+            <option value="https://server.callistemon.site/fhir" selected>Callistemon (default)</option>
+            <option value="https://server.fire.ly">Firely</option>
             <option value="https://pyroserver.azurewebsites.net/pyro">Pyro</option>
-          
             <option value="https://erequesting.aidbox.beda.software/fhir">Aidbox (auth)</option>
             <option value="https://smile.sparked-fhir.com/ereq/fhir/DEFAULT">Smile (auth, DEFAULT)</option>
           </select>
@@ -518,7 +518,7 @@
   <script>
   (function(){
     // ----- Config (FHIR base is editable via Server panel) -----
-    let FHIR_BASE = "https://server.fire.ly";
+    let FHIR_BASE = "https://server.callistemon.site/fhir";
     const fhirBaseInput = document.getElementById('fhir-base');
     const fhirBaseApply = document.getElementById('apply-fhir-base');
     fhirBaseApply.addEventListener('click', ()=>{

@@ -14,6 +14,7 @@
 export const CONFIG = {
   // FHIR Server Presets
   FHIR_SERVERS: [
+    'https://server.callistemon.site/fhir',
     'https://server.fire.ly',
     'https://hapi.fhir.org/baseR4',
     'https://pyroserver.azurewebsites.net/pyro',
