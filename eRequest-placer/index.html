@@ -223,6 +223,7 @@
         </div>
       </div>
       <div class="flex items-center gap-3">
+        <button id="new-request-btn" class="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded hidden">New Request</button>
         <div class="flex items-center gap-2">
           <label for="doctor-select" class="text-sm text-gray-600">Requesting Clinician</label>
           <select id="doctor-select" class="border rounded p-2 text-sm">
@@ -874,6 +875,27 @@ const authManageBtn = document.getElementById('auth-manage');
     }
 
     function clearPatientForm(){ fillPatientForm({ nameText:'', birthDate:'', gender:'unknown', photoUrl:'defaultProfile.jpg', addressText:'—' }); patientAddress=null; currentPatientResource=null; }
+
+    // ----- New Request (clear all, keep server) -----
+    const newRequestBtn = document.getElementById('new-request-btn');
+    function clearForNewRequest(){
+      clearPatientForm();
+      setPatientLocked(false);
+      ptMode='search'; updatePtToggleVisuals();
+      selectedTests=[]; renderSelectedTests();
+      reasonTags=[]; renderReasonTags();
+      document.getElementById('clinical-notes').value='';
+      document.getElementById('pregnancy-status').value='';
+      document.getElementById('json-viewer').innerHTML='';
+      document.getElementById('server-response').textContent='';
+      document.getElementById('error-box').classList.add('hidden');
+      document.getElementById('status-box').classList.add('hidden');
+      lastRequisitionId=null;
+      const doc=document.getElementById('doctor-select').value||'Dr Confident Cane Toad';
+      renderFavsForUser(doc);
+      newRequestBtn.classList.add('hidden');
+    }
+    newRequestBtn.addEventListener('click', clearForNewRequest);
     function fillPatientForm({ nameText, birthDate, gender, photoUrl, addressText }){
       nameInp.value=nameText||''; document.getElementById('patient-dob').value=birthDate||''; document.getElementById('patient-gender').value=gender||'unknown';
       document.getElementById('patient-photo').src=photoUrl||'defaultProfile.jpg'; document.getElementById('patient-address').textContent=addressText||'—';
@@ -1902,6 +1924,7 @@ const authManageBtn = document.getElementById('auth-manage');
           }
 
           if(groupUrl){ showQr(groupUrl); }
+          newRequestBtn.classList.remove('hidden');
         }
       }catch(e){
         console.error(e);
