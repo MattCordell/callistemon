@@ -155,12 +155,12 @@ async function handleFetchClick() {
     const bundle = await FhirClient.fetchServiceRequests(baseUrl, helpers);
     const processed = FhirHelpers.processBundle(bundle, true, {});
 
-    state.setState('data.srList', processed.srList);
     state.setState('data.patientMap', processed.patientMap);
     state.setState('data.taskBySrId', processed.taskBySrId);
     state.setState('data.resByRef', processed.resByRef);
     state.setState('data.nextLink', processed.nextLink);
     state.setState('selection.patientRef', '');
+    state.setState('data.srList', processed.srList);
   } catch (error) {
     console.error('Fetch failed:', error);
     state.setState('ui.error', error.message || 'An unexpected error occurred');
@@ -189,11 +189,11 @@ async function handleLoadMoreClick() {
     const currentState = state.getState('data');
     const processed = FhirHelpers.processBundle(bundle, false, currentState);
 
-    state.setState('data.srList', processed.srList);
     state.setState('data.patientMap', processed.patientMap);
     state.setState('data.taskBySrId', processed.taskBySrId);
     state.setState('data.resByRef', processed.resByRef);
     state.setState('data.nextLink', processed.nextLink);
+    state.setState('data.srList', processed.srList);
   } catch (error) {
     console.error('Load more failed:', error);
     state.setState('ui.error', error.message || 'Failed to load more results');
