@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \":*)",
+      "WebFetch(domain:r4.ontoserver.csiro.au)",
+      "WebFetch(domain:build.fhir.org)"
+    ]
+  }
+}
