@@ -152,32 +152,70 @@ export async function fetchServiceRequestsAndRelated(base, tasks) {
   return { srs, related: extra };
 }
 
+// Cache: orgKey -> { reference, display } once resolved
+const orgRefCache = new Map();
+
 /**
- * Submit a transaction bundle with fallback to individual operations
+ * Ensure a filler Organization exists on the server; create it if not.
+ * Returns a proper FHIR Reference ({ reference: "Organization/id", display }).
  * @param {string} base - FHIR base URL
- * @param {Array} toCreate - Resources to POST
- * @param {Array} toUpdate - Resources to PUT
- * @param {Array} srPuts - ServiceRequests to PUT
- * @returns {Promise<void>}
+ * @param {Object} orgConfig - Entry from CONFIG.FILLER_ORGS
+ * @returns {Promise<Object>} FHIR Reference object
  */
-export async function submitClaimTransaction(base, toCreate, toUpdate, srPuts) {
-  const txEntries = [
-    ...toCreate.map(res => ({
-      request: { method: 'POST', url: 'Task' },
-      resource: res
-    })),
-    ...toUpdate.map(res => ({
-      request: { method: 'PUT', url: `Task/${encodeURIComponent(res.id)}` },
-      resource: res
-    })),
-    ...srPuts.map(res => ({
-      request: { method: 'PUT', url: `ServiceRequest/${encodeURIComponent(res.id)}` },
-      resource: res
-    }))
-  ];
+export async function ensureOrganization(base, orgConfig) {
+  const cacheKey = `${orgConfig.identifier.system}|${orgConfig.identifier.value}`;
+  if (orgRefCache.has(cacheKey)) return orgRefCache.get(cacheKey);
+
+  const cleanBase = base.replace(/\/$/, '');
+  const searchUrl = `${cleanBase}/Organization?identifier=${encodeURIComponent(cacheKey)}&_count=1`;
 
   try {
-    // Try transaction bundle first
+    const bundle = await fetchJson(searchUrl);
+    const existing = (bundle.entry || []).map(e => e.resource).find(r => r?.resourceType === 'Organization');
+    if (existing?.id) {
+      const ref = { reference: `Organization/${existing.id}`, display: orgConfig.display };
+      orgRefCache.set(cacheKey, ref);
+      return ref;
+    }
+  } catch (err) {
+    console.warn('Organization search failed, will attempt create:', err);
+  }
+
+  // Not found — create it
+  try {
+    const resp = await fetch(`${cleanBase}/Organization`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/fhir+json', 'Accept': 'application/fhir+json' },
+      body: JSON.stringify(orgConfig.resource)
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const created = await resp.json();
+    const ref = { reference: `Organization/${created.id}`, display: orgConfig.display };
+    orgRefCache.set(cacheKey, ref);
+    return ref;
+  } catch (err) {
+    console.warn('Organization create failed, falling back to logical reference:', err);
+    const fallback = { identifier: orgConfig.identifier, display: orgConfig.display };
+    orgRefCache.set(cacheKey, fallback);
+    return fallback;
+  }
+}
+
+/**
+ * Submit Task updates as a transaction bundle with fallback to individual PUTs
+ * @param {string} base - FHIR base URL
+ * @param {Array} taskUpdates - Task resources to PUT
+ * @returns {Promise<void>}
+ */
+export async function submitTaskUpdates(base, taskUpdates) {
+  if (!taskUpdates.length) return;
+
+  const txEntries = taskUpdates.map(res => ({
+    request: { method: 'PUT', url: `Task/${encodeURIComponent(res.id)}` },
+    resource: res
+  }));
+
+  try {
     const resp = await fetch(base.replace(/\/$/, ''), {
       method: 'POST',
       headers: {
@@ -194,36 +232,15 @@ export async function submitClaimTransaction(base, toCreate, toUpdate, srPuts) {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     await resp.json();
   } catch (e) {
-    console.warn('Transaction bundle failed, falling back to individual operations:', e);
+    console.warn('Transaction bundle failed, falling back to individual PUTs:', e);
 
-    // Fallback: POST/PUT individually
-    for (const r of toCreate) {
-      const p = await fetch(`${base.replace(/\/$/, '')}/Task`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/fhir+json', 'Accept': 'application/fhir+json' },
-        body: JSON.stringify(r)
-      });
-      if (!p.ok) throw new Error('POST Task failed');
-      const created = await p.json();
-      r.id = created.id;
-    }
-
-    for (const r of toUpdate) {
+    for (const r of taskUpdates) {
       const q = await fetch(`${base.replace(/\/$/, '')}/Task/${encodeURIComponent(r.id)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/fhir+json', 'Accept': 'application/fhir+json' },
         body: JSON.stringify(r)
       });
-      if (!q.ok) throw new Error('PUT Task failed');
-    }
-
-    for (const r of srPuts) {
-      const q = await fetch(`${base.replace(/\/$/, '')}/ServiceRequest/${encodeURIComponent(r.id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/fhir+json', 'Accept': 'application/fhir+json' },
-        body: JSON.stringify(r)
-      });
-      if (!q.ok) throw new Error('PUT ServiceRequest failed');
+      if (!q.ok) throw new Error(`PUT Task/${r.id} failed`);
     }
   }
 }

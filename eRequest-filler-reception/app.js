@@ -46,13 +46,12 @@ const elements = {
 };
 
 /**
- * Get selected filler organization reference
- * @returns {Object} {identifier, display}
+ * Get selected filler organization config
+ * @returns {Object} Full org config entry from CONFIG.FILLER_ORGS
  */
-function selectedFillerRef() {
+function selectedFillerOrg() {
   const key = elements.orgSelect?.value || 'calli';
-  const org = CONFIG.FILLER_ORGS[key] || CONFIG.FILLER_ORGS.calli;
-  return { identifier: org.identifier, display: org.display };
+  return CONFIG.FILLER_ORGS[key] || CONFIG.FILLER_ORGS.calli;
 }
 
 /**
@@ -134,7 +133,7 @@ async function loadGroupTaskFromUrl(url) {
 
   // Compose and render
   const bundle = FhirHelpers.composeBundle(patient, srs, stampedTasks, related, groupTask || null);
-  UIRendering.renderBundle(bundle, currentBase, selectedFillerRef, elements.status);
+  UIRendering.renderBundle(bundle, currentBase, selectedFillerOrg, elements.status);
   elements.status.textContent = 'Loaded ✓' + (note ? ` (${note})` : '');
 }
 
@@ -211,7 +210,7 @@ async function runPatientSearch(query) {
 
           const bundle = FhirHelpers.composeBundle(pt, srResources, tasks);
           currentBase = base;
-          UIRendering.renderBundle(bundle, currentBase, selectedFillerRef, elements.status);
+          UIRendering.renderBundle(bundle, currentBase, selectedFillerOrg, elements.status);
           elements.status.textContent = 'Loaded ✓';
         } catch (err) {
           console.error(err);

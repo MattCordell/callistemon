@@ -294,6 +294,28 @@ export function getPregnancyStatusDetail(sr, bundle) {
 }
 
 /**
+ * Check if a ServiceRequest is categorised as pathology
+ * @param {Object} sr - ServiceRequest resource
+ * @returns {boolean}
+ */
+export function isPathology(sr) {
+  return (sr.category || []).some(cat =>
+    (cat.coding || []).some(c => c.code === '108252007')
+  );
+}
+
+/**
+ * Check if a ServiceRequest is categorised as imaging
+ * @param {Object} sr - ServiceRequest resource
+ * @returns {boolean}
+ */
+export function isImaging(sr) {
+  return (sr.category || []).some(cat =>
+    (cat.coding || []).some(c => c.code === '363679005')
+  );
+}
+
+/**
  * Get display text for a ServiceRequest
  * @param {Object} sr - ServiceRequest resource
  * @returns {string} Display text
