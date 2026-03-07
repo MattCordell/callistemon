@@ -562,7 +562,7 @@ function renderRequisitionDetails(data) {
   const { root, patient, srs, srToTask, distinctInstructions, distinctNotes } = data;
 
   // Requisition metadata
-  elements.reqId.textContent = root?.id || "—";
+  elements.reqId.textContent = root?.groupIdentifier?.value || root?.id || "—";
   elements.reqCreated.textContent = root?.authoredOn || root?.created || root?.meta?.lastUpdated || "—";
 
   // Patient information

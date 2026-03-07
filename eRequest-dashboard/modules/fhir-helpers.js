@@ -297,7 +297,16 @@ export function processBundle(bundle, reset, currentState = {}) {
     }
 
     if (r.resourceType === 'Task') {
-      // 1) Task.basedOn[] -> ServiceRequest
+      // 1) Task.focus -> ServiceRequest (spec-defined relationship)
+      const focusRef = normalizeServiceRequestRef(r.focus?.reference);
+      if (focusRef) {
+        const existing = nextTaskBySrId[focusRef];
+        if (!existing || newer(r.meta, existing.meta)) {
+          nextTaskBySrId[focusRef] = r;
+        }
+      }
+
+      // 2) Task.basedOn[] -> ServiceRequest (fallback)
       if (Array.isArray(r.basedOn)) {
         for (const ref of r.basedOn) {
           const srRef = normalizeServiceRequestRef(ref?.reference);
@@ -307,15 +316,6 @@ export function processBundle(bundle, reset, currentState = {}) {
               nextTaskBySrId[srRef] = r;
             }
           }
-        }
-      }
-
-      // 2) Task.focus -> ServiceRequest
-      const focusRef = normalizeServiceRequestRef(r.focus?.reference);
-      if (focusRef) {
-        const existing = nextTaskBySrId[focusRef];
-        if (!existing || newer(r.meta, existing.meta)) {
-          nextTaskBySrId[focusRef] = r;
         }
       }
     }

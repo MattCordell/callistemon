@@ -652,8 +652,12 @@ const authManageBtn = document.getElementById('auth-manage');
     const AU_PROFILES = {
       TASK_GROUP: "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-task-group",
       TASK_DIAG:  "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-task-diagnosticrequest",
-      SR_DIAG:    "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-diagnosticrequest"
+      SR_DIAG:    "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-diagnosticrequest",
+      SR_PATH:    "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-servicerequest-path",
+      SR_IMAG:    "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-servicerequest-imag"
     };
+    const TASK_TAG_SYS = 'http://terminology.hl7.org.au/CodeSystem/resource-tag';
+    const TASK_CODE = { coding: [{ system: 'http://hl7.org/fhir/CodeSystem/task-code', code: 'fulfill' }] };
     const PLACER_SYS = "http://callistemon.test/placer/id/";
     const MAX_NOTE_SUG = 8;
     const XRAY_PARENT = '363680008'; // Radiographic imaging procedure
@@ -1675,11 +1679,15 @@ const authManageBtn = document.getElementById('auth-manage');
       const groupTaskFullUrl = uuidURN();
       const groupTask = {
         resourceType: 'Task',
-        meta: { profile: [AU_PROFILES.TASK_GROUP] },
+        meta: {
+          profile: [AU_PROFILES.TASK_GROUP],
+          tag: [{ system: TASK_TAG_SYS, code: 'fulfilment-task-group' }]
+        },
         identifier: [{ system: PLACER_SYS, value: requisitionId }],
         groupIdentifier: groupIdentifier,
         status: 'requested',
         intent: 'order',
+        code: TASK_CODE,
         for: { reference: patientRef },
         authoredOn: now,
         requester: { reference: roleRef }
@@ -1718,7 +1726,7 @@ const authManageBtn = document.getElementById('auth-manage');
 
         const srResource = {
           resourceType:'ServiceRequest',
-          meta: { profile: [AU_PROFILES.SR_DIAG] },
+          meta: { profile: [(t.kind === 'IMAG') ? AU_PROFILES.SR_IMAG : AU_PROFILES.SR_PATH] },
           status:'active',
           intent:'order',
           priority: (t.priority || 'routine'),
@@ -1746,12 +1754,16 @@ const authManageBtn = document.getElementById('auth-manage');
         const diagTaskFullUrl = uuidURN();
         const diagTask = {
           resourceType: 'Task',
-          meta: { profile: [AU_PROFILES.TASK_DIAG] },
+          meta: {
+            profile: [AU_PROFILES.TASK_DIAG],
+            tag: [{ system: TASK_TAG_SYS, code: 'fulfilment-task' }]
+          },
           identifier: [{ system: PLACER_SYS, value: newUUID() }],
           groupIdentifier: groupIdentifier,
           partOf: [{ reference: groupTaskFullUrl }],
           status: 'requested',
           intent: 'order',
+          code: TASK_CODE,
           priority: (t.priority || 'routine'),
           focus: { reference: srFullUrl },
           for: { reference: patientRef },

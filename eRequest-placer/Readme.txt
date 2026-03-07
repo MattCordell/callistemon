@@ -24,5 +24,5 @@ If any Reason code is a subtype of 125599006 | Injury of hand |
 There are also some alerts based on historical records for selected patient. This will trigger if
 * They have already had a HBA1c in the past 6 months.
 * They have already had at least 3 Radiography procedures in the past month. - this check is flakey
-* Three or more radiographic tests are ordered in an episode (across modalities)
+* Three or more radiographic tests are ordered in a requisition (across modalities)
 The alerts are only informational and do not prevent the requests being submitted.
