@@ -73,8 +73,7 @@ export const CONFIG = {
   FHIR_QUERY: {
     COUNT: 25,
     INCLUDES: [
-      'ServiceRequest:subject',
-      'ServiceRequest:performer'
+      'ServiceRequest:subject'
     ],
     ITERATE_INCLUDES: [
       'PractitionerRole:practitioner',

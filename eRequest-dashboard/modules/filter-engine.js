@@ -55,8 +55,7 @@ export function buildIncomingRows(srList, patientMap, taskBySrId, resByRef) {
       taskBusinessStatus: businessStatus ? String(businessStatus) : '',
       priority: priority,
       sinceAuthored: since,
-      performer: FhirHelpers.performerNames(sr, resByRef)
-        || FhirHelpers.taskOwnerName(task, resByRef)
+      performer: FhirHelpers.taskOwnerName(task, resByRef)
     };
   });
 

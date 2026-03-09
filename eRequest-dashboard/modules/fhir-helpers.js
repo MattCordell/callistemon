@@ -214,39 +214,7 @@ export function nameFromResource(res, resByRef = {}) {
 }
 
 /**
- * Get performer names from ServiceRequest
- * @param {Object} sr - ServiceRequest resource
- * @param {Object} resByRef - Map of resources by reference
- * @returns {string} Comma-separated performer names
- */
-export function performerNames(sr, resByRef) {
-  const refs = Array.isArray(sr?.performer) ? sr.performer : [];
-  const names = [];
-
-  for (const r of refs) {
-    const disp = r?.display ? String(r.display).trim() : '';
-    const refStr = normalizeRefStr(r?.reference);
-    const res = refStr ? resByRef[refStr] : null;
-    const nm = nameFromResource(res, resByRef) || disp || refStr;
-    if (nm) names.push(nm);
-  }
-
-  // Deduplicate
-  const seen = new Set();
-  const uniq = [];
-  for (const n of names) {
-    if (!seen.has(n)) {
-      uniq.push(n);
-      seen.add(n);
-    }
-  }
-
-  return uniq.join(', ');
-}
-
-/**
  * Get owner/performer name from a Task resource
- * Falls back to Task.owner when ServiceRequest.performer is empty
  * @param {Object} task - Task resource
  * @param {Object} resByRef - Map of resources by reference
  * @returns {string} Owner name or empty string
