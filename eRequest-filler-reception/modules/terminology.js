@@ -10,7 +10,7 @@
  * @requires config
  */
 
-import { CONFIG } from '../config.js';
+import { CONFIG } from '../config.js?v=2';
 
 // Internal state - caches
 const subsumesCache = new Map(); // `${ancestor}|${code}` -> boolean

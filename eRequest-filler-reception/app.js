@@ -11,12 +11,12 @@
  * - QR scanner integration
  */
 
-import { CONFIG } from './config.js';
-import * as FhirClient from './modules/fhir-client.js';
-import * as FhirHelpers from './modules/fhir-helpers.js';
-import * as UIRendering from './modules/ui-rendering.js';
-import * as QRScanner from './modules/qr-scanner.js';
-import { fmtName, escapeHtml } from './modules/formatters.js';
+import { CONFIG } from './config.js?v=2';
+import * as FhirClient from './modules/fhir-client.js?v=2';
+import * as FhirHelpers from './modules/fhir-helpers.js?v=2';
+import * as UIRendering from './modules/ui-rendering.js?v=2';
+import * as QRScanner from './modules/qr-scanner.js?v=2';
+import { fmtName, escapeHtml } from './modules/formatters.js?v=2';
 
 // ---------- Application State ----------
 let currentBase = '';

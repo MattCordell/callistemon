@@ -12,8 +12,8 @@
  * @requires formatters
  */
 
-import { fmtName, fmtAddress } from './formatters.js';
-import { CONFIG } from '../config.js';
+import { fmtName, fmtAddress } from './formatters.js?v=2';
+import { CONFIG } from '../config.js?v=2';
 
 /**
  * Normalize a FHIR resource URL by removing _history version
