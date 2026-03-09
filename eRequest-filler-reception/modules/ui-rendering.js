@@ -16,7 +16,7 @@
  * @requires fhir-client
  */
 
-import { CONFIG } from '../config.js?v=2';
+import { CONFIG } from '../config.js';
 import {
   escapeHtml,
   fmtName,
@@ -27,7 +27,7 @@ import {
   safeId,
   humanStatus,
   humanPriority
-} from './formatters.js?v=2';
+} from './formatters.js';
 import {
   pickPatient,
   outstandingServiceRequests,
@@ -39,9 +39,9 @@ import {
   bestNote,
   isPathology,
   isImaging
-} from './fhir-helpers.js?v=2';
-import { snomedSubsumes, ensureFastingSet } from './terminology.js?v=2';
-import { submitTaskUpdates, ensureOrganization } from './fhir-client.js?v=2';
+} from './fhir-helpers.js';
+import { snomedSubsumes, ensureFastingSet } from './terminology.js';
+import { submitTaskUpdates, ensureOrganization } from './fhir-client.js';
 
 // Internal state
 let currentBundle = null;

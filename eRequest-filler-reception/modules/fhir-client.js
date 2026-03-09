@@ -12,8 +12,8 @@
  * @requires fhir-helpers
  */
 
-import { CONFIG } from '../config.js?v=2';
-import { toTypeId } from './fhir-helpers.js?v=2';
+import { CONFIG } from '../config.js';
+import { toTypeId } from './fhir-helpers.js';
 
 /**
  * Fetch JSON from a URL with retry logic and exponential backoff
