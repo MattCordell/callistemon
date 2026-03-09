@@ -78,7 +78,8 @@ export const CONFIG = {
     ],
     ITERATE_INCLUDES: [
       'PractitionerRole:practitioner',
-      'PractitionerRole:organization'
+      'PractitionerRole:organization',
+      'Task:owner'
     ],
     REVINCLUDE: [
       'Task:based-on',

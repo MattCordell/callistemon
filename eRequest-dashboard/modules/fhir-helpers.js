@@ -244,6 +244,21 @@ export function performerNames(sr, resByRef) {
   return uniq.join(', ');
 }
 
+/**
+ * Get owner/performer name from a Task resource
+ * Falls back to Task.owner when ServiceRequest.performer is empty
+ * @param {Object} task - Task resource
+ * @param {Object} resByRef - Map of resources by reference
+ * @returns {string} Owner name or empty string
+ */
+export function taskOwnerName(task, resByRef) {
+  if (!task?.owner) return '';
+  const disp = task.owner.display ? String(task.owner.display).trim() : '';
+  const refStr = normalizeRefStr(task.owner.reference);
+  const res = refStr ? resByRef[refStr] : null;
+  return nameFromResource(res, resByRef) || disp || '';
+}
+
 // ==================== Bundle Processing ====================
 
 /**
