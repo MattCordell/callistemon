@@ -641,9 +641,12 @@ const authManageBtn = document.getElementById('auth-manage');
       };
     }
 
-    // Ontoserver + terminology
-    const ONTO_BASE = "https://r4.ontoserver.csiro.au/fhir/ValueSet/$expand";
-    const TERM_BASE = "https://r4.ontoserver.csiro.au/fhir";
+    // Terminology servers
+    // R4: CSIRO Ontoserver — used only for pathology (RCPA SPIA supplement)
+    // TX: HL7 AU tx server — used for all other ValueSet expansion + $subsumes
+    const R4_BASE  = "https://r4.ontoserver.csiro.au/fhir/ValueSet/$expand";
+    const TX_BASE  = "https://tx.dev.hl7.org.au/fhir/ValueSet/$expand";
+    const TERM_BASE = "https://tx.dev.hl7.org.au/fhir";
     const VS = {
       PATH: "https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3",
       IMAG: "https://ranzcr.com/fhir/ValueSet/radiology-referral-1",
@@ -1026,7 +1029,7 @@ const authManageBtn = document.getElementById('auth-manage');
     async function fetchReasonSuggestions(filter){
       if(!filter||filter.length<4) return [];
       try{
-        const url = ONTO_BASE+'?url='+encodeURIComponent(VS.REASON)+'&count=20&filter='+encodeURIComponent(filter);
+        const url = TX_BASE+'?url='+encodeURIComponent(VS.REASON)+'&count=20&filter='+encodeURIComponent(filter);
         setDebugUrl(url);
         const r=await fetch(url,{headers:{Accept:'application/fhir+json'}});
         if(!r.ok) throw new Error(r.status);
@@ -1079,7 +1082,7 @@ const authManageBtn = document.getElementById('auth-manage');
     async function expandFromOntoserver(vsCanonicalUrl, filter, opts){
       opts = opts || {};
       try{
-        const base = new URL(ONTO_BASE);
+        const base = new URL(opts.base || TX_BASE);
         base.searchParams.set('url', vsCanonicalUrl);
         if(filter && filter.trim().length) base.searchParams.set('filter', filter);
         base.searchParams.set('count', opts.count || '50');
@@ -1406,6 +1409,7 @@ const authManageBtn = document.getElementById('auth-manage');
     async function fetchSupplementProps(test){
       try{
         const items = await expandFromOntoserver(VS.PATH, test.display, {
+          base: R4_BASE,
           useSupplement: SUPPLEMENT_URL + '|1.0.0',
           properties: ['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen'],
           count: '20'
@@ -1602,6 +1606,7 @@ const authManageBtn = document.getElementById('auth-manage');
       });
     }
     setupSearch('#pathology-search','#pathology-results',VS.PATH,'PATH', {
+      base: R4_BASE,
       includeDesignations: true,
       useSupplement: SUPPLEMENT_URL + '|1.0.0',
       properties: ['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen'],
@@ -1973,11 +1978,11 @@ const authManageBtn = document.getElementById('auth-manage');
     if(location.protocol==='file:') showStatus('Running as file:// — some browsers block fetch. Use a local server for full functionality.');
     (async function(){
       try{
-        const pingUrl = ONTO_BASE+'?url='+encodeURIComponent(VS.PATH)+'&count=20&filter='+encodeURIComponent('glucose');
+        const pingUrl = R4_BASE+'?url='+encodeURIComponent(VS.PATH)+'&count=20&filter='+encodeURIComponent('glucose');
         setDebugUrl(pingUrl);
         const ping=await fetch(pingUrl,{headers:{Accept:'application/fhir+json'}});
         if(!ping.ok) throw new Error(ping.status);
-      }catch(e){ showError('Cannot reach Ontoserver. See console for details.'); }
+      }catch(e){ showError('Cannot reach RCPA terminology server. See console for details.'); }
     })();
   })();
   </script>
