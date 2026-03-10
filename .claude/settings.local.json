@@ -5,7 +5,14 @@
       "WebFetch(domain:r4.ontoserver.csiro.au)",
       "WebFetch(domain:build.fhir.org)",
       "Bash(git commit:*)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(grep -r \"import\\\\|export\" /c/Repos/callistemon/eRequest-dashboard/modules/*.js)",
+      "WebFetch(domain:hl7.org.au)",
+      "Bash(pip install openpyxl)",
+      "Bash(pip3 install openpyxl)",
+      "Bash(py --version)",
+      "Bash(python -m pip install openpyxl)",
+      "Bash(python -X:*)"
     ]
   }
 }
