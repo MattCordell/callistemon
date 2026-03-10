@@ -10,6 +10,16 @@
  */
 
 export const CONFIG = {
+  // FHIR Server Presets
+  FHIR_SERVERS: [
+    'https://server.callistemon.site/fhir',
+    'https://server.fire.ly',
+    'https://hapi.fhir.org/baseR4',
+    'https://pyroserver.azurewebsites.net/pyro',
+    'https://smile.sparked-fhir.com/ereq/fhir/DEFAULT',
+    'https://erequesting.aidbox.beda.software/fhir'
+  ],
+
   // Provider Organisation Management
   FILLER_ORGS: {
     calli: {

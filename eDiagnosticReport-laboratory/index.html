@@ -28,8 +28,15 @@
   <main class="shell">
     <!-- Server + Load -->
     <section class="toolbar">
-      <label for="baseUrl" class="hint">FHIR Server</label>
-      <input id="baseUrl" type="url" placeholder="https://server.callistemon.site/fhir" value="https://server.callistemon.site/fhir" />
+      <div class="server-selector">
+        <label class="hint">FHIR Server</label>
+        <div class="server-inputs">
+          <select id="serverPreset" class="select">
+            <option value="">Choose a preset…</option>
+          </select>
+          <input id="serverCustom" type="url" placeholder="Or type a custom URL" />
+        </div>
+      </div>
       <button id="loadBtn">Load Backlog</button>
       <span id="status" class="hint"></span>
     </section>

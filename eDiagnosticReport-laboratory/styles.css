@@ -67,6 +67,10 @@ select::-ms-expand{display:none}
   flex:1; min-width:220px;
   background:#0b1020; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:14px;
 }
+.server-selector{display:flex; flex-direction:column; gap:3px;}
+.server-inputs{display:flex; gap:6px; flex-wrap:wrap;}
+.server-inputs select,.server-inputs input{flex:1; min-width:16rem;}
+.server-inputs select{padding:8px 10px; font-size:14px;}
 
 /* Buttons */
 .btn{

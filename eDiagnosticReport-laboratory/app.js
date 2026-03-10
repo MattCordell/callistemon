@@ -17,7 +17,8 @@ import { generateValues } from './modules/autocomplete-engine.js';
 // ── DOM element cache ───────────────────────────────────────────────
 const el = {
   orgSelect:      document.getElementById('orgSelect'),
-  baseUrl:        document.getElementById('baseUrl'),
+  serverPreset:   document.getElementById('serverPreset'),
+  serverCustom:   document.getElementById('serverCustom'),
   loadBtn:        document.getElementById('loadBtn'),
   status:         document.getElementById('status'),
   backlogView:    document.getElementById('backlogView'),
@@ -50,10 +51,30 @@ el.loadBtn.addEventListener('click', loadBacklog);
 el.backBtn.addEventListener('click', showBacklogView);
 el.autocompleteBtn.addEventListener('click', handleAutocomplete);
 el.submitBtn.addEventListener('click', handleSubmit);
+el.serverPreset.addEventListener('change', () => {
+  if (el.serverPreset.value) el.serverCustom.value = '';
+});
+
+// ── Helpers ─────────────────────────────────────────────────────────
+function getBaseUrl() {
+  const custom = el.serverCustom.value.trim();
+  const preset = el.serverPreset.value;
+  return custom || preset || '';
+}
+
+function populateServerPresets() {
+  CONFIG.FHIR_SERVERS.forEach(url => {
+    const opt = document.createElement('option');
+    opt.value = url;
+    opt.textContent = url;
+    el.serverPreset.appendChild(opt);
+  });
+  el.serverPreset.value = CONFIG.FHIR_SERVERS[0];
+}
 
 // ── Load Backlog ────────────────────────────────────────────────────
 async function loadBacklog() {
-  const base = el.baseUrl.value.trim();
+  const base = getBaseUrl();
   if (!base) {
     showToast(el.toast, 'Please enter a FHIR server URL.', 'warn');
     return;
@@ -155,6 +176,10 @@ function handleAutocomplete() {
   showToast(el.toast, 'Fields populated with sample values.', 'ok');
 }
 
+// ── Initialise ──────────────────────────────────────────────────────
+populateServerPresets();
+loadBacklog();
+
 // ── Submit Results ──────────────────────────────────────────────────
 let submitting = false;
 
@@ -167,7 +192,7 @@ async function handleSubmit() {
     return;
   }
 
-  const base = el.baseUrl.value.trim();
+  const base = getBaseUrl();
   const orgKey = el.orgSelect.value;
   const org = CONFIG.FILLER_ORGS[orgKey];
 
