@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>eDiagnosticReport — Laboratory</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <div class="head-left">
+      <h1>eDiagnosticReport — Laboratory</h1>
+      <p class="hint">Action claimed pathology service requests and post diagnostic reports.</p>
+    </div>
+    <div class="head-right">
+      <div class="select-wrap">
+        <select id="orgSelect" class="select select-xl" aria-label="Provider organisation">
+          <option value="calli" selected>Callistemon Diagnostic Services</option>
+          <option value="bb">BB Diagnostics</option>
+        </select>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 9l6 6 6-6" fill="none" stroke="#aab1c5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <!-- Server + Load -->
+    <section class="toolbar">
+      <label for="baseUrl" class="hint">FHIR Server</label>
+      <input id="baseUrl" type="url" placeholder="https://server.callistemon.site/fhir" value="https://server.callistemon.site/fhir" />
+      <button id="loadBtn">Load Backlog</button>
+      <span id="status" class="hint"></span>
+    </section>
+
+    <!-- Backlog View -->
+    <section id="backlogView" class="panel" aria-labelledby="backlog-title">
+      <h2 id="backlog-title">Laboratory Backlog</h2>
+      <div id="backlogList"></div>
+    </section>
+
+    <!-- Data Entry View (hidden initially) -->
+    <section id="entryView" class="panel hidden" aria-labelledby="entry-title">
+      <div class="entry-header">
+        <button id="backBtn" class="btn">&larr; Back to Backlog</button>
+        <h2 id="entry-title">Data Entry</h2>
+      </div>
+
+      <!-- Patient banner -->
+      <div id="patientBanner" class="identity">
+        <div class="avatar" id="avatar">&#x29D7;</div>
+        <div class="person">
+          <div class="headerline">
+            <div class="name" id="pt-name">Patient name</div>
+            <div class="ident" id="pt-line">&mdash;</div>
+          </div>
+          <div class="details">
+            <dl>
+              <dt>DOB</dt><dd id="pt-dob">&mdash;</dd>
+              <dt>Age</dt><dd id="pt-age">&mdash;</dd>
+              <dt>Gender</dt><dd id="pt-gender">&mdash;</dd>
+              <dt>Address</dt><dd id="pt-address">&mdash;</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <!-- Test form -->
+      <div id="testForm" class="test-form"></div>
+
+      <!-- Actions -->
+      <div class="form-actions">
+        <button id="autocompleteBtn" class="btn btn-autocomplete">Autocomplete</button>
+        <button id="submitBtn" class="btn btn-submit">Submit Results</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toasts -->
+  <div class="toast-wrap" id="toast"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
