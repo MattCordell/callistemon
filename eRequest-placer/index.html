@@ -667,6 +667,8 @@ const authManageBtn = document.getElementById('auth-manage');
     const XRAY_PARENT = '363680008'; // Radiographic imaging procedure
     const HBA1C_CODE = '43396009';   // HbA1c
     const PREG_CODES_WARN = new Set(['77386006','146799005']); // Pregnancy, Possible pregnancy (SNOMED, IPS pregnancy-status-uv-ips VS)
+    const OBSTETRIC_PARENT = '271992004'; // Obstetric investigation (procedure)
+    const NOT_PREGNANT_CODE = '60001007'; // Not pregnant
 
     // ECL for fasting instruction
     const ECL_FASTING = '^1072351000168102 {{ term = "fasting" }}';
@@ -1405,6 +1407,20 @@ const authManageBtn = document.getElementById('auth-manage');
       if(changed) renderSelectedTests();
     }
 
+    const OBSTETRIC_NOT_PREG_WARN = 'Obstetric investigation ordered for a patient who is not pregnant \u2014 test may not be applicable';
+    async function applyObstetricNotPregnantWarning(){
+      const pregSel = document.getElementById('pregnancy-status');
+      const pregCode = pregSel ? pregSel.value : '';
+      const isNotPregnant = (pregCode === NOT_PREGNANT_CODE);
+      let changed = false;
+      for(const t of selectedTests){
+        if(!t.code){ changed = setWarn(t, OBSTETRIC_NOT_PREG_WARN, false) || changed; continue; }
+        const isObstetric = await snomedSubsumes(OBSTETRIC_PARENT, t.code);
+        changed = setWarn(t, OBSTETRIC_NOT_PREG_WARN, isNotPregnant && isObstetric) || changed;
+      }
+      if(changed) renderSelectedTests();
+    }
+
     // ----- Fetch supplement properties for a single code -----
     async function fetchSupplementProps(test){
       try{
@@ -1442,6 +1458,7 @@ const authManageBtn = document.getElementById('auth-manage');
         checkTestHistoryWarning(test).then(function(changed){ if(changed) renderSelectedTests(); });
         applyRadiationGroupWarning();
         applyPregnancyRadiationWarning();
+        applyObstetricNotPregnantWarning();
         // Fetch supplement props if missing for pathology tests
         if(test.kind === 'PATH' && test.code && !test.supplementProps){
           fetchSupplementProps(test);
@@ -1463,6 +1480,7 @@ const authManageBtn = document.getElementById('auth-manage');
       computeAndRenderSuggestions();
       applyRadiationGroupWarning();
       applyPregnancyRadiationWarning();
+      applyObstetricNotPregnantWarning();
       if(idOrCode && !(idOrCode.startsWith && idOrCode.length>20)){
         document.querySelectorAll('.fav[data-code=\"'+idOrCode+'\"]').forEach(function(cb){cb.checked=false;});
       }
@@ -1973,6 +1991,7 @@ const authManageBtn = document.getElementById('auth-manage');
     computeAndRenderSuggestions();
     populatePregnancyStatus();
     document.getElementById('pregnancy-status').addEventListener('change', applyPregnancyRadiationWarning);
+    document.getElementById('pregnancy-status').addEventListener('change', applyObstetricNotPregnantWarning);
     preloadFastingCodes();
     updatePtToggleVisuals();
     if(location.protocol==='file:') showStatus('Running as file:// — some browsers block fetch. Use a local server for full functionality.');
