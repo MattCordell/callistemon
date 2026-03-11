@@ -143,6 +143,21 @@
   // ----- Send button -----
   App.initSendButton();
 
+  // ----- Copy server response -----
+  document.getElementById('copy-server-response').addEventListener('click', async function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var text = document.getElementById('server-response').textContent || '';
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      var btn = e.currentTarget;
+      var orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(function() { btn.textContent = orig; }, 1200);
+    } catch (_e) {}
+  });
+
   // ----- New Request (clear all, keep server) -----
   var newRequestBtn = document.getElementById('new-request-btn');
   newRequestBtn.addEventListener('click', function() {

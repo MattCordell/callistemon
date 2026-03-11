@@ -9,7 +9,7 @@ App.practitionerResources = {
     id: "J855592470710578",
     meta: { profile: [
       "http://hl7.org.au/fhir/StructureDefinition/au-practitioner",
-      "http://hl7.org.au/fhir/erequesting/StructureDefinition/au-erequesting-practitioner"
+      "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-practitioner"
     ] },
     active: true,
     identifier: [{
@@ -28,7 +28,7 @@ App.practitionerResources = {
     id: "W855592487843004",
     meta: { profile: [
       "http://hl7.org.au/fhir/StructureDefinition/au-practitioner",
-      "http://hl7.org.au/fhir/erequesting/StructureDefinition/au-erequesting-practitioner"
+      "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-practitioner"
     ] },
     active: true,
     identifier: [{
@@ -53,15 +53,15 @@ App.userFavourites = {
   "Dr Confident Cane Toad": {
     pathology: [
       {code:"26604007",display:"Full blood count"},
-      {code:"401324008",display:"Urine MCS"},
+      {code:"401324008",display:"Urine MCS",officialDisplay:"Urine microscopy, culture and sensitivities"},
       {code:"26958001",display:"Liver function test"},
       {code:"252150008",display:"Fasting lipid profile"},
       {code:"843441000168103",display:"Respiratory pathogen nucleic acid assay"},
       {code:"395142003",display:"Allergy screening test"},
-      {code:"43396009",display:"HbA1c (glycated haemoglobin)"}
+      {code:"43396009",display:"HbA1c",officialDisplay:"Haemoglobin A1c measurement"}
     ],
     radiology: [
-      {code:"399208008",display:"Chest X-ray"},
+      {code:"399208008",display:"Chest X-ray",officialDisplay:"Plain X-ray of chest"},
       {code:"3821000087108",display:"Plain X-ray of left wrist"},
       {code:"3831000087105",display:"Plain X-ray of right wrist"},
       {code:"446522006",display:"Ultrasound scan in first trimester"},
@@ -72,12 +72,12 @@ App.userFavourites = {
   "Dr Compassionate Quoll": {
     pathology: [
       {code:"26604007",display:"Full blood count"},
-      {code:"401324008",display:"Serum pregnancy test (B-HCG)"},
+      {code:"166434005",display:"Serum pregnancy test (B-HCG)"},
       {code:"113076002",display:"Glucose tolerance test"},
       {code:"252409009",display:"Rubella virus antibody screening"},
       {code:"44608003",display:"Blood group typing"},
       {code:"395144002",display:"B12/folate level"},
-      {code:"43396009",display:"HbA1c (glycated haemoglobin)"}
+      {code:"43396009",display:"HbA1c",officialDisplay:"Haemoglobin A1c measurement"}
     ],
     radiology: [
       {code:"446522006",display:"Ultrasound scan in first trimester"},

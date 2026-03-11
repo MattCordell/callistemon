@@ -139,6 +139,7 @@ App.buildPatientResourceFromForm = function() {
   var imgSrc = document.getElementById('patient-photo').src || 'defaultProfile.jpg';
   var patient = {
     resourceType: 'Patient',
+    identifier: [{ system: App.PLACER_SYS, value: App.newUUID() }],
     name: [{ use: 'official', family: family, given: [given] }],
     gender: document.getElementById('patient-gender').value || 'unknown',
     birthDate: document.getElementById('patient-dob').value || ''

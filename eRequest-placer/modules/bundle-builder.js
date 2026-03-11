@@ -63,7 +63,7 @@ App.buildBundle = function() {
   var groupIdentifier = {
     system: App.PLACER_SYS,
     value: requisitionId,
-    type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'PGN', display: 'Placer group number' }] }
+    type: { coding: [{ system: 'http://terminology.hl7.org/CodeSystem/v2-0203', code: 'PGN', display: 'Placer Group Number' }] }
   };
 
   var groupTaskFullUrl = App.uuidURN();
@@ -103,25 +103,44 @@ App.buildBundle = function() {
     entries.push({ fullUrl: pregObsFullUrl, resource: pregObs, request: { method: 'POST', url: 'Observation' } });
   }
 
+  // ----- Encounter (required by au-erequesting-servicerequest-path) -----
+  var encounterFullUrl = App.uuidURN();
+  var encounterResource = {
+    resourceType: 'Encounter',
+    meta: { profile: ['http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-encounter'] },
+    status: 'planned',
+    class: { system: 'http://terminology.hl7.org/CodeSystem/v3-ActCode', code: 'AMB', display: 'ambulatory' },
+    subject: { reference: patientRef }
+  };
+  entries.push({ fullUrl: encounterFullUrl, resource: encounterResource, request: { method: 'POST', url: 'Encounter' } });
+
   var combinedNote = App.buildCombinedNoteText();
+  var displaySeq = 0;
 
   App.selectedTests.forEach(function(t) {
+    displaySeq++;
     var category = (t.kind === 'IMAG') ? App.CAT.IMAG : App.CAT.PATH;
     var srFullUrl = App.uuidURN();
 
+    var codeDisplay = t.officialDisplay || t.display;
     var srCode = t.code
-      ? { coding: [{ system: 'http://snomed.info/sct', code: t.code, display: t.display }], text: t.display }
+      ? { coding: [{ system: 'http://snomed.info/sct', code: t.code, display: codeDisplay }], text: t.display }
       : { text: t.display };
 
     var srResource = {
       resourceType: 'ServiceRequest',
       meta: { profile: [(t.kind === 'IMAG') ? App.AU_PROFILES.SR_IMAG : App.AU_PROFILES.SR_PATH] },
+      extension: [{
+        url: 'http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-displaysequence',
+        valueInteger: displaySeq
+      }],
       status: 'active',
       intent: 'order',
       priority: (t.priority || 'routine'),
       category: [category],
       code: srCode,
       subject: { reference: patientRef },
+      encounter: { reference: encounterFullUrl },
       requester: { reference: roleRef },
       requisition: groupIdentifier,
       reasonCode: App.buildReasonCodeArray(),
@@ -133,7 +152,7 @@ App.buildBundle = function() {
       srResource.patientInstruction = 'fast of at least 8h, but no more than 16h';
     }
 
-    if (pregObsFullUrl) {
+    if (pregObsFullUrl && pregCode === '77386006') {
       srResource.supportingInfo = srResource.supportingInfo || [];
       srResource.supportingInfo.push({ reference: pregObsFullUrl });
     }

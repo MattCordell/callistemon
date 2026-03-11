@@ -167,7 +167,8 @@ function renderFavColumn(items, kind) {
   items.forEach(function(f) {
     var row = document.createElement('label');
     row.className = 'flex items-center space-x-2';
-    row.innerHTML = '<input type="checkbox" class="fav" data-kind="' + kind + '" data-code="' + f.code + '" data-display="' + f.display + '" data-system="http://snomed.info/sct"> <span>' + f.display + '</span>';
+    var od = f.officialDisplay ? '" data-official-display="' + f.officialDisplay : '';
+    row.innerHTML = '<input type="checkbox" class="fav" data-kind="' + kind + '" data-code="' + f.code + '" data-display="' + f.display + od + '" data-system="http://snomed.info/sct"> <span>' + f.display + '</span>';
     col.appendChild(row);
   });
   return col;
@@ -191,8 +192,11 @@ App.renderFavsForUser = function(user) {
   document.querySelectorAll('.fav').forEach(function(cb) {
     cb.addEventListener('change', function(e) {
       var ds = e.target.dataset;
-      if (e.target.checked) App.addSelectedTest({ code: ds.code, system: ds.system, display: ds.display, kind: ds.kind });
-      else App.removeSelectedTestByIdOrCode(ds.code);
+      if (e.target.checked) {
+        var test = { code: ds.code, system: ds.system, display: ds.display, kind: ds.kind };
+        if (ds.officialDisplay) test.officialDisplay = ds.officialDisplay;
+        App.addSelectedTest(test);
+      } else App.removeSelectedTestByIdOrCode(ds.code);
     });
   });
   document.querySelectorAll('.fav').forEach(function(cb) {

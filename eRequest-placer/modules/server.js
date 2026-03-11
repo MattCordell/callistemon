@@ -6,7 +6,7 @@ window.App = window.App || {};
 // ----- Auth config -----
 App.AUTH_CONFIGS = [
   { match: 'aidbox.beda.software', user: 'root', storageKey: 'aidbox_pwd', nice: 'Aidbox' },
-  { match: 'smile.sparked-fhir.com', user: '$erequesting-admin', storageKey: 'smile_pwd', nice: 'Smile' }
+  { match: 'smile.sparked-fhir.com', user: 'placer', storageKey: 'sparked_pwd', nice: 'Sparked' }
 ];
 
 function matchAuthConfig(base) {
