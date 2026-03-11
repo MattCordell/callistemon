@@ -17,6 +17,7 @@ import * as FhirHelpers from './modules/fhir-helpers.js';
 import * as UIRendering from './modules/ui-rendering.js';
 import * as QRScanner from './modules/qr-scanner.js';
 import { fmtName, escapeHtml } from './modules/formatters.js';
+import { initAuthFetch, authHintFor, promptPasswordFor } from './modules/auth.js';
 
 // ---------- Application State ----------
 let currentBase = '';
@@ -27,6 +28,8 @@ const by = sel => document.querySelector(sel);
 const elements = {
   status: null,
   orgSelect: null,
+  authManageBtn: null,
+  authHint: null,
   // URL mode
   bundleUrl: null,
   loadUrlBtn: null,
@@ -243,6 +246,8 @@ function handleQrDetection(value) {
 function initElements() {
   elements.status = by('#status');
   elements.orgSelect = by('#orgSelect');
+  elements.authManageBtn = by('#auth-manage');
+  elements.authHint = by('#auth-hint');
 
   // URL mode
   elements.bundleUrl = by('#bundleUrl');
@@ -274,9 +279,31 @@ function initElements() {
 }
 
 /**
+ * Update auth hint text based on a URL
+ * @param {string} url
+ */
+function updateAuthHint(url) {
+  if (elements.authHint) {
+    elements.authHint.textContent = authHintFor(url) || '';
+  }
+}
+
+/**
  * Initialize event listeners
  */
 function initEventListeners() {
+  // Auth button
+  elements.authManageBtn?.addEventListener('click', () => {
+    const url = (elements.bundleUrl?.value || elements.baseUrl?.value || '').trim();
+    const msg = promptPasswordFor(url);
+    if (msg === null) {
+      elements.authHint.textContent = 'No auth needed for this server';
+    } else {
+      elements.authHint.textContent = msg;
+      setTimeout(() => updateAuthHint(url), 1500);
+    }
+  });
+
   // Mode switching
   elements.modeBtns.url.addEventListener('click', () => setMode('url'));
   elements.modeBtns.search.addEventListener('click', () => setMode('search'));
@@ -296,12 +323,17 @@ function initEventListeners() {
 
     elements.bundleUrl.value = url; // reflect normalization
 
+    updateAuthHint(url);
     try {
       await loadGroupTaskFromUrl(url);
     } catch (err) {
       console.error(err);
       elements.status.textContent = 'Load failed (CORS? wrong URL? see console).';
     }
+  });
+
+  elements.baseUrl.addEventListener('change', () => {
+    updateAuthHint((elements.baseUrl.value || '').trim());
   });
 
   // Patient search with debounce
@@ -359,6 +391,7 @@ function initEventListeners() {
  * Application entry point
  */
 document.addEventListener('DOMContentLoaded', () => {
+  initAuthFetch();
   initElements();
   initEventListeners();
 });

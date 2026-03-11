@@ -94,6 +94,17 @@ export const CONFIG = {
     }
   },
 
+  // Server Authentication
+  // Credentials are stored in localStorage (per storageKey), never in source.
+  AUTH_CONFIGS: [
+    {
+      match: 'smile.sparked-fhir.com',
+      user: 'filler',
+      storageKey: 'sparked_filler_pwd',
+      nice: 'Sparked (filler)'
+    }
+  ],
+
   // FHIR Client
   FHIR: {
     timeout: 30000,           // 30 seconds
