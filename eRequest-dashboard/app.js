@@ -534,6 +534,12 @@ function init() {
   initEventListeners();
   startTimeUpdater();
 
+  // Default to callistemon server and fetch on load
+  if (elements.serverUrl) {
+    elements.serverUrl.value = CONFIG.FHIR_SERVERS[0];
+  }
+  handleFetchClick();
+
   console.log('eRequest Dashboard v7.0 initialized');
 }
 
