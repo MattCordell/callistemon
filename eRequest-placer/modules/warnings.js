@@ -161,14 +161,17 @@ App.checkTestHistoryWarning = async function(test) {
 };
 
 async function applyRadiationGroupWarning() {
-  var codes = App.selectedTests.map(function(t) { return t.code; }).filter(Boolean);
-  var xrayCount = 0;
-  for (var i = 0; i < codes.length; i++) {
-    if (await App.snomedSubsumes(App.XRAY_PARENT, codes[i])) xrayCount++;
+  var xrayFlags = [];
+  for (var i = 0; i < App.selectedTests.length; i++) {
+    var code = App.selectedTests[i].code;
+    xrayFlags.push(code ? await App.snomedSubsumes(App.XRAY_PARENT, code) : false);
   }
+  var xrayCount = xrayFlags.filter(Boolean).length;
   var on = xrayCount >= 3;
   var changed = false;
-  App.selectedTests.forEach(function(t) { changed = App.setWarn(t, GROUP_RAD_WARN, on) || changed; });
+  App.selectedTests.forEach(function(t, idx) {
+    changed = App.setWarn(t, GROUP_RAD_WARN, on && xrayFlags[idx]) || changed;
+  });
   if (changed) App.renderSelectedTests();
 }
 
