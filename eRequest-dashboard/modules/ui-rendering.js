@@ -24,13 +24,12 @@ import { CONFIG } from '../config.js';
  */
 export function populateServerSelects() {
   // FHIR server presets
-  const serverPreset = document.getElementById('server-preset');
-  if (serverPreset) {
+  const serverPresets = document.getElementById('server-presets');
+  if (serverPresets) {
     CONFIG.FHIR_SERVERS.forEach(url => {
       const option = document.createElement('option');
       option.value = url;
-      option.textContent = url;
-      serverPreset.appendChild(option);
+      serverPresets.appendChild(option);
     });
   }
 

@@ -23,8 +23,7 @@ import * as UIRendering from './modules/ui-rendering.js';
 
 const elements = {
   // Server selection
-  serverPreset: null,
-  serverCustom: null,
+  serverUrl: null,
   txServer: null,
   fetchBtn: null,
 
@@ -52,8 +51,7 @@ const elements = {
  * Cache DOM element references
  */
 function initElements() {
-  elements.serverPreset = document.getElementById('server-preset');
-  elements.serverCustom = document.getElementById('server-custom');
+  elements.serverUrl = document.getElementById('server-url');
   elements.txServer = document.getElementById('tx-server');
   elements.fetchBtn = document.getElementById('fetch-btn');
 
@@ -80,13 +78,7 @@ function initElements() {
  * @returns {{baseUrl: string, txBase: string}} Server URLs
  */
 function getServerUrls() {
-  let baseUrl = elements.serverCustom?.value?.trim() || '';
-  const preset = elements.serverPreset?.value || '';
-
-  if (preset && !baseUrl) {
-    baseUrl = preset;
-  }
-
+  const baseUrl = elements.serverUrl?.value?.trim() || '';
   const txBase = elements.txServer?.value?.trim() || CONFIG.DEFAULT_TX;
 
   return { baseUrl, txBase };
@@ -106,18 +98,7 @@ function canSearch(baseUrl) {
 /**
  * Handle server preset selection
  */
-function handleServerPresetChange() {
-  const preset = elements.serverPreset?.value || '';
-  if (preset && elements.serverCustom) {
-    elements.serverCustom.value = preset;
-  }
-  updateServerState();
-}
-
-/**
- * Handle custom server URL change
- */
-function handleServerCustomChange() {
+function handleServerUrlChange() {
   updateServerState();
 }
 
@@ -484,8 +465,7 @@ function subscribeToStateChanges() {
  */
 function initEventListeners() {
   // Server selection
-  elements.serverPreset?.addEventListener('change', handleServerPresetChange);
-  elements.serverCustom?.addEventListener('input', handleServerCustomChange);
+  elements.serverUrl?.addEventListener('input', handleServerUrlChange);
   elements.fetchBtn?.addEventListener('click', handleFetchClick);
 
   // Mode toggle

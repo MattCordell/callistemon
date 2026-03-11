@@ -20,16 +20,13 @@
           <!-- FHIR Server Selection -->
           <label class="flex flex-col gap-1">
             <span class="text-sm text-slate-300">FHIR Server</span>
-            <div class="flex gap-2 items-stretch">
-              <select id="server-preset" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 min-w-[18rem]">
-                <option value="">Choose a preset…</option>
-              </select>
-              <input
-                id="server-custom"
-                class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[22rem] max-w-full"
-                placeholder="Or type a custom URL"
-              />
-            </div>
+            <input
+              id="server-url"
+              list="server-presets"
+              class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 w-[28rem] max-w-full"
+              placeholder="FHIR server URL"
+            />
+            <datalist id="server-presets"></datalist>
           </label>
 
           <!-- Terminology Server -->
