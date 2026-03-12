@@ -242,8 +242,8 @@ export const TEST_DEFINITIONS = [
           },
           {
             display: 'Albumin',
-            loincCode: '61151-7',
-            loincDisplay: 'Albumin [Mass/volume] in Serum or Plasma by Bromocresol purple (BCP) dye binding method',
+            loincCode: '1751-7',
+            loincDisplay: 'Albumin [Mass/volume] in Serum or Plasma',
             unit: 'g/L',
             ucumCode: 'g/L',
             referenceRange: { low: 35, high: 50 },
@@ -359,6 +359,42 @@ export const SUPER_SETS = {
  */
 export function findTestByCode(snomedCode) {
   return TEST_DEFINITIONS.find(t => t.code === snomedCode);
+}
+
+/**
+ * Apply provider-specific overrides to the master test definitions.
+ *
+ * Returns a deep copy of TEST_DEFINITIONS with any matching observables
+ * patched from the overrides map. Overrides are keyed by the master LOINC
+ * code of the observable to customise; values are partial observable objects
+ * whose properties are merged onto the master observable.
+ *
+ * @param {Object} overrides - Map of masterLoincCode -> partial observable props
+ * @returns {Array} Customised copy of TEST_DEFINITIONS
+ */
+export function applyProviderOverrides(overrides) {
+  if (!overrides || Object.keys(overrides).length === 0) {
+    return TEST_DEFINITIONS;
+  }
+
+  return TEST_DEFINITIONS.map(testDef => ({
+    ...testDef,
+    headings: testDef.headings.map(heading => ({
+      ...heading,
+      observables: heading.observables.map(obs => {
+        const patch = overrides[obs.loincCode];
+        if (!patch) return obs;
+        return {
+          ...obs,
+          ...patch,
+          // Deep-merge referenceRange if the patch only overrides one bound
+          ...(patch.referenceRange ? {
+            referenceRange: { ...obs.referenceRange, ...patch.referenceRange }
+          } : {})
+        };
+      })
+    }))
+  }));
 }
 
 /**

@@ -9,10 +9,20 @@
 import { CONFIG } from './config.js';
 import { fetchAcceptedTasks, fetchServiceRequests, fetchPatient, ensureOrganization, submitTransactionBundle, fetchSiblingTasks } from './modules/fhir-client.js';
 import { relRefString, isGroupTask } from './modules/fhir-helpers.js';
+import { applyProviderOverrides } from './modules/test-definitions.js';
 import { buildBacklog } from './modules/backlog-engine.js';
 import { renderBacklog, renderPatientBanner, renderDataEntryForm, collectFormData, fillFormValues, showToast } from './modules/ui-rendering.js';
 import { buildTransactionBundle } from './modules/report-builder.js';
 import { generateValues } from './modules/autocomplete-engine.js';
+
+// Provider-specific test configuration overrides
+import { PROVIDER_OVERRIDES as OVERRIDES_CALLI } from './modules/provider-calli.js';
+import { PROVIDER_OVERRIDES as OVERRIDES_BB } from './modules/provider-bb.js';
+
+const PROVIDER_OVERRIDES_MAP = {
+  calli: OVERRIDES_CALLI,
+  bb: OVERRIDES_BB
+};
 
 // ── DOM element cache ───────────────────────────────────────────────
 const el = {
@@ -46,7 +56,34 @@ let currentPatient = null;
 let currentGroup = null;
 const patientCache = new Map();  // patientRef -> Patient resource
 
+// ── Org Theme ───────────────────────────────────────────────────────
+const ORG_LOGOS = {
+  calli: `<svg width="168" height="44" viewBox="0 0 168 44" xmlns="http://www.w3.org/2000/svg" aria-label="Callistemon Diagnostic Services">
+    <circle cx="22" cy="22" r="18" fill="rgba(16,185,129,.12)" stroke="#10b981" stroke-width="1.5"/>
+    <path d="M22 11 C26.5 15.5 26.5 20 22 22 C17.5 20 17.5 15.5 22 11Z" fill="#10b981"/>
+    <path d="M22 33 C17.5 28.5 17.5 24 22 22 C26.5 24 26.5 28.5 22 33Z" fill="#34d399" opacity=".75"/>
+    <path d="M11 22 C15.5 17.5 20 17.5 22 22 C20 26.5 15.5 26.5 11 22Z" fill="#10b981" opacity=".6"/>
+    <path d="M33 22 C28.5 26.5 24 26.5 22 22 C24 17.5 28.5 17.5 33 22Z" fill="#34d399" opacity=".5"/>
+    <text x="48" y="18" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="800" fill="#10b981" letter-spacing=".3">Callistemon</text>
+    <text x="48" y="33" font-family="system-ui,-apple-system,sans-serif" font-size="10.5" fill="#9ca3af">Diagnostic Services</text>
+  </svg>`,
+  bb: `<svg width="132" height="44" viewBox="0 0 132 44" xmlns="http://www.w3.org/2000/svg" aria-label="BB Diagnostics">
+    <circle cx="22" cy="22" r="18" fill="rgba(249,115,22,.12)" stroke="#f97316" stroke-width="1.5"/>
+    <text x="22" y="28" font-family="system-ui,-apple-system,sans-serif" font-size="16" font-weight="800" fill="#f97316" text-anchor="middle" letter-spacing="1">BB</text>
+    <text x="48" y="18" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="800" fill="#f97316" letter-spacing=".3">BB</text>
+    <text x="48" y="33" font-family="system-ui,-apple-system,sans-serif" font-size="10.5" fill="#9ca3af">Diagnostics</text>
+  </svg>`
+};
+
+function applyOrgTheme(key) {
+  document.body.dataset.theme = key;
+  const logoEl = document.getElementById('org-logo');
+  if (logoEl) logoEl.innerHTML = ORG_LOGOS[key] || '';
+}
+
 // ── Event Listeners ─────────────────────────────────────────────────
+applyOrgTheme(el.orgSelect?.value || 'calli');
+el.orgSelect?.addEventListener('change', () => applyOrgTheme(el.orgSelect.value));
 el.loadBtn.addEventListener('click', loadBacklog);
 el.backBtn.addEventListener('click', showBacklogView);
 el.autocompleteBtn.addEventListener('click', handleAutocomplete);
@@ -104,8 +141,9 @@ async function loadBacklog() {
     const srMap = await fetchServiceRequests(base, tasks);
     el.status.textContent = `Loaded ${srMap.size} service request(s). Building backlog\u2026`;
 
-    // 3. Build the backlog (with super set detection)
-    currentBacklog = buildBacklog(tasks, srMap, groupTasks);
+    // 3. Build the backlog (with super set detection + provider overrides)
+    const testDefs = applyProviderOverrides(PROVIDER_OVERRIDES_MAP[orgKey]);
+    currentBacklog = buildBacklog(tasks, srMap, groupTasks, testDefs);
 
     // 4. Fetch patients for display
     const patientRefs = new Set();

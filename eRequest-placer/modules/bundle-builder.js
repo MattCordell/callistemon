@@ -13,10 +13,7 @@ App.buildPractitionerAndRoleEntries = function(selectedName) {
   var s = App.roleSpecialties[selectedName];
   var practitionerRole = {
     resourceType: 'PractitionerRole',
-    meta: { profile: [
-      'http://hl7.org.au/fhir/StructureDefinition/au-practitionerrole',
-      'http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-practitionerrole'
-    ] },
+    meta: { profile: ['http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-practitionerrole'] },
     active: true,
     practitioner: { reference: pracFullUrl }
   };

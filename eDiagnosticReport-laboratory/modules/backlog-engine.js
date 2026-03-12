@@ -7,7 +7,7 @@
  * and merges them into a single backlog entry.
  */
 
-import { TEST_DEFINITIONS, SUPER_SETS, findTestByCode, flatObservables } from './test-definitions.js';
+import { TEST_DEFINITIONS, SUPER_SETS, findTestByCode } from './test-definitions.js';
 import { srSnomedCode, isPathology, groupTasksByRequisition, isGroupTask, relRefString } from './fhir-helpers.js';
 
 /**
@@ -38,9 +38,10 @@ import { srSnomedCode, isPathology, groupTasksByRequisition, isGroupTask, relRef
  * @param {Array} diagnosticTasks - Diagnostic Task resources (status=accepted)
  * @param {Map} srMap - Map<srRef, ServiceRequest>
  * @param {Array} groupTasks - Group Task resources
+ * @param {Array} [testDefinitions] - Provider-customised test definitions (defaults to master)
  * @returns {Array<BacklogGroup>} Grouped backlog items
  */
-export function buildBacklog(diagnosticTasks, srMap, groupTasks = []) {
+export function buildBacklog(diagnosticTasks, srMap, groupTasks = [], testDefinitions = TEST_DEFINITIONS) {
   // 1. Pair each task with its SR and test definition
   const paired = [];
   for (const task of diagnosticTasks) {
@@ -50,7 +51,7 @@ export function buildBacklog(diagnosticTasks, srMap, groupTasks = []) {
     if (!isPathology(sr)) continue;
 
     const snomedCode = srSnomedCode(sr);
-    const testDef = snomedCode ? findTestByCode(snomedCode) : null;
+    const testDef = snomedCode ? testDefinitions.find(t => t.code === snomedCode) : null;
     if (!testDef) continue;
 
     paired.push({ task, sr, testDef, srRef });

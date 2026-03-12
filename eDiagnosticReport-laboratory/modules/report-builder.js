@@ -72,6 +72,10 @@ export function buildTransactionBundle(formData, context) {
       }
     };
 
+    if (obs.method) {
+      observation.method = { text: obs.method };
+    }
+
     // Add reference range if defined
     if (obs.referenceRange && (obs.referenceRange.low != null || obs.referenceRange.high != null)) {
       const range = {};

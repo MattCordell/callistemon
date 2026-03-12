@@ -6,10 +6,7 @@ window.App = window.App || {};
 App.practitionerResources = {
   "Dr Confident Cane Toad": {
     resourceType: "Practitioner",
-    meta: { profile: [
-      "http://hl7.org.au/fhir/StructureDefinition/au-practitioner",
-      "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-practitioner"
-    ] },
+    meta: { profile: ["http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-practitioner"] },
     active: true,
     identifier: [{
       type: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/v2-0203", code: "NPI", display: "National provider identifier" }], text: "HPI-I" },
@@ -24,10 +21,7 @@ App.practitionerResources = {
   },
   "Dr Compassionate Quoll": {
     resourceType: "Practitioner",
-    meta: { profile: [
-      "http://hl7.org.au/fhir/StructureDefinition/au-practitioner",
-      "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-practitioner"
-    ] },
+    meta: { profile: ["http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-practitioner"] },
     active: true,
     identifier: [{
       type: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/v2-0203", code: "NPI", display: "National provider identifier" }], text: "HPI-I" },
