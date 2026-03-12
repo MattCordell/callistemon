@@ -7,14 +7,41 @@
   --bg:#0f172a; --card:#111827; --muted:#9ca3af; --text:#e5e7eb;
   --accent:#8b5cf6; --accent-2:#22d3ee; --ok:#10b981; --warn:#f59e0b; --err:#ef4444; --ring:rgba(139,92,246,.35);
   --line: rgba(255,255,255,.08);
+  --accent-rgb: 139,92,246;
+  --glow-1: rgba(139,92,246,.20);
+  --glow-2: rgba(34,211,238,.18);
+  --panel-border: rgba(255,255,255,.08);
+  --h-accent: var(--text);
+}
+
+/* ---- Org Themes ---- */
+body[data-theme="calli"] {
+  --accent: #10b981;
+  --accent-2: #34d399;
+  --accent-rgb: 16,185,129;
+  --ring: rgba(16,185,129,.35);
+  --glow-1: rgba(16,185,129,.22);
+  --glow-2: rgba(52,211,153,.15);
+  --panel-border: rgba(16,185,129,.22);
+  --h-accent: #10b981;
+}
+body[data-theme="bb"] {
+  --accent: #f97316;
+  --accent-2: #fb923c;
+  --accent-rgb: 249,115,22;
+  --ring: rgba(249,115,22,.35);
+  --glow-1: rgba(249,115,22,.22);
+  --glow-2: rgba(251,146,60,.15);
+  --panel-border: rgba(249,115,22,.22);
+  --h-accent: #f97316;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
   margin:0;
   background:
-    radial-gradient(1200px 600px at 20% -10%, rgba(139,92,246,.20), transparent 60%),
-    radial-gradient(1000px 500px at 120% 10%, rgba(34,211,238,.18), transparent 60%),
+    radial-gradient(1200px 600px at 20% -10%, var(--glow-1), transparent 60%),
+    radial-gradient(1000px 500px at 120% 10%, var(--glow-2), transparent 60%),
     var(--bg);
   color:var(--text); font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial;
 }
@@ -28,6 +55,22 @@ header{
 header h1{margin:0 0 4px; font-size:22px; font-weight:700; letter-spacing:.2px}
 header p{margin:0; color:var(--muted)}
 .head-right{margin-left:auto; min-width:360px; display:flex; justify-content:center; align-items:center;}
+
+/* Org logo */
+#org-logo{display:flex; align-items:center; flex:0 0 auto}
+#org-logo svg{display:block; transition:opacity .25s}
+
+/* Base button reset — applies to plain <button> elements not using .btn */
+button{
+  appearance:none; font:inherit;
+  border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:var(--text);
+  padding:7px 14px; border-radius:999px; cursor:pointer; font-weight:600; font-size:13px;
+  transition:background .15s, border-color .15s;
+}
+button:hover:not(:disabled){background:rgba(255,255,255,.11)}
+button:disabled{opacity:.5; cursor:not-allowed}
+.ghost{background:transparent; border-color:rgba(255,255,255,.10); color:var(--muted)}
+.ghost:hover:not(:disabled){background:rgba(255,255,255,.05); color:var(--text)}
 
 /* Fancy select with chevron */
 .select{appearance:none; -webkit-appearance:none; -moz-appearance:none;
@@ -47,23 +90,23 @@ select::-ms-expand{display:none}
 .shell{max-width:1100px; margin:0 auto; padding:12px}
 .u-flex{display:flex; gap:12px; flex-wrap:wrap}
 .panel{
-  background:rgba(17,24,39,.72); border:1px solid var(--line);
+  background:rgba(17,24,39,.72); border:1px solid var(--panel-border);
   border-radius:14px; padding:12px; box-shadow:0 10px 24px rgba(0,0,0,.22); backdrop-filter:blur(6px);
 }
-.panel h2{margin:0 0 6px; font-size:17px}
+.panel h2{margin:0 0 6px; font-size:17px; color:var(--h-accent)}
 .hint{color:var(--muted); font-size:13px}
 
 /* Ingest */
 .ingest{flex:1 1 340px; min-width:300px}
 .modebar{display:inline-flex; gap:6px; margin:4px 0 10px}
 .mode{appearance:none; border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.03); color:var(--text); padding:6px 10px; border-radius:999px; cursor:pointer; font-weight:600; font-size:13px}
-.mode.active{outline:2px solid var(--accent); background:linear-gradient(180deg, rgba(139,92,246,.32), rgba(139,92,246,.14))}
+.mode.active{outline:2px solid var(--accent); background:linear-gradient(180deg, rgba(var(--accent-rgb),.32), rgba(var(--accent-rgb),.14))}
 .pane input{width:100%; margin-top:6px; background:#0b1020; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:14px}
 .hidden{display:none}
 .results{margin-top:6px; border:1px solid rgba(255,255,255,.12); border-radius:10px; overflow:hidden}
 .res{padding:8px 10px; background:rgba(255,255,255,.02); display:flex; justify-content:space-between; gap:10px}
 .res:nth-child(even){background:rgba(255,255,255,.04)}
-.res:hover{background:rgba(139,92,246,.12); cursor:pointer}
+.res:hover{background:rgba(var(--accent-rgb),.12); cursor:pointer}
 .res .small{color:var(--muted); font-size:12px}
 .qrbox{position:relative; border:1px solid rgba(255,255,255,.12); border-radius:10px; overflow:hidden; background:#000; min-height:200px}
 .qrbox video{width:100%; display:block}
@@ -72,7 +115,7 @@ select::-ms-expand{display:none}
 /* Card */
 .card{flex:2 1 620px; min-width:340px}
 .identity{display:flex; gap:12px; align-items:flex-start}
-.avatar{width:80px; height:80px; flex:0 0 auto; border-radius:50%; background:#0b1020; border:1px solid var(--line); overflow:hidden; display:grid; place-items:center; font-weight:700; color:#94a3b8; font-size:20px}
+.avatar{width:80px; height:80px; flex:0 0 auto; border-radius:50%; background:#0b1020; border:2px solid var(--panel-border); overflow:hidden; display:grid; place-items:center; font-weight:700; color:#94a3b8; font-size:20px}
 .avatar img{width:100%; height:100%; object-fit:cover}
 .person{flex:1; display:grid; gap:6px}
 .person .headerline{display:flex; justify-content:space-between; gap:10px; align-items:baseline; flex-wrap:wrap}
@@ -85,15 +128,15 @@ select::-ms-expand{display:none}
 
 /* Requests */
 .requests{margin-top:12px}
-.requests h3{margin:12px 0 6px; font-size:16px}
-.req-group{border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:8px; background:rgba(255,255,255,.02)}
+.requests h3{margin:12px 0 6px; font-size:16px; color:var(--h-accent)}
+.req-group{border:1px solid var(--panel-border); border-radius:12px; padding:8px; background:rgba(255,255,255,.02)}
 .req-group + .req-group{margin-top:10px}
 .req-group .req-gh{display:flex; gap:8px; justify-content:space-between; align-items:center; margin-bottom:6px}
 .req-group .req-gtitle{font-weight:700; letter-spacing:.2px; font-size:15px}
 .grp-actions{display:flex; gap:6px; align-items:center}
 .btn{appearance:none; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.05); color:var(--text); padding:6px 10px; border-radius:999px; cursor:pointer; font-weight:700; font-size:12.5px}
 .btn:disabled{opacity:.6; cursor:not-allowed}
-.btn-claim{border-color:rgba(139,92,246,.55); background:linear-gradient(180deg, rgba(139,92,246,.30), rgba(139,92,246,.12))}
+.btn-claim{border-color:rgba(var(--accent-rgb),.55); background:linear-gradient(180deg, rgba(var(--accent-rgb),.30), rgba(var(--accent-rgb),.12))}
 .grp-meta{display:grid; gap:6px; margin:6px 0 8px; padding:8px; border:1px solid rgba(255,255,255,.08); border-radius:10px; background:rgba(255,255,255,.03)}
 .meta-row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:13px; color:var(--muted); line-height:1.35}
 .meta-row strong{color:var(--text); font-weight:600}
@@ -124,7 +167,7 @@ select::-ms-expand{display:none}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
 .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0}
 .chk{appearance:none; width:16px; height:16px; border-radius:6px; border:1px solid rgba(255,255,255,.2); display:inline-grid; place-items:center; cursor:pointer}
-.chk:checked{background:linear-gradient(180deg, rgba(139,92,246,.65), rgba(139,92,246,.35)); border-color:rgba(139,92,246,.9)}
+.chk:checked{background:linear-gradient(180deg, rgba(var(--accent-rgb),.65), rgba(var(--accent-rgb),.35)); border-color:rgba(var(--accent-rgb),.9)}
 .chk:focus-visible{outline:2px solid var(--ring); outline-offset:2px}
 label.inline{display:inline-flex; gap:8px; align-items:center; font-size:13px}
 

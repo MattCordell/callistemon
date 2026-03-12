@@ -22,6 +22,35 @@ import { initAuthFetch, authHintFor, promptPasswordFor } from './modules/auth.js
 // ---------- Application State ----------
 let currentBase = '';
 
+// ---------- Org Theming ----------
+const ORG_LOGOS = {
+  calli: `<svg width="168" height="44" viewBox="0 0 168 44" xmlns="http://www.w3.org/2000/svg" aria-label="Callistemon Diagnostic Services">
+    <circle cx="22" cy="22" r="18" fill="rgba(16,185,129,.12)" stroke="#10b981" stroke-width="1.5"/>
+    <path d="M22 11 C26.5 15.5 26.5 20 22 22 C17.5 20 17.5 15.5 22 11Z" fill="#10b981"/>
+    <path d="M22 33 C17.5 28.5 17.5 24 22 22 C26.5 24 26.5 28.5 22 33Z" fill="#34d399" opacity=".75"/>
+    <path d="M11 22 C15.5 17.5 20 17.5 22 22 C20 26.5 15.5 26.5 11 22Z" fill="#10b981" opacity=".6"/>
+    <path d="M33 22 C28.5 26.5 24 26.5 22 22 C24 17.5 28.5 17.5 33 22Z" fill="#34d399" opacity=".5"/>
+    <text x="48" y="18" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="800" fill="#10b981" letter-spacing=".3">Callistemon</text>
+    <text x="48" y="33" font-family="system-ui,-apple-system,sans-serif" font-size="10.5" fill="#9ca3af">Diagnostic Services</text>
+  </svg>`,
+  bb: `<svg width="132" height="44" viewBox="0 0 132 44" xmlns="http://www.w3.org/2000/svg" aria-label="BB Diagnostics">
+    <circle cx="22" cy="22" r="18" fill="rgba(249,115,22,.12)" stroke="#f97316" stroke-width="1.5"/>
+    <text x="22" y="28" font-family="system-ui,-apple-system,sans-serif" font-size="16" font-weight="800" fill="#f97316" text-anchor="middle" letter-spacing="1">BB</text>
+    <text x="48" y="18" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="800" fill="#f97316" letter-spacing=".3">BB</text>
+    <text x="48" y="33" font-family="system-ui,-apple-system,sans-serif" font-size="10.5" fill="#9ca3af">Diagnostics</text>
+  </svg>`
+};
+
+/**
+ * Apply org theme and logo
+ * @param {string} key - Org key ('calli' or 'bb')
+ */
+function applyOrgTheme(key) {
+  document.body.dataset.theme = key;
+  const logoEl = document.getElementById('org-logo');
+  if (logoEl) logoEl.innerHTML = ORG_LOGOS[key] || '';
+}
+
 // ---------- DOM Element Cache ----------
 const by = sel => document.querySelector(sel);
 
@@ -292,6 +321,10 @@ function updateAuthHint(url) {
  * Initialize event listeners
  */
 function initEventListeners() {
+  // Org theme
+  applyOrgTheme(elements.orgSelect?.value || 'calli');
+  elements.orgSelect?.addEventListener('change', () => applyOrgTheme(elements.orgSelect.value));
+
   // Auth button
   elements.authManageBtn?.addEventListener('click', () => {
     const url = (elements.bundleUrl?.value || elements.baseUrl?.value || '').trim();
