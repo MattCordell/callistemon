@@ -13,7 +13,10 @@ App.buildPractitionerAndRoleEntries = function(selectedName) {
   var s = App.roleSpecialties[selectedName];
   var practitionerRole = {
     resourceType: 'PractitionerRole',
-    meta: { profile: ['http://hl7.org.au/fhir/StructureDefinition/au-practitionerrole'] },
+    meta: { profile: [
+      'http://hl7.org.au/fhir/StructureDefinition/au-practitionerrole',
+      'http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-practitionerrole'
+    ] },
     active: true,
     practitioner: { reference: pracFullUrl }
   };
@@ -158,15 +161,18 @@ App.buildBundle = function() {
     }
 
     if (t.bodySite) {
-      srResource.contained = [{
+      var bodyStructure = {
         resourceType: 'BodyStructure',
         id: 'bs',
         location: {
           coding: [{ system: 'http://snomed.info/sct', code: t.bodySite.code, display: t.bodySite.display }],
           text: t.bodySite.display
-        },
-        patient: { reference: patientRef }
-      }];
+        }
+      };
+      if (patientRef.indexOf('urn:') !== 0) {
+        bodyStructure.patient = { reference: patientRef };
+      }
+      srResource.contained = [bodyStructure];
       srResource.extension.push({
         url: 'http://hl7.org/fhir/StructureDefinition/procedure-targetBodyStructure',
         valueReference: { reference: '#bs' }

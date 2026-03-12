@@ -139,6 +139,10 @@ App.buildPatientResourceFromForm = function() {
   var imgSrc = document.getElementById('patient-photo').src || 'defaultProfile.jpg';
   var patient = {
     resourceType: 'Patient',
+    meta: { profile: [
+      'http://hl7.org.au/fhir/StructureDefinition/au-patient',
+      'http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-patient'
+    ] },
     identifier: [{ system: App.PLACER_SYS, value: App.newUUID() }],
     name: [{ use: 'official', family: family, given: [given] }],
     gender: document.getElementById('patient-gender').value || 'unknown',

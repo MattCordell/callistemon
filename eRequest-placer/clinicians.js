@@ -6,7 +6,6 @@ window.App = window.App || {};
 App.practitionerResources = {
   "Dr Confident Cane Toad": {
     resourceType: "Practitioner",
-    id: "J855592470710578",
     meta: { profile: [
       "http://hl7.org.au/fhir/StructureDefinition/au-practitioner",
       "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-practitioner"
@@ -25,7 +24,6 @@ App.practitionerResources = {
   },
   "Dr Compassionate Quoll": {
     resourceType: "Practitioner",
-    id: "W855592487843004",
     meta: { profile: [
       "http://hl7.org.au/fhir/StructureDefinition/au-practitioner",
       "http://hl7.org.au/fhir/ereq/StructureDefinition/au-erequesting-practitioner"
