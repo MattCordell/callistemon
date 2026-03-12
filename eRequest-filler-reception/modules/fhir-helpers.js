@@ -341,6 +341,38 @@ export function srSnomedCode(sr) {
 }
 
 /**
+ * Get body site display text from a ServiceRequest's procedure-targetBodyStructure extension
+ * @param {Object} sr - ServiceRequest resource
+ * @param {Function} resolver - Bundle resolver from makeResolver()
+ * @returns {string} Body site display text, or empty string if not present
+ */
+export function srBodySiteDisplay(sr, resolver) {
+  const TARGET_EXT = 'http://hl7.org/fhir/StructureDefinition/procedure-targetBodyStructure';
+  for (const ext of (sr.extension || [])) {
+    if (ext.url !== TARGET_EXT || !ext.valueReference?.reference) continue;
+    const ref = ext.valueReference.reference;
+    let bs;
+    if (ref.startsWith('#')) {
+      // Contained resource — find by id within sr.contained
+      const id = ref.slice(1);
+      bs = (sr.contained || []).find(r => r.resourceType === 'BodyStructure' && r.id === id);
+    } else {
+      bs = resolver(ext.valueReference);
+    }
+    if (!bs) continue;
+    const coding = bs.location?.coding;
+    if (Array.isArray(coding) && coding.length) {
+      return coding.find(c => c.display)?.display || coding[0].code || '';
+    }
+    if (bs.location?.text) return bs.location.text;
+  }
+  // Fallback: ServiceRequest.bodySite (standard R4 CodeableConcept, used by other placers)
+  const bodySite = sr.bodySite?.[0];
+  if (bodySite) return bodySite.coding?.find(c => c.display)?.display || bodySite.coding?.[0]?.code || bodySite.text || '';
+  return '';
+}
+
+/**
  * Get best note from a ServiceRequest
  * @param {Object} sr - ServiceRequest resource
  * @returns {string} Note text or empty string

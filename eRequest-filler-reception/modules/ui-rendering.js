@@ -36,9 +36,11 @@ import {
   getPregnancyStatusDetail,
   srDisplay,
   srSnomedCode,
+  srBodySiteDisplay,
   bestNote,
   isPathology,
-  isImaging
+  isImaging,
+  makeResolver
 } from './fhir-helpers.js';
 import { snomedSubsumes, ensureFastingSet } from './terminology.js';
 import { submitTaskUpdates, ensureOrganization } from './fhir-client.js';
@@ -381,6 +383,7 @@ export function renderRequestsGrouped(bundle, list, currentBase, getFillerOrg) {
   }
 
   const tMap = tasksByFocusMap(bundle);
+  const resolver = makeResolver(bundle);
 
   // Group by Task.groupIdentifier
   const groups = new Map();
@@ -531,6 +534,7 @@ export function renderRequestsGrouped(bundle, list, currentBase, getFillerOrg) {
       const title = srDisplay(sr);
       const code = srSnomedCode(sr);
       const noteInline = bestNote(sr);
+      const bodySite = srBodySiteDisplay(sr, resolver);
       const isSrImaging = isImaging(sr);
       const claimed = isTaskClaimed(task);
 
@@ -562,6 +566,7 @@ export function renderRequestsGrouped(bundle, list, currentBase, getFillerOrg) {
           </div>
         </div>
         ${bStat ? `<div class="note"><strong>Task business status:</strong> ${escapeHtml(bStat)}</div>` : ''}
+        ${bodySite ? `<div class="note"><strong>Site:</strong> ${escapeHtml(bodySite)}</div>` : ''}
         ${noteInline && noteInline !== clinicalNote ? `<div class="note">${escapeHtml(noteInline)}</div>` : ''}
         <div class="note fasting-note js-fasting-note" style="display:none">Patient should be fasting prior to collection.</div>
         ${rowActionsHtml}

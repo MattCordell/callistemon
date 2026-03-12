@@ -157,6 +157,22 @@ App.buildBundle = function() {
       srResource.supportingInfo.push({ reference: pregObsFullUrl });
     }
 
+    if (t.bodySite) {
+      srResource.contained = [{
+        resourceType: 'BodyStructure',
+        id: 'bs',
+        location: {
+          coding: [{ system: 'http://snomed.info/sct', code: t.bodySite.code, display: t.bodySite.display }],
+          text: t.bodySite.display
+        },
+        patient: { reference: patientRef }
+      }];
+      srResource.extension.push({
+        url: 'http://hl7.org/fhir/StructureDefinition/procedure-targetBodyStructure',
+        valueReference: { reference: '#bs' }
+      });
+    }
+
     entries.push({ fullUrl: srFullUrl, resource: srResource, request: { method: 'POST', url: 'ServiceRequest' } });
 
     var diagTaskFullUrl = App.uuidURN();

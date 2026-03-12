@@ -4,6 +4,7 @@
 window.App = window.App || {};
 
 App.fastingCodeSet = new Set();
+App.siteSpecificCodeSet = new Set();
 App.subsumesCache = new Map();
 
 // ----- Extract supplement properties from R5 backport extensions -----
@@ -51,6 +52,14 @@ App.preloadFastingCodes = async function() {
     var items = await App.expandFromOntoserver(App.VS_ECL_FASTING);
     items.forEach(function(i) { if (i.code) App.fastingCodeSet.add(i.code); });
   } catch (e) { console.warn('preloadFastingCodes', e); }
+};
+
+// ----- Preload site-specific procedure codes from ECL -----
+App.preloadSiteSpecificCodes = async function() {
+  try {
+    var items = await App.expandFromOntoserver(App.VS_ECL_SITE_SPECIFIC, null, { base: App.R4_BASE, count: '1000' });
+    items.forEach(function(i) { if (i.code) App.siteSpecificCodeSet.add(i.code); });
+  } catch (e) { console.warn('preloadSiteSpecificCodes', e); }
 };
 
 // ----- SNOMED $subsumes -----

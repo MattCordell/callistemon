@@ -41,6 +41,13 @@ App.PREG_CODES_WARN = new Set(['77386006', '146799005']); // Pregnancy, Possible
 App.ECL_FASTING = '^1072351000168102 {{ term = "fasting" }}';
 App.VS_ECL_FASTING = 'http://snomed.info/sct?fhir_vs=ecl/' + encodeURIComponent(App.ECL_FASTING);
 
+// ECL for site-specific procedures (require body site selection)
+App.ECL_SITE_SPECIFIC = '( (^1072351000168102 AND <(252390002 OR 168132005 OR 117259009 OR 86273004 OR 104190003)) ) MINUS ( (*:*=<<(122575003 OR 119339001 OR 258450006)) )';
+App.VS_ECL_SITE_SPECIFIC = 'http://snomed.info/sct?fhir_vs=ecl/' + encodeURIComponent(App.ECL_SITE_SPECIFIC);
+
+// ECL for Australian body site refset
+App.VS_ECL_BODY_SITE = 'http://snomed.info/sct?fhir_vs=ecl/' + encodeURIComponent('^32570061000036105');
+
 // Boost + supplement for pathology search
 App.BOOST_URL      = 'http://snomed.info/sct?fhir_vs=refset/933412481000036103';
 App.SUPPLEMENT_URL = 'https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement';

@@ -116,6 +116,18 @@ export async function fetchServiceRequestsAndRelated(base, tasks) {
           if (res?.resourceType === 'Observation') extra.push(res);
         }
 
+        // Fetch external BodyStructure from procedure-targetBodyStructure extension
+        // (skip fragment '#...' refs — those are contained and resolved locally)
+        for (const ext of (sr.extension || [])) {
+          if (ext.url === 'http://hl7.org/fhir/StructureDefinition/procedure-targetBodyStructure') {
+            const ref = ext.valueReference?.reference;
+            if (ref && !ref.startsWith('#')) {
+              const bs = await getByRef(base, ref);
+              if (bs?.resourceType === 'BodyStructure') extra.push(bs);
+            }
+          }
+        }
+
         // Fetch requester and related resources
         if (sr.requester?.reference) {
           const rq = await getByRef(base, sr.requester.reference);

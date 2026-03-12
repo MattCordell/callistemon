@@ -188,6 +188,8 @@
   App.computeAndRenderSuggestions();
   App.updatePtToggleVisuals();
   App.preloadFastingCodes();
+  App.preloadSiteSpecificCodes();
+  App.initBodySiteModal();
 
   if (location.protocol === 'file:') App.showStatus('Running as file:// \u2014 some browsers block fetch. Use a local server for full functionality.');
 
