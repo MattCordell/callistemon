@@ -540,6 +540,9 @@ function init() {
   }
   handleFetchClick();
 
+  // Auto-refresh every 15 seconds
+  setInterval(handleFetchClick, 15000);
+
   console.log('eRequest Dashboard v7.0 initialized');
 }
 
