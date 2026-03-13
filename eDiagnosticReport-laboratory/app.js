@@ -83,7 +83,7 @@ function applyOrgTheme(key) {
 
 // ── Event Listeners ─────────────────────────────────────────────────
 applyOrgTheme(el.orgSelect?.value || 'calli');
-el.orgSelect?.addEventListener('change', () => applyOrgTheme(el.orgSelect.value));
+el.orgSelect?.addEventListener('change', () => { applyOrgTheme(el.orgSelect.value); loadBacklog(); });
 el.loadBtn.addEventListener('click', loadBacklog);
 el.backBtn.addEventListener('click', showBacklogView);
 el.autocompleteBtn.addEventListener('click', handleAutocomplete);
@@ -272,8 +272,9 @@ async function handleSubmit() {
 
     showToast(el.toast, `Report submitted successfully for ${currentEntry.displayName}.`, 'ok');
 
-    // Return to backlog and reload
+    // Return to backlog and reload — brief delay to allow the server to index the status change
     showBacklogView();
+    await new Promise(r => setTimeout(r, 1500));
     await loadBacklog();
 
   } catch (err) {

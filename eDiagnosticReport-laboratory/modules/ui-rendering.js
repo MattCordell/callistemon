@@ -142,7 +142,7 @@ export function renderDataEntryForm(container, entry) {
                  data-high="${refHigh ?? ''}"
                  placeholder="\u2014" />
           <span class="obs-unit">${escapeHtml(obs.unit)}</span>
-          <span class="obs-ref">${refText ? `Ref: ${refText}` : ''}</span>
+          <span class="obs-ref">${refText}</span>
         </div>`;
       }
     }

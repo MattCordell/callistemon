@@ -168,7 +168,7 @@ button:disabled{opacity:.5; cursor:not-allowed}
 }
 .test-form h3:first-child{margin-top:0}
 .obs-row{
-  display:grid; grid-template-columns:200px 1fr 70px 1fr; gap:8px; align-items:center;
+  display:grid; grid-template-columns:200px 90px 110px 1fr; gap:8px; align-items:center;
   padding:6px 0; border-bottom:1px solid rgba(255,255,255,.04);
 }
 .obs-row label{font-size:14px; font-weight:600}
@@ -178,7 +178,7 @@ button:disabled{opacity:.5; cursor:not-allowed}
 }
 .obs-row input:focus{outline:2px solid var(--ring); border-color:var(--accent)}
 .obs-row input.out-of-range{border-color:var(--err); background:rgba(239,68,68,.08)}
-.obs-unit{color:var(--muted); font-size:13px}
+.obs-unit{color:var(--muted); font-size:13px; white-space:nowrap}
 .obs-ref{color:var(--muted); font-size:12px; white-space:nowrap}
 
 /* Form actions */
