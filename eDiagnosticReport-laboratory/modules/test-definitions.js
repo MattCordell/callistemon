@@ -539,6 +539,115 @@ export const TEST_DEFINITIONS = [
     ]
   },
 
+  // ── Serum Total Cholesterol Measurement ──────────────────────────
+  {
+    code: '412808005',
+    system: 'http://snomed.info/sct',
+    display: 'Serum total cholesterol measurement',
+    displayName: 'Total Cholesterol',
+    superSet: 'Lipids Panel',
+    headings: [
+      {
+        title: 'Lipid Profile',
+        observables: [
+          {
+            display: 'Total cholesterol',
+            loincCode: '14647-2',
+            loincDisplay: 'Cholesterol [Moles/volume] in Serum or Plasma',
+            unit: 'mmol/L',
+            ucumCode: 'mmol/L',
+            referenceRange: { high: 5.5 },
+            decimalPlaces: 1
+          }
+        ]
+      }
+    ]
+  },
+
+  // ── Serum Fasting Triglyceride Measurement ──────────────────────
+  {
+    code: '166849007',
+    system: 'http://snomed.info/sct',
+    display: 'Serum fasting triglyceride measurement',
+    displayName: 'Triglycerides (Fasting)',
+    superSet: 'Lipids Panel',
+    headings: [
+      {
+        title: 'Lipid Profile',
+        observables: [
+          {
+            display: 'Triglycerides',
+            loincCode: '30524-3',
+            loincDisplay: 'Triglyceride [Moles/volume] in Serum or Plasma --12 hours fasting',
+            unit: 'mmol/L',
+            ucumCode: 'mmol/L',
+            referenceRange: { high: 2.0 },
+            decimalPlaces: 1
+          }
+        ]
+      }
+    ]
+  },
+
+  // ── Serum Random Triglyceride Measurement ───────────────────────
+  {
+    code: '166850007',
+    system: 'http://snomed.info/sct',
+    display: 'Serum random triglyceride measurement',
+    displayName: 'Triglycerides (Random)',
+    superSet: 'Lipids Panel',
+    headings: [
+      {
+        title: 'Lipid Profile',
+        observables: [
+          {
+            display: 'Triglycerides',
+            loincCode: '14927-8',
+            loincDisplay: 'Triglyceride [Moles/volume] in Serum or Plasma',
+            unit: 'mmol/L',
+            ucumCode: 'mmol/L',
+            referenceRange: { high: 2.0 },
+            decimalPlaces: 1
+          }
+        ]
+      }
+    ]
+  },
+
+  // ── Total Cholesterol and Triglycerides ─────────────────────────
+  {
+    code: '443915001',
+    system: 'http://snomed.info/sct',
+    display: 'Measurement of total cholesterol and triglycerides',
+    displayName: 'Cholesterol & Triglycerides',
+    superSet: 'Lipids Panel',
+    headings: [
+      {
+        title: 'Lipid Profile',
+        observables: [
+          {
+            display: 'Total cholesterol',
+            loincCode: '14647-2',
+            loincDisplay: 'Cholesterol [Moles/volume] in Serum or Plasma',
+            unit: 'mmol/L',
+            ucumCode: 'mmol/L',
+            referenceRange: { high: 5.5 },
+            decimalPlaces: 1
+          },
+          {
+            display: 'Triglycerides',
+            loincCode: '14927-8',
+            loincDisplay: 'Triglyceride [Moles/volume] in Serum or Plasma',
+            unit: 'mmol/L',
+            ucumCode: 'mmol/L',
+            referenceRange: { high: 2.0 },
+            decimalPlaces: 1
+          }
+        ]
+      }
+    ]
+  },
+
   // ── Thyroid Function Tests ─────────────────────────────────────────
   {
     code: '35650009',
