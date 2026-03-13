@@ -25,6 +25,11 @@
  * - RCPA Top 50 Priority Tests for SPIA adoption_Dec 2024
  */
 
+/*
+All test codes MUST be from the RCPA Requesting valueSet https://www.rcpa.edu.au/fhir/ValueSet/spia-requesting-refset-3
+All observations must come from the SPIA Spreadsheets which have been summurised in RCPA_SPIA_Reference_Summary.md
+*/
+
 export const TEST_DEFINITIONS = [
   // ── Full Blood Count ──────────────────────────────────────────────
   {
@@ -400,7 +405,7 @@ export const TEST_DEFINITIONS = [
     system: 'http://snomed.info/sct',
     display: 'Fasting lipid profile',
     displayName: 'Lipids (Fasting)',
-    superSet: null,
+    superSet: 'Lipids Panel',
     headings: [
       {
         title: 'Lipid Profile',
@@ -470,7 +475,7 @@ export const TEST_DEFINITIONS = [
     system: 'http://snomed.info/sct',
     display: 'Lipids measurement',
     displayName: 'Lipids (Random)',
-    superSet: null,
+    superSet: 'Lipids Panel',
     headings: [
       {
         title: 'Lipid Profile',
@@ -540,7 +545,7 @@ export const TEST_DEFINITIONS = [
     system: 'http://snomed.info/sct',
     display: 'Thyroid function test',
     displayName: 'TFT',
-    superSet: null,
+    superSet: 'Thyroid Panel',
     headings: [
       {
         title: 'Thyroid Function',
@@ -577,13 +582,88 @@ export const TEST_DEFINITIONS = [
     ]
   },
 
+  // ── Serum TSH Measurement ────────────────────────────────────────
+  {
+    code: '313440008',
+    system: 'http://snomed.info/sct',
+    display: 'Serum TSH measurement',
+    displayName: 'TSH',
+    superSet: 'Thyroid Panel',
+    headings: [
+      {
+        title: 'Thyroid Function',
+        observables: [
+          {
+            display: 'TSH',
+            loincCode: '3016-3',
+            loincDisplay: 'Thyrotropin [Units/volume] in Serum or Plasma',
+            unit: 'mIU/L',
+            ucumCode: 'm[IU]/L',
+            referenceRange: { low: 0.4, high: 4.0 },
+            decimalPlaces: 2
+          }
+        ]
+      }
+    ]
+  },
+
+  // ── Serum Free T4 Measurement ──────────────────────────────────
+  {
+    code: '313837000',
+    system: 'http://snomed.info/sct',
+    display: 'Serum free T4 measurement',
+    displayName: 'Free T4',
+    superSet: 'Thyroid Panel',
+    headings: [
+      {
+        title: 'Thyroid Function',
+        observables: [
+          {
+            display: 'Free T4',
+            loincCode: '14920-3',
+            loincDisplay: 'Thyroxine (T4) free [Moles/volume] in Serum or Plasma',
+            unit: 'pmol/L',
+            ucumCode: 'pmol/L',
+            referenceRange: { low: 10, high: 20 },
+            decimalPlaces: 1
+          }
+        ]
+      }
+    ]
+  },
+
+  // ── Serum Free T3 Level ─────────────────────────────────────────
+  {
+    code: '313836009',
+    system: 'http://snomed.info/sct',
+    display: 'Serum free T3 level',
+    displayName: 'Free T3',
+    superSet: 'Thyroid Panel',
+    headings: [
+      {
+        title: 'Thyroid Function',
+        observables: [
+          {
+            display: 'Free T3',
+            loincCode: '14928-6',
+            loincDisplay: 'Triiodothyronine (T3) Free [Moles/volume] in Serum or Plasma',
+            unit: 'pmol/L',
+            ucumCode: 'pmol/L',
+            referenceRange: { low: 3.5, high: 6.5 },
+            decimalPlaces: 1
+          }
+        ]
+      }
+    ]
+  },
+
   // ── Iron Studies ──────────────────────────────────────────────────
   {
     code: '269820002',
     system: 'http://snomed.info/sct',
     display: 'Serum iron tests',
     displayName: 'Iron Studies',
-    superSet: null,
+    superSet: 'Iron Studies',
     headings: [
       {
         title: 'Iron Studies',
@@ -632,6 +712,81 @@ export const TEST_DEFINITIONS = [
             ucumCode: 'umol/L',
             referenceRange: { low: 45, high: 70 },
             decimalPlaces: 0
+          }
+        ]
+      }
+    ]
+  },
+
+  // ── Serum Ferritin Measurement ────────────────────────────────────
+  {
+    code: '269821003',
+    system: 'http://snomed.info/sct',
+    display: 'Serum ferritin measurement',
+    displayName: 'Ferritin',
+    superSet: 'Iron Studies',
+    headings: [
+      {
+        title: 'Iron Studies',
+        observables: [
+          {
+            display: 'Ferritin',
+            loincCode: '2276-4',
+            loincDisplay: 'Ferritin [Mass/volume] in Serum or Plasma',
+            unit: '\u00b5g/L',
+            ucumCode: 'ug/L',
+            referenceRange: { low: 30, high: 300 },
+            decimalPlaces: 0
+          }
+        ]
+      }
+    ]
+  },
+
+  // ── Serum Iron Measurement ──────────────────────────────────────
+  {
+    code: '250216004',
+    system: 'http://snomed.info/sct',
+    display: 'Serum iron measurement',
+    displayName: 'Serum Iron',
+    superSet: 'Iron Studies',
+    headings: [
+      {
+        title: 'Iron Studies',
+        observables: [
+          {
+            display: 'Iron',
+            loincCode: '14798-3',
+            loincDisplay: 'Iron [Moles/volume] in Serum or Plasma',
+            unit: '\u00b5mol/L',
+            ucumCode: 'umol/L',
+            referenceRange: { low: 10, high: 30 },
+            decimalPlaces: 0
+          }
+        ]
+      }
+    ]
+  },
+
+  // ── Transferrin Measurement ─────────────────────────────────────
+  {
+    code: '359982005',
+    system: 'http://snomed.info/sct',
+    display: 'Transferrin measurement',
+    displayName: 'Transferrin',
+    superSet: 'Iron Studies',
+    headings: [
+      {
+        title: 'Iron Studies',
+        observables: [
+          {
+            display: 'Transferrin',
+            loincCode: '3034-6',
+            loincDisplay: 'Transferrin [Mass/volume] in Serum or Plasma',
+            unit: 'g/L',
+            ucumCode: 'g/L',
+            referenceRange: { low: 2.0, high: 3.6 },
+            decimalPlaces: 1
           }
         ]
       }
@@ -1094,6 +1249,24 @@ export const SUPER_SETS = {
     system: 'http://snomed.info/sct',
     display: 'Blood chemistry',
     displayName: 'General Chemistry'
+  },
+  'Iron Studies': {
+    code: '42950004',
+    system: 'http://snomed.info/sct',
+    display: 'Iron measurement',
+    displayName: 'Iron Studies'
+  },
+  'Thyroid Panel': {
+    code: '390780008',
+    system: 'http://snomed.info/sct',
+    display: 'Thyroid hormone measurement',
+    displayName: 'Thyroid Panel'
+  },
+  'Lipids Panel': {
+    code: '16254007',
+    system: 'http://snomed.info/sct',
+    display: 'Lipid panel',
+    displayName: 'Lipids Panel'
   }
 };
 
