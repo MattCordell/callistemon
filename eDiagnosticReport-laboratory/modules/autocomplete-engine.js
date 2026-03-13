@@ -17,6 +17,12 @@ export function generateValues(headings) {
 
   for (const heading of headings) {
     for (const obs of heading.observables) {
+      // Text observables: use sampleValue if provided
+      if (obs.resultType === 'text') {
+        if (obs.sampleValue != null) values.set(obs.loincCode, obs.sampleValue);
+        continue;
+      }
+
       const { low, high } = obs.referenceRange || {};
       if (low == null && high == null) continue;
 

@@ -113,31 +113,44 @@ export function renderDataEntryForm(container, entry) {
     html += `<h3>${escapeHtml(heading.title)}</h3>`;
 
     for (const obs of heading.observables) {
-      const refLow = obs.referenceRange?.low;
-      const refHigh = obs.referenceRange?.high;
-      let refText = '';
-      if (refLow != null && refHigh != null) refText = `${refLow}\u2013${refHigh}`;
-      else if (refLow != null) refText = `\u2265${refLow}`;
-      else if (refHigh != null) refText = `\u2264${refHigh}`;
+      if (obs.resultType === 'text') {
+        html += `<div class="obs-row obs-row--text">
+          <label for="obs_${escapeHtml(obs.loincCode)}">${escapeHtml(obs.display)}</label>
+          <input id="obs_${escapeHtml(obs.loincCode)}"
+                 type="text"
+                 data-loinc="${escapeHtml(obs.loincCode)}"
+                 data-result-type="text"
+                 placeholder="\u2014" />
+          <span class="obs-unit"></span>
+          <span class="obs-ref"></span>
+        </div>`;
+      } else {
+        const refLow = obs.referenceRange?.low;
+        const refHigh = obs.referenceRange?.high;
+        let refText = '';
+        if (refLow != null && refHigh != null) refText = `${refLow}\u2013${refHigh}`;
+        else if (refLow != null) refText = `\u2265${refLow}`;
+        else if (refHigh != null) refText = `\u2264${refHigh}`;
 
-      html += `<div class="obs-row">
-        <label for="obs_${escapeHtml(obs.loincCode)}">${escapeHtml(obs.display)}</label>
-        <input id="obs_${escapeHtml(obs.loincCode)}"
-               type="number"
-               step="${stepForDecimals(obs.decimalPlaces)}"
-               data-loinc="${escapeHtml(obs.loincCode)}"
-               data-low="${refLow ?? ''}"
-               data-high="${refHigh ?? ''}"
-               placeholder="\u2014" />
-        <span class="obs-unit">${escapeHtml(obs.unit)}</span>
-        <span class="obs-ref">${refText ? `Ref: ${refText}` : ''}</span>
-      </div>`;
+        html += `<div class="obs-row">
+          <label for="obs_${escapeHtml(obs.loincCode)}">${escapeHtml(obs.display)}</label>
+          <input id="obs_${escapeHtml(obs.loincCode)}"
+                 type="number"
+                 step="${stepForDecimals(obs.decimalPlaces)}"
+                 data-loinc="${escapeHtml(obs.loincCode)}"
+                 data-low="${refLow ?? ''}"
+                 data-high="${refHigh ?? ''}"
+                 placeholder="\u2014" />
+          <span class="obs-unit">${escapeHtml(obs.unit)}</span>
+          <span class="obs-ref">${refText ? `Ref: ${refText}` : ''}</span>
+        </div>`;
+      }
     }
   }
 
   container.innerHTML = html;
 
-  // Add out-of-range highlighting on input
+  // Add out-of-range highlighting on numeric inputs
   container.querySelectorAll('input[type="number"]').forEach(input => {
     input.addEventListener('input', () => highlightRange(input));
   });
@@ -146,14 +159,18 @@ export function renderDataEntryForm(container, entry) {
 /**
  * Collect form data from the data entry form.
  * @param {HTMLElement} container - The form container
- * @returns {Map<string, number>} Map of loincCode -> numeric value
+ * @returns {Map<string, number|string>} Map of loincCode -> numeric value or string
  */
 export function collectFormData(container) {
   const data = new Map();
   container.querySelectorAll('input[data-loinc]').forEach(input => {
     const val = input.value.trim();
-    if (val !== '') {
-      data.set(input.dataset.loinc, parseFloat(val));
+    if (val === '') return;
+    if (input.dataset.resultType === 'text') {
+      data.set(input.dataset.loinc, val);
+    } else {
+      const num = parseFloat(val);
+      if (!isNaN(num)) data.set(input.dataset.loinc, num);
     }
   });
   return data;
@@ -162,14 +179,14 @@ export function collectFormData(container) {
 /**
  * Fill form fields with autocomplete values.
  * @param {HTMLElement} container - The form container
- * @param {Map<string, number>} values - Map of loincCode -> value
+ * @param {Map<string, number|string>} values - Map of loincCode -> value
  */
 export function fillFormValues(container, values) {
   container.querySelectorAll('input[data-loinc]').forEach(input => {
     const loinc = input.dataset.loinc;
     if (values.has(loinc)) {
       input.value = values.get(loinc);
-      highlightRange(input);
+      if (input.type === 'number') highlightRange(input);
     }
   });
 }

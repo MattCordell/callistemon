@@ -40,7 +40,10 @@ export function buildTransactionBundle(formData, context) {
   // 1. Create individual Observations for each filled field
   for (const obs of allObservables) {
     const value = formData.get(obs.loincCode);
-    if (value == null || isNaN(value)) continue;
+    if (value == null) continue;
+
+    const isText = typeof value === 'string';
+    if (!isText && isNaN(value)) continue;
 
     const obsUuid = `urn:uuid:${crypto.randomUUID()}`;
 
@@ -63,39 +66,44 @@ export function buildTransactionBundle(formData, context) {
       },
       subject: patientRef,
       effectiveDateTime: now,
-      performer: [performerRef],
-      valueQuantity: {
+      performer: [performerRef]
+    };
+
+    if (isText) {
+      observation.valueString = value;
+    } else {
+      observation.valueQuantity = {
         value: round(value, obs.decimalPlaces),
-        unit: obs.unit,
+        ...(obs.unit ? { unit: obs.unit } : {}),
         system: 'http://unitsofmeasure.org',
         code: obs.ucumCode
+      };
+
+      // Add reference range for numeric observations
+      if (obs.referenceRange && (obs.referenceRange.low != null || obs.referenceRange.high != null)) {
+        const range = {};
+        if (obs.referenceRange.low != null) {
+          range.low = {
+            value: obs.referenceRange.low,
+            unit: obs.unit,
+            system: 'http://unitsofmeasure.org',
+            code: obs.ucumCode
+          };
+        }
+        if (obs.referenceRange.high != null) {
+          range.high = {
+            value: obs.referenceRange.high,
+            unit: obs.unit,
+            system: 'http://unitsofmeasure.org',
+            code: obs.ucumCode
+          };
+        }
+        observation.referenceRange = [range];
       }
-    };
+    }
 
     if (obs.method) {
       observation.method = { text: obs.method };
-    }
-
-    // Add reference range if defined
-    if (obs.referenceRange && (obs.referenceRange.low != null || obs.referenceRange.high != null)) {
-      const range = {};
-      if (obs.referenceRange.low != null) {
-        range.low = {
-          value: obs.referenceRange.low,
-          unit: obs.unit,
-          system: 'http://unitsofmeasure.org',
-          code: obs.ucumCode
-        };
-      }
-      if (obs.referenceRange.high != null) {
-        range.high = {
-          value: obs.referenceRange.high,
-          unit: obs.unit,
-          system: 'http://unitsofmeasure.org',
-          code: obs.ucumCode
-        };
-      }
-      observation.referenceRange = [range];
     }
 
     txEntries.push({
