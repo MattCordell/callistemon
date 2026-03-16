@@ -6,6 +6,7 @@ window.App = window.App || {};
 App.ptMode = 'search';
 App.currentPatientResource = null;
 App.patientAddress = null;
+App.patientSourceServer = null;  // FHIR_BASE at the time the patient was loaded
 
 // ----- Lock fields if existing patient — pregnancy remains editable -----
 App.setPatientLocked = function(locked) {
@@ -39,6 +40,7 @@ App.clearPatientForm = function() {
   App.fillPatientForm({ nameText: '', birthDate: '', gender: 'unknown', photoUrl: 'defaultProfile.jpg', addressText: '\u2014' });
   App.patientAddress = null;
   App.currentPatientResource = null;
+  App.patientSourceServer = null;
 };
 
 App.hidePtAC = function() {
@@ -58,6 +60,7 @@ App.fillPatientFormFromResource = function(p) {
   }
   App.patientAddress = (Array.isArray(p.address) && p.address.length) ? p.address[0] : null;
   App.currentPatientResource = p;
+  App.patientSourceServer = App.FHIR_BASE;
   App.fillPatientForm({
     nameText: name,
     birthDate: p.birthDate || '',
@@ -161,6 +164,17 @@ App.buildPatientResourceFromForm = function() {
 
 App.providePatientRefAndEntry = function() {
   if (App.currentPatientResource && App.currentPatientResource.id) {
+    // If the patient was loaded from a different server, include it in the bundle
+    // so the target server can create its own copy
+    var crossServer = App.patientSourceServer &&
+      App.patientSourceServer.replace(/\/+$/, '') !== App.FHIR_BASE.replace(/\/+$/, '');
+    if (crossServer) {
+      var pat = JSON.parse(JSON.stringify(App.currentPatientResource));
+      delete pat.id;
+      delete pat.meta;
+      var full = App.uuidURN();
+      return { patientRef: full, entry: { fullUrl: full, resource: pat, request: { method: 'POST', url: 'Patient' } } };
+    }
     return { patientRef: 'Patient/' + App.currentPatientResource.id, entry: null };
   }
   var newPat = App.buildPatientResourceFromForm();
