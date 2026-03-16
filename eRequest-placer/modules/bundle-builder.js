@@ -166,9 +166,7 @@ App.buildBundle = function() {
           text: t.bodySite.display
         }
       };
-      if (patientRef.indexOf('urn:') !== 0) {
-        bodyStructure.patient = { reference: patientRef };
-      }
+      bodyStructure.patient = { reference: patientRef };
       srResource.contained = [bodyStructure];
       srResource.extension.push({
         url: 'http://hl7.org/fhir/StructureDefinition/procedure-targetBodyStructure',
