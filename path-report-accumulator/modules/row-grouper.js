@@ -125,7 +125,7 @@ export function buildCumulativeTable(currentReport, companionReports, displayMod
           displayName: obs.displayText,
           loincCode: obs.loincCode,
           unit: obs.unit,
-          refRange: { low: null, high: null },
+          refRange: obs.refRange,
           performerDisplay: obs.performerDisplay,
           method: obs.method,
           cells: new Map()
@@ -143,6 +143,7 @@ export function buildCumulativeTable(currentReport, companionReports, displayMod
   }
 
   const rows = rowOrder.map(key => rowMap.get(key));
+  rows.sort((a, b) => (a.displayName || '').localeCompare(b.displayName || '', undefined, { sensitivity: 'base' }));
   return { columns, rows };
 }
 
