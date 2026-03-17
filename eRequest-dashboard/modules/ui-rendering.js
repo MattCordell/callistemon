@@ -24,22 +24,24 @@ import { CONFIG } from '../config.js';
  */
 export function populateServerSelects() {
   // FHIR server presets
-  const serverPresets = document.getElementById('server-presets');
-  if (serverPresets) {
+  const serverSelect = document.getElementById('server-url');
+  if (serverSelect) {
     CONFIG.FHIR_SERVERS.forEach(url => {
       const option = document.createElement('option');
       option.value = url;
-      serverPresets.appendChild(option);
+      option.textContent = url;
+      serverSelect.appendChild(option);
     });
   }
 
   // Terminology server presets
-  const txPresets = document.getElementById('tx-presets');
-  if (txPresets) {
+  const txSelect = document.getElementById('tx-server');
+  if (txSelect) {
     CONFIG.TX_SERVERS.forEach(url => {
       const option = document.createElement('option');
       option.value = url;
-      txPresets.appendChild(option);
+      option.textContent = url;
+      txSelect.appendChild(option);
     });
   }
 

@@ -465,7 +465,7 @@ function subscribeToStateChanges() {
  */
 function initEventListeners() {
   // Server selection
-  elements.serverUrl?.addEventListener('input', handleServerUrlChange);
+  elements.serverUrl?.addEventListener('change', handleServerUrlChange);
   elements.fetchBtn?.addEventListener('click', handleFetchClick);
 
   // Mode toggle
