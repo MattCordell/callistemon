@@ -540,8 +540,12 @@ function init() {
   }
   handleFetchClick();
 
-  // Auto-refresh every 15 seconds
-  setInterval(handleFetchClick, 15000);
+  // Auto-refresh every 90 seconds (skip when tab is hidden)
+  setInterval(() => {
+    if (!document.hidden) {
+      handleFetchClick();
+    }
+  }, 90000);
 
   console.log('eRequest Dashboard v7.0 initialized');
 }
