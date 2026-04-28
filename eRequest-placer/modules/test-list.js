@@ -10,7 +10,7 @@ App.fetchSupplementProps = async function(test) {
   try {
     var items = await App.expandFromOntoserver(App.VS.PATH, test.display, {
       base: App.R4_BASE,
-      useSupplement: App.SUPPLEMENT_URL + '|1.0.0',
+      useSupplement: App.SUPPLEMENT_URL,
       properties: ['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen'],
       count: '20'
     });
@@ -247,11 +247,29 @@ App.setupSearch = function(inputSel, listSel, vsCanonicalUrl, kind, expandOpts) 
       var top = items.slice(0, 5);
       if (!top.length) { list.innerHTML = '<li class="p-2 text-gray-500">No matches</li>'; return; }
       top.forEach(function(it) {
+        var snomedDisplay = it.display || it.code || '\u2014';
+        var providerPreferred = (it.designation || []).find(function(d) {
+          return d.use && d.use.code === '900000000000548007';
+        });
+        var label = providerPreferred ? providerPreferred.value : snomedDisplay;
+
         var li = document.createElement('li');
         li.className = 'p-2 hover:bg-gray-100 cursor-pointer';
-        li.textContent = it.display || it.code || '\u2014';
+        if (providerPreferred) {
+          li.innerHTML = '';
+          var nameSpan = document.createElement('span');
+          nameSpan.textContent = label;
+          var snomedSpan = document.createElement('span');
+          snomedSpan.className = 'ml-2 text-xs text-gray-400';
+          snomedSpan.textContent = '(' + snomedDisplay + ')';
+          li.appendChild(nameSpan);
+          li.appendChild(snomedSpan);
+        } else {
+          li.textContent = label;
+        }
         li.onclick = function() {
-          var test = { system: it.system || 'http://snomed.info/sct', code: it.code, display: it.display || it.code, kind: kind };
+          var test = { system: it.system || 'http://snomed.info/sct', code: it.code, display: label, kind: kind };
+          if (it.display && providerPreferred) test.officialDisplay = it.display;
           if (expandOpts && expandOpts.useSupplement) {
             test.supplementProps = App.extractSupplementProperties(it);
           }

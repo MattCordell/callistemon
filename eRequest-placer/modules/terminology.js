@@ -28,13 +28,14 @@ App.extractSupplementProperties = function(concept) {
 // ----- Ontoserver ValueSet $expand -----
 App.expandFromOntoserver = async function(vsCanonicalUrl, filter, opts) {
   opts = opts || {};
-  try {
+
+  async function doExpand(supplementList) {
     var base = new URL(opts.base || App.TX_BASE);
     base.searchParams.set('url', vsCanonicalUrl);
     if (filter && filter.trim().length) base.searchParams.set('filter', filter);
     base.searchParams.set('count', opts.count || '50');
     if (opts.includeDesignations) base.searchParams.set('includeDesignations', 'true');
-    if (opts.useSupplement) base.searchParams.set('useSupplement', opts.useSupplement);
+    supplementList.forEach(function(s) { base.searchParams.append('useSupplement', s); });
     if (opts.properties) opts.properties.forEach(function(p) { base.searchParams.append('property', p); });
     if (opts.boost) base.searchParams.set('_boost', opts.boost);
     var url = base.toString();
@@ -43,7 +44,21 @@ App.expandFromOntoserver = async function(vsCanonicalUrl, filter, opts) {
     if (!r.ok) throw new Error('Ontoserver ' + r.status);
     var j = await r.json();
     return (j && j.expansion && j.expansion.contains) ? j.expansion.contains : [];
-  } catch (e) { console.warn('Ontoserver expand failed', e); return []; }
+  }
+
+  var supps = Array.isArray(opts.useSupplement) ? opts.useSupplement
+            : (opts.useSupplement ? [opts.useSupplement] : []);
+  try {
+    return await doExpand(supps);
+  } catch (e) {
+    if (supps.length > 1) {
+      console.warn('Expand with provider supplement failed, retrying without it', e);
+      try { return await doExpand([supps[0]]); } catch (e2) { console.warn('Fallback expand failed', e2); }
+    } else {
+      console.warn('Ontoserver expand failed', e);
+    }
+    return [];
+  }
 };
 
 // ----- Preload fasting codes from ECL -----

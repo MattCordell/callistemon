@@ -53,6 +53,14 @@ App.BOOST_URL      = 'http://snomed.info/sct?fhir_vs=refset/933412481000036103';
 App.SUPPLEMENT_URL = 'https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement';
 App.R5_PROP_EXT    = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-ValueSet.expansion.contains.property';
 
+// Provider-specific preferred name supplements (designation overlays)
+App.PROVIDER_SUPPLEMENTS = [
+  { id: 'none',        label: 'No preference' },
+  { id: 'bb',         label: 'BB Diagnostics',               url: 'https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement-bb-diagnostics' },
+  { id: 'callistemon', label: 'Callistemon Diagnostic Services', url: 'https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement-callistemon-diagnostic-services' }
+];
+App.activeProviderSupplement = null; // url string or null
+
 App.CAT = {
   PATH: { coding: [{ system: "http://snomed.info/sct", code: "108252007", display: "Laboratory procedure" }] },
   IMAG: { coding: [{ system: "http://snomed.info/sct", code: "363679005", display: "Imaging" }] }

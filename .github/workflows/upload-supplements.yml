@@ -1,0 +1,31 @@
+name: Upload Pathology Supplements to Ontoserver
+
+# Runs daily. If the SNOMED AU edition hasn't changed the script exits immediately
+# and nothing is uploaded or committed.
+# Also triggerable manually from the Actions tab.
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 02:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload supplements
+        shell: pwsh
+        run: ./pathology-stuff/upload-supplements.ps1
+
+      - name: Commit updated supplement files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pathology-stuff/snomed-pathology-test-info-supplement*.json
+          git diff --cached --quiet && echo "No file changes to commit." || git commit -m "Update supplements to SNOMED AU edition $(date +%Y%m%d)"
+          git push

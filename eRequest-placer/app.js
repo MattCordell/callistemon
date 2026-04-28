@@ -88,15 +88,42 @@
   });
 
   // ----- Search boxes -----
-  App.setupSearch('#pathology-search', '#pathology-results', App.VS.PATH, 'PATH', {
+  var pathOpts = {
     base: App.R4_BASE,
     includeDesignations: true,
-    useSupplement: App.SUPPLEMENT_URL + '|1.0.0',
+    useSupplement: [App.SUPPLEMENT_URL],
     properties: ['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen'],
     boost: App.BOOST_URL,
     count: '15'
-  });
+  };
+  App.setupSearch('#pathology-search', '#pathology-results', App.VS.PATH, 'PATH', pathOpts);
   App.setupSearch('#radiology-search', '#radiology-results', App.VS.IMAG, 'IMAG');
+
+  // ----- Preferred provider radio buttons -----
+  (function() {
+    var container = document.getElementById('provider-supplement-selector');
+    App.PROVIDER_SUPPLEMENTS.forEach(function(p, i) {
+      var label = document.createElement('label');
+      label.className = 'flex items-center gap-1.5 cursor-pointer';
+      var radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'provider-supplement';
+      radio.value = p.id;
+      radio.className = 'accent-blue-600';
+      if (i === 0) radio.checked = true;
+      radio.addEventListener('change', function() {
+        App.activeProviderSupplement = p.url || null;
+        var base = App.SUPPLEMENT_URL;
+        pathOpts.useSupplement = p.url ? [base, p.url] : [base];
+        var searchEl = document.querySelector('#pathology-search');
+        if (searchEl.value.length >= 2) searchEl.dispatchEvent(new Event('input'));
+      });
+      var text = document.createTextNode(p.label);
+      label.appendChild(radio);
+      label.appendChild(text);
+      container.appendChild(label);
+    });
+  })();
 
   // ----- Custom adders -----
   App.setupCustomAdder('#pathology-custom', '#pathology-custom-add', 'PATH');

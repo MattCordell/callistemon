@@ -1,0 +1,728 @@
+﻿{
+  "resourceType": "CodeSystem",
+  "id": "347a04a9-f63b-4d46-8d41-b5ad222cc26e",
+  "url": "https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement-bb-diagnostics",
+  "version": "1.20260331.0",
+  "name": "SNOMEDPathologyTestInfoSupplementBBDiagnostics",
+  "title": "SNOMED CT Pathology Test Information Supplement - BB Diagnostics",
+  "status": "draft",
+  "experimental": true,
+  "date": "2026-03-18",
+  "publisher": "Matt Cordell",
+  "contact": [
+    {
+      "name": "Matt Cordell",
+      "telecom": [
+        {
+          "system": "url",
+          "value": "https://github.com/MattCordell/callistemon"
+        }
+      ]
+    }
+  ],
+  "description": "A CodeSystem supplement providing BB Diagnostics preferred test names for SNOMED CT pathology test concepts.",
+  "content": "supplement",
+  "supplements": "http://snomed.info/sct|http://snomed.info/sct/32506021000036107/version/20260331",
+  "concept": [
+    {
+      "code": "49466006",
+      "display": "Adrenocorticotropic hormone measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "ACTH"
+        }
+      ]
+    },
+    {
+      "code": "359788000",
+      "display": "Antinuclear antibody measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "ANA"
+        }
+      ]
+    },
+    {
+      "code": "3116009",
+      "display": "Blood coagulation panel",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Coag Screen"
+        }
+      ]
+    },
+    {
+      "code": "30088009",
+      "display": "Blood culture",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Blood Cultures"
+        }
+      ]
+    },
+    {
+      "code": "91308007",
+      "display": "Blood gases, arterial measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "ABG"
+        }
+      ]
+    },
+    {
+      "code": "20099001",
+      "display": "Blood typing, ABO, Rho(D) and RBC antibody screening",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "G&S"
+        }
+      ]
+    },
+    {
+      "code": "55235003",
+      "display": "C-reactive protein measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "CRP"
+        }
+      ]
+    },
+    {
+      "code": "440685005",
+      "display": "Calculation of international normalised ratio",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "INR"
+        }
+      ]
+    },
+    {
+      "code": "1257431000168105",
+      "display": "Cervical Co-test",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Cervical Cotest"
+        }
+      ]
+    },
+    {
+      "code": "70648006",
+      "display": "D-dimer assay",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "D-Dimer"
+        }
+      ]
+    },
+    {
+      "code": "416838001",
+      "display": "Erythrocyte sedimentation rate measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "ESR"
+        }
+      ]
+    },
+    {
+      "code": "271062006",
+      "display": "Fasting blood glucose measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Fasting BSL"
+        }
+      ]
+    },
+    {
+      "code": "252150008",
+      "display": "Fasting lipid profile",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Fasting Lipids"
+        }
+      ]
+    },
+    {
+      "code": "26604007",
+      "display": "Full blood count",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "FBC"
+        }
+      ]
+    },
+    {
+      "code": "401287001",
+      "display": "Genital microscopy, culture and sensitivities",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Genital MCS"
+        }
+      ]
+    },
+    {
+      "code": "43396009",
+      "display": "Haemoglobin A1c measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "HbA1c"
+        }
+      ]
+    },
+    {
+      "code": "65911000",
+      "display": "Hepatitis B surface antibody measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "HBsAb"
+        }
+      ]
+    },
+    {
+      "code": "252416005",
+      "display": "Histopathology test",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Histopathology"
+        }
+      ]
+    },
+    {
+      "code": "171121004",
+      "display": "HIV screening",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "HIV Screen"
+        }
+      ]
+    },
+    {
+      "code": "67900009",
+      "display": "Human chorionic gonadotropin measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "βhCG"
+        }
+      ]
+    },
+    {
+      "code": "104780002",
+      "display": "Lipids measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Lipids"
+        }
+      ]
+    },
+    {
+      "code": "26958001",
+      "display": "Liver function test",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "LFTs"
+        }
+      ]
+    },
+    {
+      "code": "398381009",
+      "display": "Neisseria gonorrhoeae nucleic acid assay",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "GC NAAT"
+        }
+      ]
+    },
+    {
+      "code": "46093004",
+      "display": "Paracetamol measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Paracetamol Level"
+        }
+      ]
+    },
+    {
+      "code": "63476009",
+      "display": "Prostate specific antigen measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "PSA"
+        }
+      ]
+    },
+    {
+      "code": "396451008",
+      "display": "Prothrombin time",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "PT"
+        }
+      ]
+    },
+    {
+      "code": "271061004",
+      "display": "Random blood glucose measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Random BSL"
+        }
+      ]
+    },
+    {
+      "code": "54921001",
+      "display": "Rheumatoid factor measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "RF"
+        }
+      ]
+    },
+    {
+      "code": "1445431000168101",
+      "display": "SARS-CoV-2 nucleic acid assay",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "COVID PCR"
+        }
+      ]
+    },
+    {
+      "code": "1454651000168108",
+      "display": "SARS-CoV-2 serology",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "COVID Serology"
+        }
+      ]
+    },
+    {
+      "code": "271535005",
+      "display": "Serum cortisol measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Cortisol"
+        }
+      ]
+    },
+    {
+      "code": "398245009",
+      "display": "Serum creatine kinase measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "CK"
+        }
+      ]
+    },
+    {
+      "code": "269872007",
+      "display": "Serum digoxin measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Digoxin Level"
+        }
+      ]
+    },
+    {
+      "code": "273971007",
+      "display": "Serum follicle stimulating hormone measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "FSH"
+        }
+      ]
+    },
+    {
+      "code": "313837000",
+      "display": "Serum free T4 measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Free T4"
+        }
+      ]
+    },
+    {
+      "code": "391084000",
+      "display": "Serum ionised calcium measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Ionised Ca"
+        }
+      ]
+    },
+    {
+      "code": "269820002",
+      "display": "Serum iron tests",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Iron Studies"
+        }
+      ]
+    },
+    {
+      "code": "273969007",
+      "display": "Serum LH measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "LH"
+        }
+      ]
+    },
+    {
+      "code": "271232007",
+      "display": "Serum lipase measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Lipase"
+        }
+      ]
+    },
+    {
+      "code": "271541003",
+      "display": "Serum parathyroid hormone measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "PTH"
+        }
+      ]
+    },
+    {
+      "code": "270973006",
+      "display": "Serum testosterone measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Testosterone"
+        }
+      ]
+    },
+    {
+      "code": "313440008",
+      "display": "Serum TSH measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "TSH"
+        }
+      ]
+    },
+    {
+      "code": "273966000",
+      "display": "Serum urate measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Urate"
+        }
+      ]
+    },
+    {
+      "code": "271216009",
+      "display": "Serum vitamin B12 measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "B12"
+        }
+      ]
+    },
+    {
+      "code": "35650009",
+      "display": "Thyroid function test",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "TFTs"
+        }
+      ]
+    },
+    {
+      "code": "828431000168100",
+      "display": "Total serum calcium, magnesium and phosphate measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "CMP"
+        }
+      ]
+    },
+    {
+      "code": "444164000",
+      "display": "Urea, electrolytes and creatinine measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "UEC"
+        }
+      ]
+    },
+    {
+      "code": "271075006",
+      "display": "Urine albumin/creatinine ratio measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Urine ACR"
+        }
+      ]
+    },
+    {
+      "code": "401324008",
+      "display": "Urine microscopy, culture and sensitivities",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Urine MCS"
+        }
+      ]
+    },
+    {
+      "code": "12199005",
+      "display": "Vitamin D, 25-hydroxy measurement",
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "Vitamin D"
+        }
+      ]
+    }
+  ]
+}
