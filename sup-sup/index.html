@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sup-Sup — FHIR CodeSystem Supplement Editor</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <h1>Sup-Sup</h1>
+      <p class="tagline">FHIR CodeSystem supplement editor — load a source, edit a supplement, save it back.</p>
+      <p class="back"><a href="../">← Callistemon home</a></p>
+    </div>
+  </header>
+
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+
+  <main class="columns">
+    <!-- ============ SOURCE COLUMN (read-only) ============ -->
+    <section class="column source-column">
+      <div class="column-toolbar">
+        <h2 id="source-title">No source loaded</h2>
+        <div class="toolbar-buttons">
+          <label class="btn">
+            Load file
+            <input type="file" id="source-file" accept=".json,application/json,application/fhir+json" hidden>
+          </label>
+          <button class="btn" id="btn-source-ts">Load from TS…</button>
+        </div>
+      </div>
+      <div class="column-filter">
+        <input type="search" id="source-filter" placeholder="Filter concepts…">
+        <span id="source-count" class="count"></span>
+      </div>
+      <div id="source-list" class="row-list"></div>
+    </section>
+
+    <!-- ============ SUPPLEMENT COLUMN (editable) ============ -->
+    <section class="column supplement-column">
+      <div class="column-toolbar">
+        <h2 id="supplement-title">No supplement loaded</h2>
+        <div class="toolbar-buttons">
+          <label class="btn">
+            Load file
+            <input type="file" id="supplement-file" accept=".json,application/json,application/fhir+json" hidden>
+          </label>
+          <button class="btn" id="btn-save-supplement" disabled>Save</button>
+          <button class="btn" id="btn-expand-all" disabled>Expand all</button>
+          <button class="btn" id="btn-sync" disabled title="Align supplement rows with source concepts">Sync</button>
+          <button class="btn icon" id="btn-supplement-metadata" disabled title="View metadata">⚙</button>
+        </div>
+      </div>
+      <div class="column-filter">
+        <input type="search" id="supplement-filter" placeholder="Filter concepts…">
+        <span id="supplement-count" class="count"></span>
+      </div>
+      <div id="supplement-list" class="row-list"></div>
+    </section>
+
+    <!-- ============ SYNC LIST (paired rows, sync mode only) ============ -->
+    <div id="sync-list" class="sync-list" hidden></div>
+  </main>
+
+  <!-- ============ Modals ============ -->
+
+  <div class="modal" id="ts-modal" role="dialog" aria-labelledby="ts-modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="ts-modal-title">Load source from terminology server</h3>
+        <button class="btn-icon" data-close-modal="ts-modal" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Terminology server base
+          <input type="url" id="ts-base" placeholder="https://tx.ontoserver.csiro.au/fhir">
+        </label>
+        <label>Canonical URL of CodeSystem or ValueSet
+          <input type="text" id="ts-canonical"
+            placeholder="http://snomed.info/sct?fhir_vs=ecl/(^933412481000036103)">
+        </label>
+        <p class="hint">If the URL is a ValueSet (or contains <code>?fhir_vs=</code>), it is expanded with $expand. Otherwise it is fetched as a CodeSystem.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" data-close-modal="ts-modal">Cancel</button>
+        <button class="btn primary" id="ts-load">Load</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="metadata-modal" role="dialog" aria-labelledby="metadata-modal-title">
+    <div class="modal-content wide">
+      <div class="modal-header">
+        <h3 id="metadata-modal-title">Supplement metadata</h3>
+        <button class="btn-icon" data-close-modal="metadata-modal" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" id="metadata-body"></div>
+      <div class="modal-footer">
+        <button class="btn" data-close-modal="metadata-modal">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="addsub-modal" role="dialog" aria-labelledby="addsub-modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="addsub-modal-title">Add property or designation</h3>
+        <button class="btn-icon" data-close-modal="addsub-modal" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" id="addsub-body"></div>
+      <div class="modal-footer">
+        <button class="btn" data-close-modal="addsub-modal">Cancel</button>
+        <button class="btn primary" id="addsub-save">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="edit-modal" role="dialog" aria-labelledby="edit-modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="edit-modal-title">Edit value</h3>
+        <button class="btn-icon" data-close-modal="edit-modal" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="edit-label" class="edit-label"></p>
+        <textarea id="edit-value" rows="5"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" data-close-modal="edit-modal">Cancel</button>
+        <button class="btn primary" id="edit-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
