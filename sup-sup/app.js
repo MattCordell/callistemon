@@ -22,6 +22,8 @@ import {
   renderSupplementColumn,
   renderSyncList,
   renderMetadataModal,
+  renderMetadataEditForm,
+  readAndSaveMetadataForm,
   renderAddSubForm,
   renderEditValueForm,
 } from './modules/ui-rendering.js';
@@ -169,6 +171,7 @@ function wireToolbar() {
   document.getElementById('btn-supplement-metadata').addEventListener('click', () => {
     if (!state.supplement) return;
     renderMetadataModal(state.supplement.raw);
+    resetMetadataModal();
     openModal('metadata-modal');
   });
 
@@ -287,6 +290,13 @@ function openAddSub(code) {
   document.getElementById('addsub-value').focus();
 }
 
+function resetMetadataModal() {
+  document.getElementById('btn-metadata-edit').hidden = false;
+  document.getElementById('btn-metadata-close').hidden = false;
+  document.getElementById('btn-metadata-save').hidden = true;
+  document.getElementById('btn-metadata-cancel').hidden = true;
+}
+
 function wireModals() {
   // Metadata modal
   document.querySelectorAll('[data-close-modal]').forEach(el => {
@@ -299,6 +309,29 @@ function wireModals() {
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') document.querySelectorAll('.modal.open').forEach(m => closeModal(m.id));
+  });
+
+  // Metadata edit/save/cancel
+  document.getElementById('btn-metadata-edit').addEventListener('click', () => {
+    if (!state.supplement) return;
+    renderMetadataEditForm(state.supplement.raw);
+    document.getElementById('btn-metadata-edit').hidden = true;
+    document.getElementById('btn-metadata-close').hidden = true;
+    document.getElementById('btn-metadata-save').hidden = false;
+    document.getElementById('btn-metadata-cancel').hidden = false;
+    document.getElementById('meta-url').focus();
+  });
+  document.getElementById('btn-metadata-save').addEventListener('click', () => {
+    if (!state.supplement) return;
+    const result = readAndSaveMetadataForm(state.supplement.raw);
+    if (!result.ok) { alert(result.errors.join('\n')); return; }
+    renderMetadataModal(state.supplement.raw);
+    resetMetadataModal();
+    renderSupplementColumn(state);
+  });
+  document.getElementById('btn-metadata-cancel').addEventListener('click', () => {
+    renderMetadataModal(state.supplement.raw);
+    resetMetadataModal();
   });
 
   // Add-sub save

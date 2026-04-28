@@ -246,6 +246,75 @@ export function renderSyncList(state) {
 
 /* ---------- Modals ---------- */
 
+export function renderMetadataEditForm(raw) {
+  const body = document.getElementById('metadata-body');
+  if (!raw) { body.innerHTML = ''; return; }
+  const statusOptions = ['draft', 'active', 'retired', 'unknown']
+    .map(s => `<option value="${s}"${raw.status === s ? ' selected' : ''}>${s}</option>`)
+    .join('');
+  const contact = (raw.contact || []).map(c => {
+    const name = c.name ? escapeHtml(c.name) : '';
+    const tels = (c.telecom || []).map(t =>
+      `${escapeHtml(t.system || '')}: ${escapeHtml(t.value || '')}`
+    ).join('<br>');
+    return `<li>${name}${tels ? '<br>' + tels : ''}</li>`;
+  }).join('');
+  const properties = declaredProperties(raw).map(p => `
+    <li>
+      <strong>${escapeHtml(p.code)}</strong> <span class="meta-type">(${escapeHtml(p.type || 'string')})</span>
+      ${p.description ? `<div class="prop-desc">${escapeHtml(p.description)}</div>` : ''}
+    </li>
+  `).join('');
+  body.innerHTML = `
+    <table class="meta-table meta-table-edit">
+      <tr><th>url *</th><td><input type="url" id="meta-url" value="${escapeHtml(raw.url || '')}"></td></tr>
+      <tr><th>version</th><td><input type="text" id="meta-version" value="${escapeHtml(raw.version || '')}"></td></tr>
+      <tr><th>name *</th><td><input type="text" id="meta-name" value="${escapeHtml(raw.name || '')}"></td></tr>
+      <tr><th>title</th><td><input type="text" id="meta-title" value="${escapeHtml(raw.title || '')}"></td></tr>
+      <tr><th>status *</th><td><select id="meta-status">${statusOptions}</select></td></tr>
+      <tr><th>experimental</th><td><input type="checkbox" id="meta-experimental"${raw.experimental ? ' checked' : ''}></td></tr>
+      <tr><th>date</th><td><input type="text" id="meta-date" value="${escapeHtml(raw.date || '')}" placeholder="YYYY-MM-DD"></td></tr>
+      <tr><th>publisher</th><td><input type="text" id="meta-publisher" value="${escapeHtml(raw.publisher || '')}"></td></tr>
+      <tr><th>description</th><td><textarea id="meta-description" rows="3">${escapeHtml(raw.description || '')}</textarea></td></tr>
+      <tr><th>content</th><td>supplement <em class="meta-type">(fixed)</em></td></tr>
+      <tr><th>supplements</th><td><input type="url" id="meta-supplements" value="${escapeHtml(raw.supplements || '')}"></td></tr>
+      ${contact ? `<tr><th>contact</th><td><ul class="meta-list">${contact}</ul></td></tr>` : ''}
+      ${properties ? `<tr><th>property</th><td><ul class="meta-list">${properties}</ul></td></tr>` : ''}
+    </table>
+  `;
+}
+
+export function readAndSaveMetadataForm(raw) {
+  const get = id => (document.getElementById(id)?.value || '').trim();
+  const url = get('meta-url');
+  const name = get('meta-name');
+  const status = get('meta-status');
+  const errors = [];
+  if (!url) errors.push('url is required');
+  if (!name) errors.push('name is required');
+  if (!status) errors.push('status is required');
+  if (errors.length) return { ok: false, errors };
+
+  raw.url = url;
+  raw.name = name;
+  raw.status = status;
+  const version = get('meta-version');
+  if (version) raw.version = version; else delete raw.version;
+  const title = get('meta-title');
+  if (title) raw.title = title; else delete raw.title;
+  const experimental = document.getElementById('meta-experimental')?.checked;
+  if (experimental) raw.experimental = true; else delete raw.experimental;
+  const date = get('meta-date');
+  if (date) raw.date = date; else delete raw.date;
+  const publisher = get('meta-publisher');
+  if (publisher) raw.publisher = publisher; else delete raw.publisher;
+  const description = (document.getElementById('meta-description')?.value || '').trim();
+  if (description) raw.description = description; else delete raw.description;
+  const supplements = get('meta-supplements');
+  if (supplements) raw.supplements = supplements; else delete raw.supplements;
+  return { ok: true };
+}
+
 export function renderMetadataModal(raw) {
   const body = document.getElementById('metadata-body');
   if (!raw) { body.innerHTML = ''; return; }

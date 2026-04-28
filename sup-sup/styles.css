@@ -343,6 +343,19 @@ body {
 
 /* Metadata table */
 .meta-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.meta-table-edit td input[type="text"],
+.meta-table-edit td input[type="url"],
+.meta-table-edit td select,
+.meta-table-edit td textarea {
+  width: 100%;
+  font-size: 13px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  font-family: inherit;
+  background: #fff;
+  box-sizing: border-box;
+}
 .meta-table th {
   text-align: left;
   padding: 6px 12px 6px 0;
