@@ -1,8 +1,8 @@
-﻿{
+{
   "resourceType": "CodeSystem",
   "id": "snomed-pathology-test-info-supplement",
   "url": "https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement",
-  "version": "1.20260331.0",
+  "version": "1.20260430.0",
   "name": "SNOMEDPathologyTestInfoSupplement",
   "title": "SNOMED CT Pathology Test Information Supplement",
   "status": "draft",
@@ -22,7 +22,7 @@
   ],
   "description": "A CodeSystem supplement that adds consumer information and clinical reference URLs to SNOMED CT pathology test concepts. Provides links to Pathology Tests Explained (a consumer-friendly resource) and the RCPA Manual (a clinical reference for pathology test selection and interpretation).",
   "content": "supplement",
-  "supplements": "http://snomed.info/sct|http://snomed.info/sct/32506021000036107/version/20260331",
+  "supplements": "http://snomed.info/sct|http://snomed.info/sct/32506021000036107/version/20260430",
   "property": [
     {
       "code": "pathologyTestsExplainedUrl",
