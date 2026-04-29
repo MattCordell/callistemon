@@ -155,7 +155,7 @@ App.renderSelectedTests = function() {
               inlineLink.href = parts[pi];
               inlineLink.target = '_blank'; inlineLink.rel = 'noopener';
               inlineLink.className = 'text-indigo-500 hover:underline';
-              inlineLink.textContent = parts[pi] + ' \u2197';
+              inlineLink.textContent = 'website \u2197';
               ccDetail.appendChild(inlineLink);
             } else if (parts[pi]) {
               ccDetail.appendChild(document.createTextNode(parts[pi]));
