@@ -8,10 +8,13 @@ App.selectedTests = [];
 // ----- Fetch supplement properties for a single code -----
 App.fetchSupplementProps = async function(test) {
   try {
+    var supplements = App.activeProviderSupplement
+      ? [App.SUPPLEMENT_URL, App.activeProviderSupplement]
+      : [App.SUPPLEMENT_URL];
     var items = await App.expandFromOntoserver(App.VS.PATH, test.display, {
       base: App.R4_BASE,
-      useSupplement: App.SUPPLEMENT_URL,
-      properties: ['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen'],
+      useSupplement: supplements,
+      properties: ['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen', 'collectionCentreRequirements'],
       count: '20'
     });
     var match = items.find(function(it) { return it.code === test.code; });
@@ -128,6 +131,30 @@ App.renderSelectedTests = function() {
         a2.className = 'text-indigo-500 hover:underline';
         a2.textContent = 'RCPA Manual \u2197';
         suppRow.appendChild(a2);
+      }
+      if (t.supplementProps.collectionCentreRequirements) {
+        var ccToggle = document.createElement('button');
+        ccToggle.type = 'button';
+        ccToggle.className = 'text-blue-600 hover:underline';
+        ccToggle.textContent = '\u2139\ufe0f Collection requirements';
+        var ccVal = t.supplementProps.collectionCentreRequirements;
+        var ccDetail = document.createElement('span');
+        if (/^https?:\/\//.test(ccVal)) {
+          var ccLink = document.createElement('a');
+          ccLink.href = ccVal;
+          ccLink.target = '_blank'; ccLink.rel = 'noopener';
+          ccLink.className = 'text-indigo-500 hover:underline';
+          ccLink.textContent = ' \u2014 ' + ccVal + ' \u2197';
+          ccDetail.appendChild(ccLink);
+        } else {
+          ccDetail.textContent = ' \u2014 ' + ccVal;
+        }
+        ccDetail.style.display = 'none';
+        ccToggle.onclick = function() { ccDetail.style.display = ccDetail.style.display === 'none' ? 'inline' : 'none'; };
+        var ccWrap = document.createElement('span');
+        ccWrap.appendChild(ccToggle);
+        ccWrap.appendChild(ccDetail);
+        suppRow.appendChild(ccWrap);
       }
       if (suppRow.children.length) leftWrap.appendChild(suppRow);
     }

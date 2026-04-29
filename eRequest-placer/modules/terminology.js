@@ -18,7 +18,7 @@ App.extractSupplementProperties = function(concept) {
     if (!codeExt) return;
     var code = codeExt.valueCode;
     var value = (valueExt && (valueExt.valueString || valueExt.valueCode)) || '';
-    if (['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen'].includes(code)) {
+    if (['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen', 'collectionCentreRequirements'].includes(code)) {
       props[code] = value;
     }
   });

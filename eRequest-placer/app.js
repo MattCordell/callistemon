@@ -92,7 +92,7 @@
     base: App.R4_BASE,
     includeDesignations: true,
     useSupplement: [App.SUPPLEMENT_URL],
-    properties: ['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen'],
+    properties: ['pathologyTestsExplainedUrl', 'rcpaManualUrl', 'requiredSpecimen', 'collectionCentreRequirements'],
     boost: App.BOOST_URL,
     count: '15'
   };

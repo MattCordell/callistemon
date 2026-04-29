@@ -23,6 +23,18 @@
   "description": "A CodeSystem supplement providing BB Diagnostics preferred test names for SNOMED CT pathology test concepts.",
   "content": "supplement",
   "supplements": "http://snomed.info/sct|http://snomed.info/sct/32506021000036107/version/20260331",
+  "property": [
+    {
+      "code": "collectionCentreRequirements",
+      "description": "Special collection centre requirements",
+      "type": "string"
+    },
+    {
+      "code": "requiredSpecimen",
+      "description": "Specimen requirements for the test as per lab manual",
+      "type": "string"
+    }
+  ],
   "concept": [
     {
       "code": "49466006",
