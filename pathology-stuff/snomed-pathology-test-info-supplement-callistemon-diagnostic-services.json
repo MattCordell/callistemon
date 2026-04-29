@@ -2,7 +2,7 @@
   "resourceType": "CodeSystem",
   "id": "6ac98431-9fbf-470d-bfe0-6b2343f9c326",
   "url": "https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement-callistemon-diagnostic-services",
-  "version": "1.20260430.0",
+  "version": "1.20260430.1",
   "name": "SNOMEDPathologyTestInfoSupplementCallistemonDiagnosticServices",
   "title": "SNOMED CT Pathology Test Information Supplement - Callistemon Diagnostic Services",
   "status": "draft",
@@ -76,6 +76,12 @@
           },
           "value": "Coagulation Profile"
         }
+      ],
+      "property": [
+        {
+          "code": "requiredSpecimen",
+          "valueString": "Blue Top (3.2% sodium citrate) - 2.7mL"
+        }
       ]
     },
     {
@@ -89,6 +95,12 @@
             "display": "Preferred"
           },
           "value": "Blood Culture"
+        }
+      ],
+      "property": [
+        {
+          "code": "requiredSpecimen",
+          "valueString": "1 x Paediatric or Pair for Adults"
         }
       ]
     },
@@ -130,7 +142,7 @@
             "code": "900000000000548007",
             "display": "Preferred"
           },
-          "value": "C-Reactive Protein"
+          "value": "CRP"
         }
       ]
     },
@@ -228,7 +240,13 @@
             "code": "900000000000548007",
             "display": "Preferred"
           },
-          "value": "Full Blood Count"
+          "value": "CBC"
+        }
+      ],
+      "property": [
+        {
+          "code": "requiredSpecimen",
+          "valueString": "Lavender Top (EDTA) - 4mL"
         }
       ]
     },
@@ -257,6 +275,14 @@
             "display": "Preferred"
           },
           "value": "Glycated Haemoglobin (HbA1c)"
+        },
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "GHb - Glycated hemoglobin"
         }
       ]
     },
@@ -733,6 +759,138 @@
             "display": "Preferred"
           },
           "value": "Vitamin D (25-OH)"
+        }
+      ]
+    },
+    {
+      "code": "167742002",
+      "display": "CSF chloride measurement",
+      "property": [
+        {
+          "code": "collectionCentreRequirements",
+          "valueString": "See https://mattcordell.github.io/callistemon/provider-sites/callistemon-diagnostic-services/index.html for available collection centres"
+        }
+      ],
+      "designation": []
+    },
+    {
+      "code": "58473000",
+      "display": "Drug of abuse, qualitative screen",
+      "property": [
+        {
+          "code": "collectionCentreRequirements",
+          "valueString": "See https://mattcordell.github.io/callistemon/provider-sites/callistemon-diagnostic-services/index.html for available collection centres"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "DOA Screen"
+        }
+      ]
+    },
+    {
+      "code": "314077000",
+      "display": "Drugs of abuse urine screening test",
+      "property": [
+        {
+          "code": "collectionCentreRequirements",
+          "valueString": "See https://mattcordell.github.io/callistemon/provider-sites/callistemon-diagnostic-services/index.html for available collection centres"
+        }
+      ],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000548007",
+            "display": "Preferred"
+          },
+          "value": "DOA, urine"
+        }
+      ]
+    },
+    {
+      "code": "11743002",
+      "display": "Semen analysis, post vasectomy",
+      "property": [
+        {
+          "code": "collectionCentreRequirements",
+          "valueString": "See https://mattcordell.github.io/callistemon/provider-sites/callistemon-diagnostic-services/index.html for available collection centres"
+        }
+      ],
+      "designation": []
+    },
+    {
+      "code": "11900001",
+      "display": "Semen analysis",
+      "property": [
+        {
+          "code": "collectionCentreRequirements",
+          "valueString": "See https://mattcordell.github.io/callistemon/provider-sites/callistemon-diagnostic-services/index.html for available collection centres"
+        }
+      ],
+      "designation": []
+    },
+    {
+      "code": "69874005",
+      "display": "Coagulation time, activated",
+      "property": [
+        {
+          "code": "requiredSpecimen",
+          "valueString": "Blue Top (3.2% sodium citrate) - 2.7mL"
+        }
+      ],
+      "designation": []
+    },
+    {
+      "code": "269871000",
+      "display": "Serum lithium measurement",
+      "property": [
+        {
+          "code": "requiredSpecimen",
+          "valueString": "SST Preferred. Or Plain Red Top.\nMUST NOT use GREEN TOP (Lithium Heparin)"
+        }
+      ],
+      "designation": []
+    },
+    {
+      "code": "273975003",
+      "display": "Serum zinc measurement",
+      "property": [
+        {
+          "code": "requiredSpecimen",
+          "valueString": "BLUE top - Trace Elements"
+        }
+      ],
+      "designation": []
+    },
+    {
+      "code": "415845007",
+      "display": "Whole blood manganese measurement",
+      "property": [
+        {
+          "code": "requiredSpecimen",
+          "valueString": "BLUE top - Trace Elements"
+        }
+      ],
+      "designation": []
+    },
+    {
+      "code": "933483751000036109",
+      "display": "Point of care HbA1c measurement",
+      "property": [],
+      "designation": [
+        {
+          "use": {
+            "system": "http://snomed.info/sct",
+            "code": "900000000000013009",
+            "display": "Synonym"
+          },
+          "value": "Glycated hemoglobin"
         }
       ]
     }

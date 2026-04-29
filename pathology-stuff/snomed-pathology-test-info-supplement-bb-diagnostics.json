@@ -2,7 +2,7 @@
   "resourceType": "CodeSystem",
   "id": "347a04a9-f63b-4d46-8d41-b5ad222cc26e",
   "url": "https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement-bb-diagnostics",
-  "version": "1.20260430.0",
+  "version": "1.20260430.1",
   "name": "SNOMEDPathologyTestInfoSupplementBBDiagnostics",
   "title": "SNOMED CT Pathology Test Information Supplement - BB Diagnostics",
   "status": "draft",
@@ -735,6 +735,61 @@
           "value": "Vitamin D"
         }
       ]
+    },
+    {
+      "code": "11900001",
+      "display": "Semen analysis",
+      "property": [
+        {
+          "code": "collectionCentreRequirements",
+          "valueString": "Not all collection centres accept this test.\nSee https://mattcordell.github.io/callistemon/provider-sites/bb-diagnostics/index.html "
+        }
+      ],
+      "designation": []
+    },
+    {
+      "code": "11743002",
+      "display": "Semen analysis, post vasectomy",
+      "property": [
+        {
+          "code": "collectionCentreRequirements",
+          "valueString": "Not all collection centres accept this test.\nSee https://mattcordell.github.io/callistemon/provider-sites/bb-diagnostics/index.html "
+        }
+      ],
+      "designation": []
+    },
+    {
+      "code": "58473000",
+      "display": "Drug of abuse, qualitative screen",
+      "property": [
+        {
+          "code": "collectionCentreRequirements",
+          "valueString": "Not all collection centres accept this test.\nSee https://mattcordell.github.io/callistemon/provider-sites/bb-diagnostics/index.html "
+        }
+      ],
+      "designation": []
+    },
+    {
+      "code": "314077000",
+      "display": "Drugs of abuse urine screening test",
+      "property": [
+        {
+          "code": "collectionCentreRequirements",
+          "valueString": "Not all collection centres accept this test.\nSee https://mattcordell.github.io/callistemon/provider-sites/bb-diagnostics/index.html "
+        }
+      ],
+      "designation": []
+    },
+    {
+      "code": "167742002",
+      "display": "CSF chloride measurement",
+      "property": [
+        {
+          "code": "collectionCentreRequirements",
+          "valueString": "Not all collection centres accept this test.\nSee https://mattcordell.github.io/callistemon/provider-sites/bb-diagnostics/index.html "
+        }
+      ],
+      "designation": []
     }
   ]
 }
