@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BB Diagnostics — Collection Site Directory</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange:       #f97316;
+      --orange-dark:  #c2590a;
+      --orange-deep:  #7c2d12;
+      --orange-tint:  #fff7ed;
+      --orange-pale:  #ffedd5;
+      --text:         #1c1917;
+      --sub:          #44403c;
+      --muted:        #78716c;
+      --border:       #e7e5e4;
+      --bg:           #f5f5f4;
+      --white:        #ffffff;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      background: var(--orange-deep);
+      color: rgba(255,255,255,.7);
+      font-size: 12px;
+      text-align: center;
+      padding: 6px 24px;
+      letter-spacing: .3px;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--white);
+      border-bottom: 3px solid var(--orange);
+    }
+
+    .header-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-mark {
+      width: 52px;
+      height: 52px;
+      background: var(--orange);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+
+    .brand-mark svg { display: block; }
+
+    .brand-name {
+      font-size: 26px;
+      font-weight: 900;
+      color: var(--text);
+      letter-spacing: -0.5px;
+      line-height: 1;
+    }
+
+    .brand-name span { color: var(--orange); }
+
+    .brand-tagline {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 3px;
+      font-weight: 500;
+      letter-spacing: .3px;
+      text-transform: uppercase;
+    }
+
+    .header-badge {
+      background: var(--orange-tint);
+      border: 1px solid var(--orange-pale);
+      border-radius: 8px;
+      padding: 10px 16px;
+      text-align: right;
+    }
+
+    .header-badge .num {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--orange);
+      line-height: 1;
+    }
+
+    .header-badge .label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      font-weight: 600;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: var(--orange);
+    }
+
+    .nav-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 28px;
+      display: flex;
+      gap: 0;
+    }
+
+    nav a {
+      display: block;
+      padding: 11px 16px;
+      color: rgba(255,255,255,.85);
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 600;
+      transition: background .15s, color .15s;
+    }
+
+    nav a:hover, nav a.active {
+      background: rgba(0,0,0,.15);
+      color: white;
+    }
+
+    /* ── Main ── */
+    main {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 32px 28px 60px;
+    }
+
+    .page-intro {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--orange);
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin-bottom: 36px;
+      font-size: 14px;
+      color: var(--sub);
+      line-height: 1.6;
+    }
+
+    /* ── Test section ── */
+    .test-section {
+      margin-bottom: 40px;
+    }
+
+    .test-heading {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--orange);
+    }
+
+    .test-pill {
+      background: var(--orange);
+      color: white;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 4px;
+      flex: 0 0 auto;
+    }
+
+    .test-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .test-count {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* ── Site grid ── */
+    .site-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 10px;
+    }
+
+    .site-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 15px;
+      transition: border-color .15s, box-shadow .15s, transform .12s;
+      cursor: default;
+    }
+
+    .site-card:hover {
+      border-color: #fdba74;
+      box-shadow: 0 4px 14px rgba(249,115,22,.13);
+      transform: translateY(-1px);
+    }
+
+    .site-street {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .site-suburb {
+      font-size: 13px;
+      color: var(--sub);
+      margin-top: 2px;
+    }
+
+    .site-state-tag {
+      display: inline-block;
+      margin-top: 7px;
+      background: var(--orange-tint);
+      color: var(--orange-dark);
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: .4px;
+      padding: 2px 8px;
+      border-radius: 3px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--text);
+      color: #a8a29e;
+      padding: 24px 28px;
+      font-size: 12.5px;
+    }
+
+    .footer-inner {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .footer-brand {
+      font-weight: 800;
+      color: white;
+      font-size: 14px;
+    }
+
+    .footer-brand span { color: var(--orange); }
+  </style>
+</head>
+<body>
+
+  <div class="topbar">ABN 12 345 678 901 &nbsp;|&nbsp; Accredited NATA laboratory &nbsp;|&nbsp; ISO 15189 certified</div>
+
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+            <circle cx="10" cy="10" r="7" fill="white" opacity=".9"/>
+            <circle cx="20" cy="20" r="7" fill="white" opacity=".6"/>
+            <circle cx="20" cy="10" r="4" fill="white" opacity=".75"/>
+            <circle cx="10" cy="20" r="4" fill="white" opacity=".55"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-name"><span>BB</span> Diagnostics</div>
+          <div class="brand-tagline">Precision pathology across Australia</div>
+        </div>
+      </div>
+      <div class="header-badge">
+        <div class="num">24</div>
+        <div class="label">Collection Sites</div>
+      </div>
+    </div>
+  </header>
+
+  <nav>
+    <div class="nav-inner">
+      <a href="#" class="active">Collection Sites</a>
+      <a href="#">Referring Doctors</a>
+      <a href="#">Results Portal</a>
+      <a href="#">Contact</a>
+    </div>
+  </nav>
+
+  <main>
+    <p class="page-intro">
+      Find a BB Diagnostics collection centre near you. Sites are listed by available test — not all centres offer every test.
+      To confirm opening hours or book an appointment, please contact the site directly.
+    </p>
+
+    <!-- CSF chloride measurement -->
+    <div class="test-section">
+      <div class="test-heading">
+        <span class="test-pill">Test</span>
+        <span class="test-title">CSF chloride measurement</span>
+        <span class="test-count">9 sites</span>
+      </div>
+      <div class="site-grid">
+        <div class="site-card"><div class="site-street">45 Eucalyptus St</div><div class="site-suburb">Springfield</div><span class="site-state-tag">NSW</span></div>
+        <div class="site-card"><div class="site-street">78 Melaleuca Rd</div><div class="site-suburb">Kensington</div><span class="site-state-tag">QLD</span></div>
+        <div class="site-card"><div class="site-street">23 Corymbia Dr</div><div class="site-suburb">Windsor</div><span class="site-state-tag">TAS</span></div>
+        <div class="site-card"><div class="site-street">14 Waratah St</div><div class="site-suburb">Devonport</div><span class="site-state-tag">VIC</span></div>
+        <div class="site-card"><div class="site-street">42 Callistemon Ln</div><div class="site-suburb">Brighton</div><span class="site-state-tag">WA</span></div>
+        <div class="site-card"><div class="site-street">7 Xanthorrhoea Tce</div><div class="site-suburb">Geelong</div><span class="site-state-tag">QLD</span></div>
+        <div class="site-card"><div class="site-street">61 Quandong Esp</div><div class="site-suburb">Newcastle</div><span class="site-state-tag">ACT</span></div>
+        <div class="site-card"><div class="site-street">52 Grevillea St</div><div class="site-suburb">Fairfield</div><span class="site-state-tag">VIC</span></div>
+        <div class="site-card"><div class="site-street">38 Acacia Sq</div><div class="site-suburb">Devonport</div><span class="site-state-tag">WA</span></div>
+      </div>
+    </div>
+
+    <!-- Measurement of Yellow fever virus antibody -->
+    <div class="test-section">
+      <div class="test-heading">
+        <span class="test-pill">Test</span>
+        <span class="test-title">Measurement of Yellow fever virus antibody</span>
+        <span class="test-count">8 sites</span>
+      </div>
+      <div class="site-grid">
+        <div class="site-card"><div class="site-street">12 Banksia Ave</div><div class="site-suburb">Richmond</div><span class="site-state-tag">VIC</span></div>
+        <div class="site-card"><div class="site-street">156 Acacia Cres</div><div class="site-suburb">Mount Pleasant</div><span class="site-state-tag">WA</span></div>
+        <div class="site-card"><div class="site-street">91 Hakea Pl</div><div class="site-suburb">Franklin</div><span class="site-state-tag">NSW</span></div>
+        <div class="site-card"><div class="site-street">5 Wattle Rd</div><div class="site-suburb">Glenelg</div><span class="site-state-tag">SA</span></div>
+        <div class="site-card"><div class="site-street">33 Acmena Cl</div><div class="site-suburb">Brunswick</div><span class="site-state-tag">VIC</span></div>
+        <div class="site-card"><div class="site-street">27 Brachychiton Rise</div><div class="site-suburb">Kensington</div><span class="site-state-tag">NT</span></div>
+        <div class="site-card"><div class="site-street">52 Grevillea St</div><div class="site-suburb">Fairfield</div><span class="site-state-tag">VIC</span></div>
+        <div class="site-card"><div class="site-street">16 Banksia Dr</div><div class="site-suburb">Mount Pleasant</div><span class="site-state-tag">SA</span></div>
+      </div>
+    </div>
+
+    <!-- Widal test -->
+    <div class="test-section">
+      <div class="test-heading">
+        <span class="test-pill">Test</span>
+        <span class="test-title">Widal test</span>
+        <span class="test-count">10 sites</span>
+      </div>
+      <div class="site-grid">
+        <div class="site-card"><div class="site-street">45 Eucalyptus St</div><div class="site-suburb">Springfield</div><span class="site-state-tag">NSW</span></div>
+        <div class="site-card"><div class="site-street">3 Grevillea Blvd</div><div class="site-suburb">Newcastle</div><span class="site-state-tag">SA</span></div>
+        <div class="site-card"><div class="site-street">8 Leptospermum Way</div><div class="site-suburb">Fairfield</div><span class="site-state-tag">ACT</span></div>
+        <div class="site-card"><div class="site-street">14 Waratah St</div><div class="site-suburb">Devonport</div><span class="site-state-tag">VIC</span></div>
+        <div class="site-card"><div class="site-street">42 Callistemon Ln</div><div class="site-suburb">Brighton</div><span class="site-state-tag">WA</span></div>
+        <div class="site-card"><div class="site-street">33 Acmena Cl</div><div class="site-suburb">Brunswick</div><span class="site-state-tag">VIC</span></div>
+        <div class="site-card"><div class="site-street">88 Cycad Pde</div><div class="site-suburb">Richmond</div><span class="site-state-tag">TAS</span></div>
+        <div class="site-card"><div class="site-street">61 Quandong Esp</div><div class="site-suburb">Newcastle</div><span class="site-state-tag">ACT</span></div>
+        <div class="site-card"><div class="site-street">110 Eucalyptus Way</div><div class="site-suburb">Springfield</div><span class="site-state-tag">QLD</span></div>
+        <div class="site-card"><div class="site-street">9 Hakea Hwy</div><div class="site-suburb">Preston</div><span class="site-state-tag">TAS</span></div>
+      </div>
+    </div>
+
+    <!-- Total bile acids measurement -->
+    <div class="test-section">
+      <div class="test-heading">
+        <span class="test-pill">Test</span>
+        <span class="test-title">Total bile acids measurement</span>
+        <span class="test-count">9 sites</span>
+      </div>
+      <div class="site-grid">
+        <div class="site-card"><div class="site-street">12 Banksia Ave</div><div class="site-suburb">Richmond</div><span class="site-state-tag">VIC</span></div>
+        <div class="site-card"><div class="site-street">156 Acacia Cres</div><div class="site-suburb">Mount Pleasant</div><span class="site-state-tag">WA</span></div>
+        <div class="site-card"><div class="site-street">8 Leptospermum Way</div><div class="site-suburb">Fairfield</div><span class="site-state-tag">ACT</span></div>
+        <div class="site-card"><div class="site-street">67 Boronia Ave</div><div class="site-suburb">Preston</div><span class="site-state-tag">QLD</span></div>
+        <div class="site-card"><div class="site-street">19 Allocasuarina Ct</div><div class="site-suburb">Hawthorn</div><span class="site-state-tag">NSW</span></div>
+        <div class="site-card"><div class="site-street">27 Brachychiton Rise</div><div class="site-suburb">Kensington</div><span class="site-state-tag">NT</span></div>
+        <div class="site-card"><div class="site-street">61 Quandong Esp</div><div class="site-suburb">Newcastle</div><span class="site-state-tag">ACT</span></div>
+        <div class="site-card"><div class="site-street">110 Eucalyptus Way</div><div class="site-suburb">Springfield</div><span class="site-state-tag">QLD</span></div>
+        <div class="site-card"><div class="site-street">9 Hakea Hwy</div><div class="site-suburb">Preston</div><span class="site-state-tag">TAS</span></div>
+      </div>
+    </div>
+
+    <!-- Semen analysis -->
+    <div class="test-section">
+      <div class="test-heading">
+        <span class="test-pill">Test</span>
+        <span class="test-title">Semen analysis</span>
+        <span class="test-count">9 sites</span>
+      </div>
+      <div class="site-grid">
+        <div class="site-card"><div class="site-street">78 Melaleuca Rd</div><div class="site-suburb">Kensington</div><span class="site-state-tag">QLD</span></div>
+        <div class="site-card"><div class="site-street">23 Corymbia Dr</div><div class="site-suburb">Windsor</div><span class="site-state-tag">TAS</span></div>
+        <div class="site-card"><div class="site-street">14 Waratah St</div><div class="site-suburb">Devonport</div><span class="site-state-tag">VIC</span></div>
+        <div class="site-card"><div class="site-street">5 Wattle Rd</div><div class="site-suburb">Glenelg</div><span class="site-state-tag">SA</span></div>
+        <div class="site-card"><div class="site-street">19 Allocasuarina Ct</div><div class="site-suburb">Hawthorn</div><span class="site-state-tag">NSW</span></div>
+        <div class="site-card"><div class="site-street">88 Cycad Pde</div><div class="site-suburb">Richmond</div><span class="site-state-tag">TAS</span></div>
+        <div class="site-card"><div class="site-street">27 Brachychiton Rise</div><div class="site-suburb">Kensington</div><span class="site-state-tag">NT</span></div>
+        <div class="site-card"><div class="site-street">4 Melaleuca Cove</div><div class="site-suburb">Windsor</div><span class="site-state-tag">NSW</span></div>
+        <div class="site-card"><div class="site-street">16 Banksia Dr</div><div class="site-suburb">Mount Pleasant</div><span class="site-state-tag">SA</span></div>
+      </div>
+    </div>
+
+    <!-- Drugs of abuse urine screening test -->
+    <div class="test-section">
+      <div class="test-heading">
+        <span class="test-pill">Test</span>
+        <span class="test-title">Drugs of abuse urine screening test</span>
+        <span class="test-count">11 sites</span>
+      </div>
+      <div class="site-grid">
+        <div class="site-card"><div class="site-street">12 Banksia Ave</div><div class="site-suburb">Richmond</div><span class="site-state-tag">VIC</span></div>
+        <div class="site-card"><div class="site-street">3 Grevillea Blvd</div><div class="site-suburb">Newcastle</div><span class="site-state-tag">SA</span></div>
+        <div class="site-card"><div class="site-street">23 Corymbia Dr</div><div class="site-suburb">Windsor</div><span class="site-state-tag">TAS</span></div>
+        <div class="site-card"><div class="site-street">91 Hakea Pl</div><div class="site-suburb">Franklin</div><span class="site-state-tag">NSW</span></div>
+        <div class="site-card"><div class="site-street">67 Boronia Ave</div><div class="site-suburb">Preston</div><span class="site-state-tag">QLD</span></div>
+        <div class="site-card"><div class="site-street">42 Callistemon Ln</div><div class="site-suburb">Brighton</div><span class="site-state-tag">WA</span></div>
+        <div class="site-card"><div class="site-street">7 Xanthorrhoea Tce</div><div class="site-suburb">Geelong</div><span class="site-state-tag">QLD</span></div>
+        <div class="site-card"><div class="site-street">88 Cycad Pde</div><div class="site-suburb">Richmond</div><span class="site-state-tag">TAS</span></div>
+        <div class="site-card"><div class="site-street">4 Melaleuca Cove</div><div class="site-suburb">Windsor</div><span class="site-state-tag">NSW</span></div>
+        <div class="site-card"><div class="site-street">110 Eucalyptus Way</div><div class="site-suburb">Springfield</div><span class="site-state-tag">QLD</span></div>
+        <div class="site-card"><div class="site-street">38 Acacia Sq</div><div class="site-suburb">Devonport</div><span class="site-state-tag">WA</span></div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div>
+        <div class="footer-brand"><span>BB</span> Diagnostics</div>
+        <div>Specialist Diagnostic Services &mdash; Collection Site Directory</div>
+      </div>
+      <div>24 sites &nbsp;&middot;&nbsp; All states &amp; territories</div>
+    </div>
+  </footer>
+
+</body>
+</html>

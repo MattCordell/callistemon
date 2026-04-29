@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Callistemon Diagnostic Services — Collection Sites</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:        #10b981;
+      --green-dark:   #059669;
+      --green-deep:   #064e3b;
+      --green-mid:    #6ee7b7;
+      --green-tint:   #f0fdf9;
+      --green-pale:   #d1fae5;
+      --text:         #111827;
+      --sub:          #374151;
+      --muted:        #6b7280;
+      --border:       #e5e7eb;
+      --row-alt:      #f9fafb;
+      --bg:           #f7fdf9;
+      --white:        #ffffff;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, var(--green-deep) 0%, #065f46 100%);
+      padding: 0;
+    }
+
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 32px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* Callistemon flower SVG logo */
+    .logo-svg {
+      flex: 0 0 auto;
+    }
+
+    .brand-text h1 {
+      font-size: 27px;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.4px;
+      line-height: 1.1;
+    }
+
+    .brand-text h1 em {
+      color: var(--green-mid);
+      font-style: normal;
+    }
+
+    .brand-text p {
+      color: rgba(255,255,255,.65);
+      font-size: 13px;
+      margin-top: 4px;
+      letter-spacing: .2px;
+    }
+
+    /* ── Sub-banner ── */
+    .sub-banner {
+      background: var(--green-dark);
+      padding: 10px 32px;
+    }
+
+    .sub-banner-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .sub-banner h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--green-pale);
+      letter-spacing: .2px;
+    }
+
+    .sub-banner .site-total {
+      font-size: 13px;
+      color: var(--green-mid);
+      font-weight: 500;
+    }
+
+    /* ── Main ── */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 32px 60px;
+    }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .filter-group label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .filter-group input {
+      background: var(--green-tint);
+      border: 1px solid var(--green-pale);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13.5px;
+      color: var(--text);
+      outline: none;
+      font-family: inherit;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    .filter-group input:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(16,185,129,.18);
+    }
+
+    .filter-group input::placeholder {
+      color: #9ca3af;
+    }
+
+    .filter-group.state-filter input { width: 90px; }
+    .filter-group.address-filter input { width: 240px; }
+    .filter-group.test-filter input { width: 280px; }
+
+    .filter-clear {
+      margin-left: auto;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color .15s, color .15s;
+    }
+
+    .filter-clear:hover {
+      border-color: var(--green);
+      color: var(--green-dark);
+    }
+
+    /* ── Results summary ── */
+    .result-summary {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .result-summary strong {
+      color: var(--green-dark);
+    }
+
+    /* ── Table wrapper ── */
+    .table-wrap {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,.06);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    /* Head */
+    thead tr {
+      background: var(--green-deep);
+    }
+
+    thead th {
+      padding: 13px 16px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--green-mid);
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    thead th:first-child { border-radius: 0; }
+
+    /* Body rows */
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .12s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+
+    tbody tr:nth-child(even) {
+      background: var(--row-alt);
+    }
+
+    tbody tr:hover {
+      background: var(--green-tint);
+    }
+
+    tbody tr.hidden-row {
+      display: none;
+    }
+
+    td {
+      padding: 12px 16px;
+      font-size: 14px;
+      color: var(--sub);
+      vertical-align: top;
+    }
+
+    /* State column */
+    .td-state {
+      width: 80px;
+    }
+
+    .state-badge {
+      display: inline-block;
+      background: var(--green-pale);
+      color: var(--green-deep);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .4px;
+      padding: 3px 9px;
+      border-radius: 5px;
+    }
+
+    /* Address column */
+    .td-address {
+      min-width: 180px;
+    }
+
+    .addr-suburb {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .addr-street {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 1px;
+    }
+
+    /* Tests column */
+    .td-tests {
+      min-width: 220px;
+    }
+
+    .test-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .test-list li {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      font-size: 13px;
+      color: var(--sub);
+    }
+
+    .test-list li::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      flex: 0 0 auto;
+      margin-top: 1px;
+    }
+
+    /* No results row */
+    .no-results {
+      display: none;
+      text-align: center;
+      padding: 40px 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--green-deep);
+      color: rgba(255,255,255,.55);
+      padding: 22px 32px;
+      font-size: 12.5px;
+      margin-top: 48px;
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .footer-brand {
+      color: var(--green-mid);
+      font-weight: 700;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <!-- Callistemon bottlebrush SVG -->
+      <div class="logo-svg">
+        <svg width="60" height="70" viewBox="0 0 60 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Stem -->
+          <line x1="30" y1="10" x2="30" y2="68" stroke="#6ee7b7" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- Stamens — rows of radiating lines representing bottlebrush -->
+          <g stroke="#10b981" stroke-width="1.5" stroke-linecap="round" opacity=".9">
+            <line x1="30" y1="22" x2="14" y2="16"/><line x1="30" y1="22" x2="46" y2="16"/>
+            <line x1="30" y1="22" x2="12" y2="24"/><line x1="30" y1="22" x2="48" y2="24"/>
+            <line x1="30" y1="22" x2="16" y2="30"/><line x1="30" y1="22" x2="44" y2="30"/>
+          </g>
+          <g stroke="#6ee7b7" stroke-width="1.5" stroke-linecap="round" opacity=".85">
+            <line x1="30" y1="32" x2="12" y2="26"/><line x1="30" y1="32" x2="48" y2="26"/>
+            <line x1="30" y1="32" x2="10" y2="34"/><line x1="30" y1="32" x2="50" y2="34"/>
+            <line x1="30" y1="32" x2="13" y2="40"/><line x1="30" y1="32" x2="47" y2="40"/>
+          </g>
+          <g stroke="#34d399" stroke-width="1.5" stroke-linecap="round" opacity=".8">
+            <line x1="30" y1="42" x2="13" y2="36"/><line x1="30" y1="42" x2="47" y2="36"/>
+            <line x1="30" y1="42" x2="11" y2="44"/><line x1="30" y1="42" x2="49" y2="44"/>
+            <line x1="30" y1="42" x2="15" y2="50"/><line x1="30" y1="42" x2="45" y2="50"/>
+          </g>
+          <!-- Tip dots -->
+          <circle cx="14" cy="16" r="2" fill="#a7f3d0"/>
+          <circle cx="46" cy="16" r="2" fill="#a7f3d0"/>
+          <circle cx="12" cy="24" r="2" fill="#a7f3d0"/>
+          <circle cx="48" cy="24" r="2" fill="#6ee7b7"/>
+          <circle cx="16" cy="30" r="2" fill="#6ee7b7"/>
+          <circle cx="44" cy="30" r="2" fill="#6ee7b7"/>
+          <circle cx="12" cy="26" r="2" fill="#34d399"/>
+          <circle cx="48" cy="26" r="2" fill="#34d399"/>
+          <circle cx="10" cy="34" r="2" fill="#34d399"/>
+          <circle cx="50" cy="34" r="2" fill="#34d399"/>
+          <circle cx="13" cy="40" r="2" fill="#10b981"/>
+          <circle cx="47" cy="40" r="2" fill="#10b981"/>
+          <circle cx="13" cy="36" r="2" fill="#10b981"/>
+          <circle cx="47" cy="36" r="2" fill="#10b981"/>
+          <circle cx="11" cy="44" r="2" fill="#059669"/>
+          <circle cx="49" cy="44" r="2" fill="#059669"/>
+          <circle cx="15" cy="50" r="2" fill="#059669"/>
+          <circle cx="45" cy="50" r="2" fill="#059669"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1><em>Callistemon</em> Diagnostic Services</h1>
+        <p>Trusted pathology &mdash; caring for communities across Australia</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="sub-banner">
+    <div class="sub-banner-inner">
+      <h2>Collection Site Directory</h2>
+      <span class="site-total">24 sites &nbsp;&middot;&nbsp; All states &amp; territories</span>
+    </div>
+  </div>
+
+  <main>
+
+    <div class="filter-bar">
+      <div class="filter-group state-filter">
+        <label for="f-state">State</label>
+        <input id="f-state" type="text" placeholder="e.g. VIC" autocomplete="off">
+      </div>
+      <div class="filter-group address-filter">
+        <label for="f-address">Address / Suburb</label>
+        <input id="f-address" type="text" placeholder="Street or suburb…" autocomplete="off">
+      </div>
+      <div class="filter-group test-filter">
+        <label for="f-test">Test</label>
+        <input id="f-test" type="text" placeholder="e.g. Widal, bile acids…" autocomplete="off">
+      </div>
+      <button class="filter-clear" onclick="clearFilters()">Clear filters</button>
+    </div>
+
+    <div class="result-summary">
+      Showing <strong id="visible-count">24</strong> of 24 collection sites
+    </div>
+
+    <div class="table-wrap">
+      <table id="sites-table">
+        <thead>
+          <tr>
+            <th>State</th>
+            <th>Address</th>
+            <th>Available Tests</th>
+          </tr>
+        </thead>
+        <tbody id="sites-body">
+
+          <tr data-state="SA" data-address="17 correa cove brighton" data-tests="csf chloride measurement widal test">
+            <td class="td-state"><span class="state-badge">SA</span></td>
+            <td class="td-address"><div class="addr-suburb">Brighton</div><div class="addr-street">17 Correa Cove</div></td>
+            <td class="td-tests"><ul class="test-list"><li>CSF chloride measurement</li><li>Widal test</li></ul></td>
+          </tr>
+
+          <tr data-state="VIC" data-address="83 hakea rise franklin" data-tests="measurement of yellow fever virus antibody total bile acids measurement drugs of abuse urine screening test">
+            <td class="td-state"><span class="state-badge">VIC</span></td>
+            <td class="td-address"><div class="addr-suburb">Franklin</div><div class="addr-street">83 Hakea Rise</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Measurement of Yellow fever virus antibody</li><li>Total bile acids measurement</li><li>Drugs of abuse urine screening test</li></ul></td>
+          </tr>
+
+          <tr data-state="QLD" data-address="5 boronia cl hawthorn" data-tests="csf chloride measurement semen analysis">
+            <td class="td-state"><span class="state-badge">QLD</span></td>
+            <td class="td-address"><div class="addr-suburb">Hawthorn</div><div class="addr-street">5 Boronia Cl</div></td>
+            <td class="td-tests"><ul class="test-list"><li>CSF chloride measurement</li><li>Semen analysis</li></ul></td>
+          </tr>
+
+          <tr data-state="WA" data-address="142 grevillea ave newcastle" data-tests="widal test drugs of abuse urine screening test">
+            <td class="td-state"><span class="state-badge">WA</span></td>
+            <td class="td-address"><div class="addr-suburb">Newcastle</div><div class="addr-street">142 Grevillea Ave</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Widal test</li><li>Drugs of abuse urine screening test</li></ul></td>
+          </tr>
+
+          <tr data-state="NSW" data-address="29 acmena dr geelong" data-tests="measurement of yellow fever virus antibody total bile acids measurement">
+            <td class="td-state"><span class="state-badge">NSW</span></td>
+            <td class="td-address"><div class="addr-suburb">Geelong</div><div class="addr-street">29 Acmena Dr</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Measurement of Yellow fever virus antibody</li><li>Total bile acids measurement</li></ul></td>
+          </tr>
+
+          <tr data-state="TAS" data-address="6 wattle pl brunswick" data-tests="csf chloride measurement semen analysis drugs of abuse urine screening test">
+            <td class="td-state"><span class="state-badge">TAS</span></td>
+            <td class="td-address"><div class="addr-suburb">Brunswick</div><div class="addr-street">6 Wattle Pl</div></td>
+            <td class="td-tests"><ul class="test-list"><li>CSF chloride measurement</li><li>Semen analysis</li><li>Drugs of abuse urine screening test</li></ul></td>
+          </tr>
+
+          <tr data-state="NT" data-address="51 allocasuarina rd fairfield" data-tests="widal test total bile acids measurement">
+            <td class="td-state"><span class="state-badge">NT</span></td>
+            <td class="td-address"><div class="addr-suburb">Fairfield</div><div class="addr-street">51 Allocasuarina Rd</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Widal test</li><li>Total bile acids measurement</li></ul></td>
+          </tr>
+
+          <tr data-state="ACT" data-address="22 banksia pde devonport" data-tests="measurement of yellow fever virus antibody drugs of abuse urine screening test">
+            <td class="td-state"><span class="state-badge">ACT</span></td>
+            <td class="td-address"><div class="addr-suburb">Devonport</div><div class="addr-street">22 Banksia Pde</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Measurement of Yellow fever virus antibody</li><li>Drugs of abuse urine screening test</li></ul></td>
+          </tr>
+
+          <tr data-state="NSW" data-address="9 cycad st windsor" data-tests="csf chloride measurement widal test semen analysis">
+            <td class="td-state"><span class="state-badge">NSW</span></td>
+            <td class="td-address"><div class="addr-suburb">Windsor</div><div class="addr-street">9 Cycad St</div></td>
+            <td class="td-tests"><ul class="test-list"><li>CSF chloride measurement</li><li>Widal test</li><li>Semen analysis</li></ul></td>
+          </tr>
+
+          <tr data-state="VIC" data-address="74 quandong tce preston" data-tests="total bile acids measurement drugs of abuse urine screening test">
+            <td class="td-state"><span class="state-badge">VIC</span></td>
+            <td class="td-address"><div class="addr-suburb">Preston</div><div class="addr-street">74 Quandong Tce</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Total bile acids measurement</li><li>Drugs of abuse urine screening test</li></ul></td>
+          </tr>
+
+          <tr data-state="QLD" data-address="3 melaleuca blvd kensington" data-tests="measurement of yellow fever virus antibody semen analysis">
+            <td class="td-state"><span class="state-badge">QLD</span></td>
+            <td class="td-address"><div class="addr-suburb">Kensington</div><div class="addr-street">3 Melaleuca Blvd</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Measurement of Yellow fever virus antibody</li><li>Semen analysis</li></ul></td>
+          </tr>
+
+          <tr data-state="SA" data-address="38 xanthorrhoea cres springfield" data-tests="csf chloride measurement widal test drugs of abuse urine screening test">
+            <td class="td-state"><span class="state-badge">SA</span></td>
+            <td class="td-address"><div class="addr-suburb">Springfield</div><div class="addr-street">38 Xanthorrhoea Cres</div></td>
+            <td class="td-tests"><ul class="test-list"><li>CSF chloride measurement</li><li>Widal test</li><li>Drugs of abuse urine screening test</li></ul></td>
+          </tr>
+
+          <tr data-state="WA" data-address="16 hakea way glenelg" data-tests="total bile acids measurement semen analysis">
+            <td class="td-state"><span class="state-badge">WA</span></td>
+            <td class="td-address"><div class="addr-suburb">Glenelg</div><div class="addr-street">16 Hakea Way</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Total bile acids measurement</li><li>Semen analysis</li></ul></td>
+          </tr>
+
+          <tr data-state="TAS" data-address="55 callistemon ave fairfield" data-tests="measurement of yellow fever virus antibody widal test">
+            <td class="td-state"><span class="state-badge">TAS</span></td>
+            <td class="td-address"><div class="addr-suburb">Fairfield</div><div class="addr-street">55 Callistemon Ave</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Measurement of Yellow fever virus antibody</li><li>Widal test</li></ul></td>
+          </tr>
+
+          <tr data-state="NT" data-address="8 eucalyptus ln richmond" data-tests="csf chloride measurement drugs of abuse urine screening test">
+            <td class="td-state"><span class="state-badge">NT</span></td>
+            <td class="td-address"><div class="addr-suburb">Richmond</div><div class="addr-street">8 Eucalyptus Ln</div></td>
+            <td class="td-tests"><ul class="test-list"><li>CSF chloride measurement</li><li>Drugs of abuse urine screening test</li></ul></td>
+          </tr>
+
+          <tr data-state="ACT" data-address="91 acacia hwy newcastle" data-tests="widal test semen analysis drugs of abuse urine screening test">
+            <td class="td-state"><span class="state-badge">ACT</span></td>
+            <td class="td-address"><div class="addr-suburb">Newcastle</div><div class="addr-street">91 Acacia Hwy</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Widal test</li><li>Semen analysis</li><li>Drugs of abuse urine screening test</li></ul></td>
+          </tr>
+
+          <tr data-state="NSW" data-address="12 waratah ct mount pleasant" data-tests="measurement of yellow fever virus antibody total bile acids measurement semen analysis">
+            <td class="td-state"><span class="state-badge">NSW</span></td>
+            <td class="td-address"><div class="addr-suburb">Mount Pleasant</div><div class="addr-street">12 Waratah Ct</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Measurement of Yellow fever virus antibody</li><li>Total bile acids measurement</li><li>Semen analysis</li></ul></td>
+          </tr>
+
+          <tr data-state="VIC" data-address="67 corymbia esp devonport" data-tests="csf chloride measurement widal test total bile acids measurement">
+            <td class="td-state"><span class="state-badge">VIC</span></td>
+            <td class="td-address"><div class="addr-suburb">Devonport</div><div class="addr-street">67 Corymbia Esp</div></td>
+            <td class="td-tests"><ul class="test-list"><li>CSF chloride measurement</li><li>Widal test</li><li>Total bile acids measurement</li></ul></td>
+          </tr>
+
+          <tr data-state="QLD" data-address="4 leptospermum st springfield" data-tests="semen analysis drugs of abuse urine screening test">
+            <td class="td-state"><span class="state-badge">QLD</span></td>
+            <td class="td-address"><div class="addr-suburb">Springfield</div><div class="addr-street">4 Leptospermum St</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Semen analysis</li><li>Drugs of abuse urine screening test</li></ul></td>
+          </tr>
+
+          <tr data-state="SA" data-address="33 grevillea sq hawthorn" data-tests="csf chloride measurement measurement of yellow fever virus antibody">
+            <td class="td-state"><span class="state-badge">SA</span></td>
+            <td class="td-address"><div class="addr-suburb">Hawthorn</div><div class="addr-street">33 Grevillea Sq</div></td>
+            <td class="td-tests"><ul class="test-list"><li>CSF chloride measurement</li><li>Measurement of Yellow fever virus antibody</li></ul></td>
+          </tr>
+
+          <tr data-state="WA" data-address="19 boronia rise windsor" data-tests="widal test total bile acids measurement drugs of abuse urine screening test">
+            <td class="td-state"><span class="state-badge">WA</span></td>
+            <td class="td-address"><div class="addr-suburb">Windsor</div><div class="addr-street">19 Boronia Rise</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Widal test</li><li>Total bile acids measurement</li><li>Drugs of abuse urine screening test</li></ul></td>
+          </tr>
+
+          <tr data-state="TAS" data-address="7 brachychiton tce brunswick" data-tests="measurement of yellow fever virus antibody semen analysis">
+            <td class="td-state"><span class="state-badge">TAS</span></td>
+            <td class="td-address"><div class="addr-suburb">Brunswick</div><div class="addr-street">7 Brachychiton Tce</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Measurement of Yellow fever virus antibody</li><li>Semen analysis</li></ul></td>
+          </tr>
+
+          <tr data-state="NT" data-address="44 acmena cres preston" data-tests="csf chloride measurement drugs of abuse urine screening test">
+            <td class="td-state"><span class="state-badge">NT</span></td>
+            <td class="td-address"><div class="addr-suburb">Preston</div><div class="addr-street">44 Acmena Cres</div></td>
+            <td class="td-tests"><ul class="test-list"><li>CSF chloride measurement</li><li>Drugs of abuse urine screening test</li></ul></td>
+          </tr>
+
+          <tr data-state="ACT" data-address="2 banksia blvd kensington" data-tests="widal test total bile acids measurement">
+            <td class="td-state"><span class="state-badge">ACT</span></td>
+            <td class="td-address"><div class="addr-suburb">Kensington</div><div class="addr-street">2 Banksia Blvd</div></td>
+            <td class="td-tests"><ul class="test-list"><li>Widal test</li><li>Total bile acids measurement</li></ul></td>
+          </tr>
+
+        </tbody>
+      </table>
+      <div class="no-results" id="no-results">No collection sites match your filters.</div>
+    </div>
+
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">Callistemon Diagnostic Services</div>
+      <div>Collection Site Directory &nbsp;&middot;&nbsp; 24 sites across Australia</div>
+    </div>
+  </footer>
+
+  <script>
+    const fState   = document.getElementById('f-state');
+    const fAddress = document.getElementById('f-address');
+    const fTest    = document.getElementById('f-test');
+    const rows     = document.querySelectorAll('#sites-body tr');
+    const countEl  = document.getElementById('visible-count');
+    const noRes    = document.getElementById('no-results');
+
+    function applyFilters() {
+      const sv = fState.value.trim().toLowerCase();
+      const av = fAddress.value.trim().toLowerCase();
+      const tv = fTest.value.trim().toLowerCase();
+      let visible = 0;
+
+      rows.forEach(row => {
+        const stateMatch   = !sv || row.dataset.state.toLowerCase().includes(sv);
+        const addressMatch = !av || row.dataset.address.includes(av);
+        const testMatch    = !tv || row.dataset.tests.includes(tv);
+        const show = stateMatch && addressMatch && testMatch;
+        row.classList.toggle('hidden-row', !show);
+        if (show) visible++;
+      });
+
+      countEl.textContent = visible;
+      noRes.style.display = visible === 0 ? 'block' : 'none';
+    }
+
+    function clearFilters() {
+      fState.value = '';
+      fAddress.value = '';
+      fTest.value = '';
+      applyFilters();
+    }
+
+    [fState, fAddress, fTest].forEach(el => el.addEventListener('input', applyFilters));
+  </script>
+
+</body>
+</html>
