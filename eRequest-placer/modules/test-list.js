@@ -147,7 +147,20 @@ App.renderSelectedTests = function() {
           ccLink.textContent = ' \u2014 ' + ccVal + ' \u2197';
           ccDetail.appendChild(ccLink);
         } else {
-          ccDetail.textContent = ' \u2014 ' + ccVal;
+          var urlRe = /(https?:\/\/[^\s]+)/g;
+          var parts = (' \u2014 ' + ccVal).split(urlRe);
+          for (var pi = 0; pi < parts.length; pi++) {
+            if (/^https?:\/\//.test(parts[pi])) {
+              var inlineLink = document.createElement('a');
+              inlineLink.href = parts[pi];
+              inlineLink.target = '_blank'; inlineLink.rel = 'noopener';
+              inlineLink.className = 'text-indigo-500 hover:underline';
+              inlineLink.textContent = parts[pi] + ' \u2197';
+              ccDetail.appendChild(inlineLink);
+            } else if (parts[pi]) {
+              ccDetail.appendChild(document.createTextNode(parts[pi]));
+            }
+          }
         }
         ccDetail.style.display = 'none';
         ccToggle.onclick = function() { ccDetail.style.display = ccDetail.style.display === 'none' ? 'inline' : 'none'; };
