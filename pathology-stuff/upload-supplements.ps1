@@ -4,11 +4,13 @@
 # Before uploading, the script auto-detects the server's active SNOMED AU edition
 # and patches two fields in each file (in-place on disk and in the upload payload):
 #
-#   "version":     "1.20260331.0"  ->  "1.20260430.0"
+#   "version":     "1.20260331.0"  ->  "1.20260430.0"  (edition changed: resets patch to 0)
+#   "version":     "1.20260430.1"  ->  "1.20260430.1"  (edition unchanged: patch preserved)
 #   "supplements": "...version/20260331"  ->  "...version/20260430"
 #
-# If all supplement files are already at the active edition, the script exits
-# immediately without uploading anything (safe to run on a schedule).
+# The script exits without uploading if all local supplement versions already match
+# what is on the server. To force an upload after local edits, increment the patch
+# component of the version field (e.g. 1.20260430.0 -> 1.20260430.1).
 #
 # Usage:
 #   .\upload-supplements.ps1                          # PUT all supplement-*.json files
@@ -63,13 +65,26 @@ if (-not $files) {
 $needsUpdate = $false
 foreach ($f in $files) {
     $parsed = (Get-Content $f.FullName -Raw -Encoding UTF8) | ConvertFrom-Json
-    if ($parsed.content -eq 'supplement' -and $parsed.supplements -match '/version/(\d{8})$') {
-        if ($matches[1] -ne $editionDate) { $needsUpdate = $true; break }
+    if ($parsed.content -eq 'supplement') {
+        # Edition date changed
+        if ($parsed.supplements -match '/version/(\d{8})$' -and $matches[1] -ne $editionDate) {
+            $needsUpdate = $true; break
+        }
+        # Local version differs from what's on the server (e.g. user bumped patch)
+        try {
+            $existing = Invoke-RestMethod -Uri ($Server + "/CodeSystem/" + $parsed.id) -Headers @{Accept="application/fhir+json"}
+            if ($existing.version -ne $parsed.version) {
+                Write-Host "  $($f.Name): local $($parsed.version) != server $($existing.version)" -ForegroundColor Cyan
+                $needsUpdate = $true; break
+            }
+        } catch {
+            $needsUpdate = $true; break  # resource not on server yet
+        }
     }
 }
 
 if (-not $needsUpdate) {
-    Write-Host "Supplements are already at edition $editionDate — nothing to do." -ForegroundColor Green
+    Write-Host "Supplements are already at edition $editionDate with no version changes — nothing to do." -ForegroundColor Green
     exit 0
 }
 
@@ -102,9 +117,13 @@ foreach ($f in $files) {
     $changed = $false
     if ($parsed.content -eq 'supplement') {
 
-        # 1. version: "1.<anything>.0" -> "1.<editionDate>.0"
+        # 1. version: reset patch to 0 when edition changes; preserve patch when edition is already current
         $oldVersion = $parsed.version
-        $newVersion = "1." + $editionDate + ".0"
+        if ($oldVersion -match '^1\.(\d{8})\.\d+$' -and $matches[1] -eq $editionDate) {
+            $newVersion = $oldVersion
+        } else {
+            $newVersion = "1." + $editionDate + ".0"
+        }
         if ($oldVersion -ne $newVersion) {
             $json = $json.Replace('"version": "' + $oldVersion + '"', '"version": "' + $newVersion + '"')
             Write-Host "    version:     $oldVersion -> $newVersion" -ForegroundColor DarkGray
