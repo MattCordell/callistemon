@@ -95,3 +95,26 @@ export function describeProperty(raw, propertyCode) {
   const decl = declaredProperties(raw).find(p => p.code === propertyCode);
   return decl?.description || '';
 }
+
+export function createBlankSupplement(url, name, status, supplements) {
+  const raw = { resourceType: 'CodeSystem', content: 'supplement', url, name, status, property: [], concept: [] };
+  if (supplements) raw.supplements = supplements;
+  return { raw, sourceFilename: name.replace(/\W+/g, '-').toLowerCase() + '.json' };
+}
+
+export function addPropertyDeclaration(raw, code, description, type) {
+  if (!Array.isArray(raw.property)) raw.property = [];
+  raw.property.push({ code, description, type: type || 'string' });
+}
+
+export function removePropertyDeclaration(raw, code) {
+  const used = (raw.concept || []).some(c => (c.property || []).some(p => p.code === code));
+  if (used) return false;
+  raw.property = (raw.property || []).filter(p => p.code !== code);
+  return true;
+}
+
+export function addDesignationWithUse(concept, use, value) {
+  if (!Array.isArray(concept.designation)) concept.designation = [];
+  concept.designation.push({ use, value });
+}

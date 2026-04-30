@@ -246,6 +246,24 @@ export function renderSyncList(state) {
 
 /* ---------- Modals ---------- */
 
+export function renderPropertyDeclarationRows(raw) {
+  const list = document.getElementById('meta-prop-list');
+  if (!list) return;
+  const usedCodes = new Set(
+    (raw.concept || []).flatMap(c => (c.property || []).map(p => p.code))
+  );
+  list.innerHTML = declaredProperties(raw).map(p => {
+    const inUse = usedCodes.has(p.code);
+    return `<li class="prop-decl-item">
+      <strong>${escapeHtml(p.code)}</strong>
+      <span class="meta-type">(${escapeHtml(p.type || 'string')})</span>
+      ${p.description ? ` — ${escapeHtml(p.description)}` : ''}
+      <button type="button" class="btn-icon" data-action="remove-prop-decl" data-propcode="${escapeHtml(p.code)}"
+        ${inUse ? 'disabled title="In use by concepts"' : 'title="Remove"'}>✕</button>
+    </li>`;
+  }).join('');
+}
+
 export function renderMetadataEditForm(raw) {
   const body = document.getElementById('metadata-body');
   if (!raw) { body.innerHTML = ''; return; }
@@ -259,12 +277,8 @@ export function renderMetadataEditForm(raw) {
     ).join('<br>');
     return `<li>${name}${tels ? '<br>' + tels : ''}</li>`;
   }).join('');
-  const properties = declaredProperties(raw).map(p => `
-    <li>
-      <strong>${escapeHtml(p.code)}</strong> <span class="meta-type">(${escapeHtml(p.type || 'string')})</span>
-      ${p.description ? `<div class="prop-desc">${escapeHtml(p.description)}</div>` : ''}
-    </li>
-  `).join('');
+  const typeOptions = ['string', 'code', 'Coding', 'boolean', 'integer', 'decimal', 'dateTime']
+    .map(t => `<option value="${t}">${t}</option>`).join('');
   body.innerHTML = `
     <table class="meta-table meta-table-edit">
       <tr><th>url *</th><td><input type="url" id="meta-url" value="${escapeHtml(raw.url || '')}"></td></tr>
@@ -279,9 +293,18 @@ export function renderMetadataEditForm(raw) {
       <tr><th>content</th><td>supplement <em class="meta-type">(fixed)</em></td></tr>
       <tr><th>supplements</th><td><input type="url" id="meta-supplements" value="${escapeHtml(raw.supplements || '')}"></td></tr>
       ${contact ? `<tr><th>contact</th><td><ul class="meta-list">${contact}</ul></td></tr>` : ''}
-      ${properties ? `<tr><th>property</th><td><ul class="meta-list">${properties}</ul></td></tr>` : ''}
+      <tr><th>property</th><td>
+        <ul id="meta-prop-list" class="meta-list"></ul>
+        <div class="prop-add-row">
+          <input type="text" id="new-prop-code" placeholder="code" style="width:7em">
+          <input type="text" id="new-prop-description" placeholder="description" style="width:12em">
+          <select id="new-prop-type">${typeOptions}</select>
+          <button type="button" class="btn" data-action="add-prop-decl">+ Add</button>
+        </div>
+      </td></tr>
     </table>
   `;
+  renderPropertyDeclarationRows(raw);
 }
 
 export function readAndSaveMetadataForm(raw) {
@@ -368,11 +391,32 @@ export function renderAddSubForm(raw, conceptCode) {
         ${propOptions}
         <option value="desig:${CONFIG.SNOMED.USE_SYNONYM}">designation · Synonym</option>
         <option value="desig:${CONFIG.SNOMED.USE_PREFERRED}">designation · Preferred</option>
+        <option value="desig:__custom__">designation · Custom…</option>
       </select>
     </label>
+    <div id="custom-desig-fields" hidden>
+      <label>Use system<input type="url" id="addsub-use-system" value="http://snomed.info/sct"></label>
+      <label>Use code *<input type="text" id="addsub-use-code"></label>
+      <label>Use display<input type="text" id="addsub-use-display"></label>
+    </div>
     <label>Value
       <textarea id="addsub-value" rows="3"></textarea>
     </label>
+  `;
+}
+
+export function renderNewSupplementForm() {
+  const statusOptions = ['draft', 'active', 'retired', 'unknown']
+    .map(s => `<option value="${s}"${s === 'draft' ? ' selected' : ''}>${s}</option>`)
+    .join('');
+  document.getElementById('new-supplement-body').innerHTML = `
+    <table class="meta-table meta-table-edit">
+      <tr><th>url *</th><td><input type="url" id="new-url" placeholder="https://…"></td></tr>
+      <tr><th>name *</th><td><input type="text" id="new-name"></td></tr>
+      <tr><th>status *</th><td><select id="new-status">${statusOptions}</select></td></tr>
+      <tr><th>supplements</th><td><input type="url" id="new-supplements" placeholder="Canonical URL of system being supplemented"></td></tr>
+    </table>
+    <p id="new-supplement-error" class="error-msg" hidden></p>
   `;
 }
 

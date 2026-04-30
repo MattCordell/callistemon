@@ -16,6 +16,11 @@ import {
   updateDesignationAt,
   removeDesignationAt,
   isConceptValid,
+  declaredProperties,
+  createBlankSupplement,
+  addPropertyDeclaration,
+  removePropertyDeclaration,
+  addDesignationWithUse,
 } from './modules/supplement-model.js';
 import {
   renderSourceColumn,
@@ -26,6 +31,8 @@ import {
   readAndSaveMetadataForm,
   renderAddSubForm,
   renderEditValueForm,
+  renderNewSupplementForm,
+  renderPropertyDeclarationRows,
 } from './modules/ui-rendering.js';
 
 const state = {
@@ -151,6 +158,32 @@ function wireToolbar() {
     } finally {
       e.target.value = '';
     }
+  });
+
+  document.getElementById('btn-new-supplement').addEventListener('click', () => {
+    renderNewSupplementForm();
+    openModal('new-supplement-modal');
+  });
+
+  document.getElementById('btn-create-supplement').addEventListener('click', () => {
+    const url = (document.getElementById('new-url')?.value || '').trim();
+    const name = (document.getElementById('new-name')?.value || '').trim();
+    const status = document.getElementById('new-status')?.value || 'draft';
+    const supplements = (document.getElementById('new-supplements')?.value || '').trim();
+    const errEl = document.getElementById('new-supplement-error');
+    const errors = [];
+    if (!url) errors.push('url is required');
+    if (!name) errors.push('name is required');
+    if (errors.length) {
+      errEl.textContent = errors.join('; ');
+      errEl.hidden = false;
+      return;
+    }
+    state.supplement = createBlankSupplement(url, name, status, supplements);
+    state.ui.expandedConcepts = new Set();
+    closeModal('new-supplement-modal');
+    render();
+    setStatus(`Created new supplement: ${name}.`, 'ok');
   });
 
   document.getElementById('btn-save-supplement').addEventListener('click', () => {
@@ -334,6 +367,38 @@ function wireModals() {
     resetMetadataModal();
   });
 
+  // Metadata modal — property declaration add/remove (delegated)
+  document.getElementById('metadata-body').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn || !state.supplement) return;
+    const raw = state.supplement.raw;
+    if (btn.dataset.action === 'remove-prop-decl') {
+      if (!removePropertyDeclaration(raw, btn.dataset.propcode))
+        alert('Property is in use by one or more concepts and cannot be removed.');
+      else renderPropertyDeclarationRows(raw);
+    } else if (btn.dataset.action === 'add-prop-decl') {
+      const code = (document.getElementById('new-prop-code')?.value || '').trim();
+      const desc = (document.getElementById('new-prop-description')?.value || '').trim();
+      const type = document.getElementById('new-prop-type')?.value || 'string';
+      if (!code) { alert('Property code is required.'); return; }
+      if (declaredProperties(raw).some(p => p.code === code)) {
+        alert(`Property "${code}" is already declared.`); return;
+      }
+      addPropertyDeclaration(raw, code, desc, type);
+      renderPropertyDeclarationRows(raw);
+      document.getElementById('new-prop-code').value = '';
+      document.getElementById('new-prop-description').value = '';
+    }
+  });
+
+  // Addsub modal — show/hide custom designation fields on type change
+  document.getElementById('addsub-modal').addEventListener('change', e => {
+    if (e.target.id === 'addsub-type') {
+      const customFields = document.getElementById('custom-desig-fields');
+      if (customFields) customFields.hidden = e.target.value !== 'desig:__custom__';
+    }
+  });
+
   // Add-sub save
   document.getElementById('addsub-save').addEventListener('click', () => {
     const code = document.getElementById('addsub-code').value;
@@ -344,6 +409,12 @@ function wireModals() {
     if (!concept) return;
     if (type.startsWith('prop:')) {
       addProperty(concept, type.slice(5), value);
+    } else if (type === 'desig:__custom__') {
+      const system = (document.getElementById('addsub-use-system')?.value || '').trim();
+      const useCode = (document.getElementById('addsub-use-code')?.value || '').trim();
+      const display = (document.getElementById('addsub-use-display')?.value || '').trim();
+      if (!useCode) { alert('Designation use code is required.'); return; }
+      addDesignationWithUse(concept, { system, code: useCode, display }, value);
     } else if (type.startsWith('desig:')) {
       addDesignation(concept, type.slice(6), value);
     }

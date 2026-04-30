@@ -43,6 +43,7 @@
       <div class="column-toolbar">
         <h2 id="supplement-title">No supplement loaded</h2>
         <div class="toolbar-buttons">
+          <button class="btn" id="btn-new-supplement">New…</button>
           <label class="btn">
             Load file
             <input type="file" id="supplement-file" accept=".json,application/json,application/fhir+json" hidden>
@@ -132,6 +133,20 @@
       <div class="modal-footer">
         <button class="btn" data-close-modal="edit-modal">Cancel</button>
         <button class="btn primary" id="edit-save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="new-supplement-modal" role="dialog" aria-labelledby="new-supplement-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="new-supplement-title">New supplement</h3>
+        <button class="btn-icon" data-close-modal="new-supplement-modal" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" id="new-supplement-body"></div>
+      <div class="modal-footer">
+        <button class="btn" data-close-modal="new-supplement-modal">Cancel</button>
+        <button class="btn primary" id="btn-create-supplement">Create</button>
       </div>
     </div>
   </div>
