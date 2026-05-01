@@ -29,11 +29,13 @@ body {
 
 /* Header */
 .app-header { background: var(--brand); color: #fff; box-shadow: var(--shadow-1); }
-.app-header-inner { max-width: 1400px; margin: 0 auto; padding: 16px 24px; }
+.app-header-inner { position: relative; max-width: 1400px; margin: 0 auto; padding: 16px 24px; }
 .app-header h1 { margin: 0; font-size: 26px; font-weight: 700; }
 .app-header .tagline { margin: 4px 0 0; font-size: 13px; opacity: 0.92; }
 .app-header .back { margin: 6px 0 0; font-size: 12px; }
 .app-header .back a { color: #fff; opacity: 0.85; text-decoration: underline; }
+.support-btn { position: absolute; top: 16px; right: 24px; background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.4); font-size: 12px; padding: 5px 12px; border-radius: 4px; text-decoration: none; }
+.support-btn:hover { background: rgba(255,255,255,0.28); }
 
 /* Status bar */
 .status {
