@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>FHIR AU eRequesting Demo</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Inter font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+
+  <!-- JSON viewer + QR -->
+  <link rel="stylesheet" href="https://unpkg.com/json-viewer-js@latest/dist/json-viewer.css"/>
+  <script src="https://unpkg.com/json-viewer-js@latest/dist/json-viewer.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root{
+      /* Muted clinical palette + strong background contrast */
+      --bg:           #8c9bcc;  /* blue-800 */
+      --card:         #ffffff;
+      --ink:          #0f172a; /* slate-900 */
+      --muted-ink:    #475569; /* slate-600 */
+      --line:         #e2e8f0; /* slate-200 */
+      --brand:        #3b82f6; /* blue-500 */
+      --brand-600:    #2563eb; /* blue-600 */
+      --accent:       #1d4ed8; /* blue-700 */
+      --accent-50:    rgba(29, 78, 216, .08);
+      --warn-ink:     #92400e;
+      --warn-bg:      #fffbeb;
+      --danger:       #dc2626;
+      --success:      #059669;
+      --shadow-1:     0 1px 2px rgba(2,6,23,.06), 0 1px 1px rgba(2,6,23,.04);
+      --shadow-2:     0 8px 24px rgba(2,6,23,.08), 0 4px 12px rgba(2,6,23,.06);
+    }
+
+    html, body { height: 100%; }
+    body{
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    /* General polish for cards/sections */
+    section.bg-white, .modal, .bg-blue-50, .bg-yellow-100{
+      border-radius: 1rem !important;
+      box-shadow: var(--shadow-1);
+      border: 1px solid var(--line);
+    }
+    header{
+      background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.96));
+      backdrop-filter: saturate(120%) blur(4px);
+      border-bottom: 1px solid var(--line) !important;
+    }
+
+    /* Inputs/selects/textarea */
+    input, select, textarea{
+      border: 1px solid var(--line);
+      border-radius: .75rem !important;
+      padding: .625rem .75rem !important;
+      background: #fff;
+      transition: box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
+    }
+    input::placeholder, textarea::placeholder{ color: #94a3b8; }
+    input:focus, select:focus, textarea:focus{
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px var(--accent-50);
+    }
+
+    /* Buttons */
+    button{
+      border-radius: .75rem !important;
+      transition: transform .06s ease, box-shadow .2s ease, background-color .2s ease, color .2s ease, border-color .2s ease;
+      will-change: transform;
+    }
+    button:hover{ transform: translateY(-1px); }
+    button:active{ transform: translateY(0); }
+    .btn-disabled{ opacity:.6; pointer-events:none; transform:none !important; }
+
+    /* Primary accents */
+    .bg-blue-600{
+      background-color: var(--brand) !important;
+      box-shadow: 0 6px 14px rgba(59,130,246,.18);
+    }
+    .bg-blue-600:hover{ background-color: var(--brand-600) !important; }
+    .bg-emerald-600{ box-shadow: 0 6px 14px rgba(5,150,105,.18); }
+
+    /* Icon+text toggle (Search/New) */
+    .toggle-btn{
+      display:inline-flex; align-items:center;
+      padding:.5rem .75rem; font-size:.875rem; font-weight:600;
+      background:#ffffff; color:#334155; /* slate-700 */
+      transition: background-color .15s ease, color .15s ease, box-shadow .2s ease;
+    }
+    .toggle-btn svg{ flex: none; }
+    .toggle-btn:hover{ background:#f1f5f9; } /* slate-100 */
+    .toggle-btn:focus{ outline:none; box-shadow:0 0 0 3px var(--accent-50); }
+    .toggle-btn.is-active{
+      background: var(--brand); color:#ffffff;
+      box-shadow: 0 6px 14px rgba(59,130,246,.18);
+    }
+
+    /* JSON/debug panes */
+    #json-viewer, #server-response{
+      background: #fbfdff;
+      border: 1px solid var(--line);
+      border-radius: .75rem;
+      box-shadow: inset 0 1px 0 #fff;
+    }
+
+    /* Details summary styling */
+    details > summary{
+      list-style: none;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      border-radius: .75rem;
+      transition: background .2s ease, border-color .2s ease;
+      cursor: pointer;
+      padding: .25rem .5rem;
+    }
+    details[open] > summary{ background:#eef2ff; border-color:#c7d2fe; }
+    details > summary::-webkit-details-marker{ display: none; }
+    details > summary:after{
+      content: "▾";
+      font-size: .8rem;
+      color: var(--muted-ink);
+      transform: translateY(-1px);
+    }
+
+    /* Tabs active underline */
+    #pathology-tab, #radiology-tab{
+      position: relative;
+      padding: .65rem 1rem !important;
+      border-bottom: 2px solid transparent;
+      color: #475569;
+    }
+    #pathology-tab.border-b-2.border-blue-600,
+    #radiology-tab.border-b-2.border-blue-600{
+      color:#0f172a;
+      background: linear-gradient(180deg,#ffffff, #f8fafc);
+      border-bottom-color: var(--brand) !important;
+    }
+
+    /* Lists & results */
+    #pt-ac, #pathology-results, #radiology-results{
+      border-color: var(--line) !important;
+      box-shadow: var(--shadow-2);
+      border-radius: .75rem !important;
+    }
+    #pt-ac li, #pathology-results li, #radiology-results li{
+      transition: background .15s ease, color .15s ease;
+    }
+    #pt-ac li:hover, #pathology-results li:hover, #radiology-results li:hover{ background:#f1f5f9 !important; }
+
+    /* Status & error boxes */
+    #error-box{
+      border-color:#fecaca !important;
+      background:#fef2f2 !important;
+      color:#7f1d1d !important;
+      border-radius:.75rem !important;
+    }
+    #status-box{
+      border-color:#fde68a !important;
+      background:#fffbeb !important;
+      color:#78350f !important;
+      border-radius:.75rem !important;
+    }
+
+    /* QR/backdrop/modal polish */
+    .backdrop{ position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:50 }
+    .modal{
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 1rem;
+      max-width:28rem; width:calc(100% - 2rem);
+      box-shadow: var(--shadow-2);
+    }
+
+    /* Sending overlay spinner */
+    .sending-overlay{ position:fixed; inset:0; background:rgba(255,255,255,.55); backdrop-filter: blur(1px); display:none; align-items:center; justify-content:center; z-index:60 }
+    .spinner{ width:44px; height:44px; border-radius:9999px; border:4px solid #d1d5db; border-top-color: var(--brand-600); animation:spin .9s linear infinite }
+    @keyframes spin{ to{ transform: rotate(360deg) } }
+
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+
+    #pt-mode-help { display: none !important; }
+
+  </style>
+</head>
+<body class="bg-blue-200 text-gray-900 antialiased">
+
+  <!-- Header -->
+  <header class="bg-white border-b">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="flex items-center gap-3">
+        <!-- <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white grid place-items-center font-bold shadow">ER</div> -->
+
+<div class="w-9 h-9 rounded-xl bg-emerald-600 text-white grid place-items-center font-bold shadow">
+  <!-- swap any icon below here -->
+<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"
+     class="w-7 h-7" stroke="currentColor" stroke-width="2"
+     stroke-linecap="round" stroke-linejoin="round">
+  <!-- handle -->
+  <path d="M7 7V6a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v1"/>
+  <!-- case -->
+  <rect x="3" y="7" width="18" height="12" rx="2"/>
+  <!-- cross -->
+  <path d="M12 10v6M9 13h6"/>
+</svg>
+</div>
+
+        <div>
+          <div class="text-lg font-semibold">FHIR AU eRequesting</div>
+          <div class="text-xs text-gray-500">Requesting Clinician (Placer) demo</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="new-request-btn" class="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded hidden">New Request</button>
+        <div class="flex items-center gap-2">
+          <label for="doctor-select" class="text-sm text-gray-600">Requesting Clinician</label>
+          <select id="doctor-select" class="border rounded p-2 text-sm">
+            <option>Dr Confident Cane Toad</option>
+            <option>Dr Compassionate Quoll</option>
+          </select>
+        </div>
+        <div id="doctor-specialty" class="text-sm text-gray-600 hidden md:block"></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-6 space-y-6">
+
+    <!-- Patient + Clinical Notes side-by-side -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Patient -->
+      <section class="bg-white p-4 rounded-2xl shadow space-y-4">
+        <!-- Header with toggle -->
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <h2 class="text-lg font-semibold">Patient</h2>
+
+          <!-- Search / New toggle -->
+          <div id="ptToggle" class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+            <button type="button" id="ptBtnSearch" class="toggle-btn is-active" aria-pressed="true" title="Search patients on server">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="w-4 h-4 mr-1.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="6"></circle>
+                <line x1="20.5" y1="20.5" x2="16.2" y2="16.2"></line>
+              </svg>
+              <span>Search</span>
+            </button>
+            <button type="button" id="ptBtnNew" class="toggle-btn" aria-pressed="false" title="Create a new patient">
+              <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="w-4 h-4 mr-1.5">
+                <path d="M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM2 16.25A4.25 4.25 0 0 1 6.25 12h1.5A4.25 4.25 0 0 1 12 16.25v.25a.5.5 0 0 1-.5.5H2.5a.5.5 0 0 1-.5-.5v-.25ZM14.5 9a.75.75 0 0 1 .75.75V11h1.25a.75.75 0 0 1 0 1.5H15.25v1.25a.75.75 0 0 1-1.5 0V12.5H12.5a.75.75 0 0 1 0-1.5h1.25V9.75A.75.75 0 0 1 14.5 9Z"/>
+              </svg>
+              <span>New</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Help text reflects mode -->
+        <div class="text-sm text-gray-500" id="pt-mode-help">(Search mode: autocomplete)</div>
+
+        <!-- Name + autocomplete results -->
+        <label class="block">
+          <span class="block text-sm font-medium">Name</span>
+          <div class="relative">
+            <input id="patient-name" autocomplete="off" class="border rounded w-full p-2" placeholder="Type a name..."/>
+            <ul id="pt-ac" class="absolute left-0 right-0 mt-1 bg-white border rounded shadow max-h-56 overflow-auto hidden z-20"></ul>
+          </div>
+        </label>
+
+        <!-- Demographics -->
+        <div class="flex items-start gap-4">
+          <img id="patient-photo" src="defaultProfile.jpg" alt="Patient photo" class="w-24 h-24 rounded-full object-cover border">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full">
+            <label class="block">
+              <span class="block text-sm font-medium">DOB</span>
+              <input id="patient-dob" type="date" class="border rounded w-full p-2"/>
+            </label>
+            <label class="block">
+              <span class="block text-sm font-medium">Gender</span>
+              <select id="patient-gender" class="border rounded w-full p-2">
+                <option value="male">male</option>
+                <option value="female">female</option>
+                <option value="other">other</option>
+                <option value="unknown" selected>unknown</option>
+              </select>
+            </label>
+
+            <!-- Pregnancy Status (always editable) -->
+            <label class="block md:col-span-2">
+              <span class="block text-sm font-medium">Pregnancy Status</span>
+              <select id="pregnancy-status" class="border rounded w-full p-2">
+                <option value="">— Select pregnancy status —</option>
+              </select>
+            </label>
+
+            <div class="md:col-span-2 border rounded p-3">
+              <div class="text-sm font-medium mb-1">Address</div>
+              <div id="patient-address" class="text-sm text-gray-700 whitespace-pre-line">—</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Clinical Notes -->
+      <section class="bg-white p-4 rounded-2xl shadow">
+        <label class="block font-medium mb-1">Clinical Notes</label>
+        <textarea id="clinical-notes" class="w-full border rounded p-2 h-50" placeholder="Optional clinical context for the request"></textarea>
+
+        <div id="notes-suggestions" class="mt-2 hidden">
+          <div class="text-xs text-gray-500 mb-1">Autocomplete suggestions</div>
+          <div id="notes-suggestion-list" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <div class="mt-2">
+          <div class="text-xs text-gray-500 mb-1">Reason tags</div>
+          <div id="notes-tags" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        
+
+      </section>
+    </div>
+
+    <!-- Tabs: Pathology/Radiology -->
+    <section class="bg-white rounded-2xl shadow">
+      <div class="flex border-b">
+        <button id="pathology-tab" class="px-4 py-2 font-semibold border-b-2 border-blue-600">Pathology</button>
+        <button id="radiology-tab" class="px-4 py-2">Radiology</button>
+      </div>
+
+      <!-- Pathology panel -->
+      <div id="pathology-panel" class="p-4 space-y-4">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <section>
+            <h3 class="font-semibold mb-2">Favourites</h3>
+            <div id="pathology-favs"></div>
+          </section>
+          <section>
+            <h3 class="font-semibold mb-2">Suggested Tests</h3>
+            <div id="suggested-tests-mirror-path" class="flex flex-wrap gap-2"></div>
+            <div id="suggested-tests-empty-path" class="text-sm text-gray-500">No suggestions yet — add Reason tags to see recommendations.</div>
+          </section>
+        </div>
+        <div>
+          <!-- Preferred provider selector -->
+          <div id="provider-supplement-selector" class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-sm text-slate-600">
+            <span class="font-medium">Preferred provider:</span>
+          </div>
+
+          <input id="pathology-search" class="border rounded w-full p-2" placeholder="Search pathology tests...">
+          <ul id="pathology-results" class="mt-2 border rounded bg-white"></ul>
+
+          <!-- New: free text custom pathology -->
+          <div class="mt-3 flex items-center gap-2">
+            <input id="pathology-custom" class="flex-1 border rounded p-2" placeholder="Add a custom pathology test (free text)">
+            <button id="pathology-custom-add" class="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Radiology panel -->
+      <div id="radiology-panel" class="p-4 space-y-4 hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <section>
+            <h3 class="font-semibold mb-2">Favourites</h3>
+            <div id="radiology-favs"></div>
+          </section>
+          <section>
+            <h3 class="font-semibold mb-2">Suggested Tests</h3>
+            <div id="suggested-tests-mirror-rad" class="flex flex-wrap gap-2"></div>
+            <div id="suggested-tests-empty-rad" class="text-sm text-gray-500">No suggestions yet — add Reason tags to see recommendations.</div>
+          </section>
+        </div>
+        <div>
+          <input id="radiology-search" class="border rounded w-full p-2" placeholder="Search radiology tests...">
+          <ul id="radiology-results" class="mt-2 border rounded bg-white"></ul>
+
+          <!-- New: free text custom radiology -->
+          <div class="mt-3 flex items-center gap-2">
+            <input id="radiology-custom" class="flex-1 border rounded p-2" placeholder="Add a custom radiology test (free text)">
+            <button id="radiology-custom-add" class="px-3 py-2 bg-blue-600 text-white rounded">Add</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Selected tests -->
+    <section class="bg-white p-4 rounded-2xl shadow">
+      <h3 class="font-semibold mb-2">Selected Tests</h3>
+      <ul id="selected-tests" class="divide-y"></ul>
+    </section>
+
+    <!-- Error / Status -->
+    <div id="error-box" class="hidden p-2 border border-red-400 bg-red-100 text-red-800 rounded"></div>
+    <div id="status-box" class="hidden p-2 border border-amber-400 bg-amber-50 text-amber-800 rounded"></div>
+
+    <!-- Bundle + Send -->
+    <section class="bg-white p-4 rounded-2xl shadow">
+      <h3 class="font-semibold mb-2">FHIR Bundle Preview</h3>
+      <div class="flex flex-wrap gap-3 mb-3">
+        <button id="build-bundle" class="px-4 py-2 bg-blue-600 text-white rounded">Build FHIR Bundle</button>
+        <button id="send-btn" class="px-4 py-2 bg-emerald-600 text-white rounded">Send to FHIR Server</button>
+      </div>
+
+      <details>
+        <summary class="flex items-center gap-2">
+          <span>Request Bundle (click to expand)</span>
+          <button id="copy-bundle" type="button" class="ml-2 text-xs px-2 py-1 rounded border bg-white hover:bg-gray-50">Copy</button>
+        </summary>
+        <div id="json-viewer" class="border rounded p-2 bg-gray-50 mt-2"></div>
+      </details>
+
+      <details class="mt-3">
+        <summary class="inline-flex items-center gap-2">
+          Server Response (click to expand)
+          <button id="copy-server-response" class="text-xs px-2 py-0.5 rounded border bg-white hover:bg-gray-100" title="Copy response">Copy</button>
+        </summary>
+        <pre id="server-response" class="mt-2 text-sm text-gray-800 whitespace-pre-wrap"></pre>
+      </details>
+
+      <p class="text-xs text-gray-100 mt-2">
+        <span class="bg-blue-800 px-1.5 py-0.5 rounded">Tip</span> run via a local server (<span class="mono">python3 -m http.server 8000</span>) instead of opening as <span class="mono">file://</span>.
+      </p>
+    </section>
+  </main>
+
+  <!-- Floating toggles -->
+  <button id="server-toggle" class="fixed bottom-4 right-36 z-40 px-3 py-2 rounded-full shadow bg-blue-600 text-white text-sm">Server</button>
+  <button id="debug-toggle"  class="fixed bottom-4 right-4  z-40 px-3 py-2 rounded-full shadow bg-yellow-500 text-white text-sm">Debug</button>
+
+  <!-- Debug Panel -->
+  <div id="debug-panel" class="fixed bottom-16 right-4 z-40 w-[min(90vw,42rem)] max-h-[50vh] overflow-hidden hidden">
+    <div class="bg-yellow-100 border border-yellow-300 rounded shadow">
+      <div class="flex items-center justify-between px-3 py-2 border-b border-yellow-300">
+        <div class="font-semibold text-yellow-900 text-sm">Terminology/FHIR calls — recent</div>
+        <div class="flex items-center gap-2">
+          <button id="debug-copy" class="text-xs px-2 py-1 rounded border border-yellow-400 bg-white">Copy last</button>
+          <button id="debug-close" class="text-xs px-2 py-1 rounded border border-yellow-400 bg-white">Close</button>
+        </div>
+      </div>
+      <div class="p-3">
+        <div class="text-xs text-yellow-900 mb-1">Most recent URL:</div>
+        <div id="last-expand-url" class="text-[11px] break-all bg-yellow-50 border border-yellow-200 rounded p-2"></div>
+        <div class="text-xs text-yellow-900 mt-3 mb-1">History (most recent first):</div>
+        <ul id="expand-history" class="text-[11px] space-y-1 max-h-[22vh] overflow-auto pr-1"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Server Panel (popout) -->
+  <div id="server-panel" class="fixed bottom-16 right-4 z-40 w-[min(90vw,32rem)] overflow-hidden hidden">
+    <div class="bg-blue-50 border border-blue-200 rounded-2xl shadow">
+      <div class="flex items-center justify-between px-4 py-2 border-b border-blue-200">
+        <div class="font-semibold text-blue-900 text-sm">FHIR Server</div>
+        <button id="server-close" class="text-xs px-2 py-1 rounded border border-blue-300 bg-white">Close</button>
+      </div>
+      <div class="p-4 space-y-2">
+        <label class="block">
+          <span class="block text-sm font-medium">FHIR Server URL</span>
+          <input id="fhir-base" class="border rounded w-full p-2 mono" value="https://server.callistemon.site/fhir" placeholder="https://your.fhir.server"/>
+        </label>
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-600">Presets</label>
+          <select id="server-preset" class="border rounded p-2 text-sm">
+            <option value="https://server.callistemon.site/fhir" selected>Callistemon (default)</option>
+            <option value="https://server.fire.ly">Firely</option>
+            <option value="https://pyroserver.azurewebsites.net/pyro">Pyro</option>
+            <option value="https://erequesting.aidbox.beda.software/fhir">Aidbox (auth)</option>
+            <option value="https://smile.sparked-fhir.com/ereq/fhir/DEFAULT">Sparked (auth)</option>
+          </select>
+          <button id="apply-preset" class="text-xs px-2 py-1 rounded border bg-white">Apply</button>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="auth-manage" class="text-xs px-2 py-1 rounded border bg-white">Auth…</button>
+          <span id="auth-hint" class="text-xs text-blue-900"></span>
+        </div>
+
+        <button id="apply-fhir-base" class="h-10 px-4 bg-blue-600 text-white rounded">Use this server</button>
+        <div class="text-xs text-gray-600">All queries and transaction POSTs use this base. Default shown above.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body Site Modal -->
+  <div id="body-site-backdrop" class="backdrop" style="display:none">
+    <div class="modal p-4" style="max-width:480px;width:100%">
+      <div class="flex items-start justify-between gap-4 border-b pb-3">
+        <div>
+          <h3 class="text-lg font-semibold">Choose Body Site</h3>
+          <p id="body-site-test-name" class="text-sm text-gray-500"></p>
+        </div>
+        <button id="body-site-close" class="rounded-full p-2 hover:bg-gray-100" aria-label="Close">✕</button>
+      </div>
+      <div class="p-4 flex flex-col gap-3">
+        <input id="body-site-search" type="text" placeholder="Search body site…"
+          class="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
+        <ul id="body-site-results" class="border rounded divide-y text-sm max-h-60 overflow-y-auto"></ul>
+        <div class="flex justify-end gap-2 pt-1">
+          <button id="body-site-cancel" class="px-3 py-1.5 border rounded text-sm">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Modal -->
+  <div id="qr-backdrop" class="backdrop">
+    <div class="modal p-4">
+      <div class="flex items-start justify-between gap-4 border-b pb-3">
+        <div>
+          <h3 class="text-lg font-semibold">Task Group Location</h3>
+          <p class="text-sm text-gray-500">Scan to open the created Task Group (requisition).</p>
+        </div>
+        <button id="qr-close" class="rounded-full p-2 hover:bg-gray-100" aria-label="Close">✕</button>
+      </div>
+      <div class="p-4 flex flex-col items-center gap-3">
+        <div id="qrcode"></div>
+        <div class="w-full">
+          <div class="text-xs text-gray-500 mb-1">Primary location (encoded in QR):</div>
+          <div id="qr-url" class="mono text-[12px] break-all bg-gray-50 border rounded p-2"></div>
+        </div>
+        <div class="flex gap-2">
+          <button id="qr-open" class="px-3 py-1.5 bg-emerald-600 text-white rounded">Open link</button>
+          <button id="qr-copy" class="px-3 py-1.5 border rounded">Copy link</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Send overlay -->
+  <div id="sending-overlay" class="sending-overlay">
+    <div class="flex flex-col items-center gap-3 p-5 rounded-2xl bg-white shadow">
+      <div class="spinner"></div>
+      <div class="text-sm text-gray-600">Submitting order...</div>
+    </div>
+  </div>
+
+  <!-- ES6 module entrypoint — loads the full dependency graph via static imports.
+       Must be served over HTTP (file:// is blocked by the browser for modules). -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
