@@ -1,8 +1,12 @@
-// modules/suggestions.js — Suggestion rules, metadata, compute & render
+// modules/suggestions.js — Suggestion rules, metadata, compute & render.
+//
+// Renders chips with `data-suggested-code` attributes; the click handler that
+// actually adds a test lives in app.js (event delegation). This keeps this
+// module free of any import from test-list.js — a cycle that would otherwise
+// get worse in Phase 2/3 when ai-ui.js adds more edges.
 
 import { state } from './state.js';
 import { snomedSubsumes } from './terminology.js';
-import { addSelectedTest } from './test-list.js';
 
 // Suggested tests metadata (demo only)
 export const SUGGESTED_TESTS_META = {
@@ -48,7 +52,7 @@ export async function computeSuggestions() {
   return Array.from(suggestions).filter((c) => !selectedCodes.has(c));
 }
 
-export async function renderSuggestedTestsMirrored() {
+export async function computeAndRenderSuggestions() {
   const token = ++suggestedRenderToken;
   const list = await computeSuggestions();
   if (token !== suggestedRenderToken) return;
@@ -74,7 +78,9 @@ export async function renderSuggestedTestsMirrored() {
       add.type = 'button';
       add.textContent = '+';
       add.title = 'Add test';
-      add.onclick = () => { addSelectedTest({ system: 'http://snomed.info/sct', code, display: meta.display, kind: meta.kind }); };
+      // Marker for the delegated click handler in app.js. No onclick here:
+      // attaching addSelectedTest directly would re-introduce the test-list cycle.
+      add.dataset.suggestedCode = code;
       chip.appendChild(label); chip.appendChild(add); container.appendChild(chip);
     });
   }
@@ -82,5 +88,3 @@ export async function renderSuggestedTestsMirrored() {
   fill(pathCont, pathEmpty);
   fill(radCont, radEmpty);
 }
-
-export function computeAndRenderSuggestions() { renderSuggestedTestsMirrored(); }

@@ -204,7 +204,6 @@ export function buildBundle() {
   });
 
   const bundle = { resourceType: 'Bundle', type: 'transaction', entry: entries };
-  if (state.viewer) state.viewer.show(bundle);
   window.__lastBundle = bundle;
   return { bundle, requisitionId };
 }

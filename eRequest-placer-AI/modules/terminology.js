@@ -47,7 +47,7 @@ export async function expandFromOntoserver(vsCanonicalUrl, filter, opts) {
     if (opts.boost) base.searchParams.set('_boost', opts.boost);
     const url = base.toString();
     setDebugUrl(url);
-    const r = await fetch(url, { headers: { Accept: 'application/fhir+json' } });
+    const r = await fetch(url, { headers: { Accept: 'application/fhir+json' }, signal: opts.signal });
     if (!r.ok) throw new Error('Ontoserver ' + r.status);
     const j = await r.json();
     return (j && j.expansion && j.expansion.contains) ? j.expansion.contains : [];
@@ -58,9 +58,12 @@ export async function expandFromOntoserver(vsCanonicalUrl, filter, opts) {
   try {
     return await doExpand(supps);
   } catch (e) {
+    // Aborted requests are intentional — skip retry and logging.
+    if (e.name === 'AbortError' || (opts.signal && opts.signal.aborted)) return [];
     if (supps.length > 1) {
       console.warn('Expand with provider supplement failed, retrying without it', e);
-      try { return await doExpand([supps[0]]); } catch (e2) { console.warn('Fallback expand failed', e2); }
+      try { return await doExpand([supps[0]]); }
+      catch (e2) { if (e2.name !== 'AbortError') console.warn('Fallback expand failed', e2); }
     } else {
       console.warn('Ontoserver expand failed', e);
     }

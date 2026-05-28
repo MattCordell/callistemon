@@ -35,16 +35,21 @@ export function buildCombinedNoteText() {
   return (document.querySelector('#clinical-notes').value || '').trim();
 }
 
-export async function fetchReasonSuggestions(filter) {
+// Module-private: only `wireNotesAutocomplete` below calls this.
+async function fetchReasonSuggestions(filter, signal) {
   if (!filter || filter.length < 4) return [];
   try {
     const url = TX_BASE + '?url=' + encodeURIComponent(VS.REASON) + '&count=20&filter=' + encodeURIComponent(filter);
     setDebugUrl(url);
-    const r = await fetch(url, { headers: { Accept: 'application/fhir+json' } });
+    const r = await fetch(url, { headers: { Accept: 'application/fhir+json' }, signal });
     if (!r.ok) throw new Error(r.status);
     const j = await r.json();
     return (j && j.expansion && j.expansion.contains) ? j.expansion.contains : [];
-  } catch (e) { console.warn(e); return []; }
+  } catch (e) {
+    if (e.name === 'AbortError') return [];
+    console.warn(e);
+    return [];
+  }
 }
 
 export function showReasonSuggestions(items) {
@@ -91,6 +96,7 @@ export function showReasonSuggestions(items) {
 export function wireNotesAutocomplete() {
   const notes = document.getElementById('clinical-notes');
   let debounce = null;
+  let activeController = null;
   notes.addEventListener('input', () => {
     const text = notes.value || '';
     const caret = (notes.selectionStart != null ? notes.selectionStart : text.length);
@@ -98,7 +104,12 @@ export function wireNotesAutocomplete() {
     if (debounce) clearTimeout(debounce);
     debounce = setTimeout(async () => {
       if (since.length < 4) { document.getElementById('notes-suggestions').classList.add('hidden'); return; }
-      const items = await fetchReasonSuggestions(since);
+      // Cancel any in-flight request so a slow earlier response can't clobber this one.
+      if (activeController) activeController.abort();
+      activeController = new AbortController();
+      const sig = activeController.signal;
+      const items = await fetchReasonSuggestions(since, sig);
+      if (sig.aborted) return;
       showReasonSuggestions(items);
     }, 250);
   });

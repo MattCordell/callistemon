@@ -17,9 +17,10 @@ import {
 } from './modules/reason-tags.js';
 import {
   setupSearch, setupCustomAdder, renderFavsForUser, renderSelectedTests, initBodySiteModal,
+  addSelectedTest,
 } from './modules/test-list.js';
 import {
-  computeAndRenderSuggestions,
+  computeAndRenderSuggestions, SUGGESTED_TESTS_META,
 } from './modules/suggestions.js';
 import { applyAllWarnings } from './modules/warnings.js';
 import {
@@ -30,6 +31,11 @@ import {
   initAuthFetch, maybePromptPasswordFor, initAuthManage,
   initQrModal, initSendButton,
 } from './modules/server.js';
+
+// JSON viewer instance — owned by this module (boot sets it). Domain modules
+// like bundle-builder.js are no longer aware of it; the caller of buildBundle()
+// is responsible for displaying the result.
+let viewer;
 
 function updateSpecialtyDisplay(name) {
   const sp = roleSpecialties[name];
@@ -57,11 +63,11 @@ function boot() {
 
   // ----- JSON viewer (CDN global) -----
   try {
-    state.viewer = new JSONViewer();
-    $('#json-viewer').appendChild(state.viewer.getContainer());
+    viewer = new JSONViewer();
+    $('#json-viewer').appendChild(viewer.getContainer());
   } catch (e) {
     console.warn('JSONViewer fallback', e);
-    state.viewer = {
+    viewer = {
       show(o) {
         $('#json-viewer').innerHTML = '<pre class="mono text-xs whitespace-pre-wrap"></pre>';
         $('#json-viewer pre').textContent = JSON.stringify(o, null, 2);
@@ -168,7 +174,26 @@ function boot() {
   setupCustomAdder('#radiology-custom', '#radiology-custom-add', 'IMAG');
 
   // ----- Build bundle button -----
-  document.getElementById('build-bundle').addEventListener('click', () => { buildBundle(); });
+  document.getElementById('build-bundle').addEventListener('click', () => {
+    const { bundle } = buildBundle();
+    viewer.show(bundle);
+  });
+
+  // ----- Delegated click handler for the `+` buttons on suggested-tests chips.
+  // suggestions.js renders chips with data-suggested-code attributes; binding
+  // the handler here (rather than inside that module) breaks an import cycle
+  // with test-list.js that would otherwise grow in later phases.
+  ['suggested-tests-mirror-path', 'suggested-tests-mirror-rad'].forEach((id) => {
+    const cont = document.getElementById(id);
+    if (!cont) return;
+    cont.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-suggested-code]');
+      if (!btn || !cont.contains(btn)) return;
+      const code = btn.dataset.suggestedCode;
+      const meta = SUGGESTED_TESTS_META[code] || { display: code, kind: 'PATH' };
+      addSelectedTest({ system: 'http://snomed.info/sct', code, display: meta.display, kind: meta.kind });
+    });
+  });
 
   // ----- Copy bundle to clipboard -----
   {
@@ -199,7 +224,10 @@ function boot() {
   initQrModal();
 
   // ----- Send button -----
-  initSendButton();
+  // `onBundleBuilt` updates the JSON viewer so users who skip "Build" still see
+  // the bundle they sent. Phase 4 will additionally pass `preSendHook` here for
+  // decision-support gating.
+  initSendButton({ onBundleBuilt: (bundle) => viewer.show(bundle) });
 
   // ----- Copy server response -----
   document.getElementById('copy-server-response').addEventListener('click', async (e) => {

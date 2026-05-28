@@ -283,13 +283,20 @@ export function setupSearch(inputSel, listSel, vsCanonicalUrl, kind, expandOpts)
   const inp = document.querySelector(inputSel);
   const list = document.querySelector(listSel);
   let to = null;
+  let activeController = null;
   inp.addEventListener('input', () => {
     if (to) clearTimeout(to);
     const q = inp.value;
     if (!q || q.length < 2) { list.innerHTML = ''; return; }
     list.innerHTML = '<li class="p-2 text-gray-400 italic">Loading...</li>';
     to = setTimeout(async () => {
-      const items = await expandFromOntoserver(vsCanonicalUrl, q, expandOpts);
+      // Cancel any in-flight request — a slow earlier response can't clobber this one.
+      if (activeController) activeController.abort();
+      activeController = new AbortController();
+      const sig = activeController.signal;
+      const opts = { ...(expandOpts || {}), signal: sig };
+      const items = await expandFromOntoserver(vsCanonicalUrl, q, opts);
+      if (sig.aborted) return;
       list.innerHTML = '';
       const top = items.slice(0, 5);
       if (!top.length) { list.innerHTML = '<li class="p-2 text-gray-500">No matches</li>'; return; }

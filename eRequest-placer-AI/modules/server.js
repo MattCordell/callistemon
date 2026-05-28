@@ -88,7 +88,6 @@ export function showQr(url) {
   qrUrlEl.textContent = url || '';
   const box = document.getElementById('qrcode');
   box.innerHTML = '';
-  // QRCode is loaded via CDN; remains a global.
   new QRCode(box, { text: url || '', width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
   document.getElementById('qr-backdrop').style.display = 'flex';
 }
@@ -142,7 +141,18 @@ export async function resolveTaskGroupUrlFromServer() {
 }
 
 // ----- Send to server -----
-export function initSendButton() {
+//
+// `preSendHook` is invoked between bundle construction and POST. It receives
+// the bundle (may mutate in place), and returns `{proceed: boolean}`. Phase 4
+// (decision support) wires a real implementation here; the default is a
+// transparent pass-through so Phase 0 behaviour is unchanged.
+//
+// `onBundleBuilt` lets the caller display / inspect the bundle (e.g. JSON
+// viewer). Kept as a callback so this module stays unaware of the UI surface.
+export function initSendButton({
+  preSendHook = async () => ({ proceed: true }),
+  onBundleBuilt = () => {},
+} = {}) {
   const sendingOverlay = document.getElementById('sending-overlay');
   const sendBtn = document.getElementById('send-btn');
   const newRequestBtn = document.getElementById('new-request-btn');
@@ -153,10 +163,20 @@ export function initSendButton() {
     const built = buildBundle();
     const bundle = built.bundle;
 
+    try { onBundleBuilt(bundle); } catch (e) { console.warn('onBundleBuilt', e); }
+
     sendingOverlay.style.display = 'flex';
     sendBtn.classList.add('btn-disabled');
 
     try {
+      const hookResult = await preSendHook(bundle);
+      if (!hookResult || hookResult.proceed === false) {
+        out.textContent = '';
+        sendingOverlay.style.display = 'none';
+        sendBtn.classList.remove('btn-disabled');
+        return;
+      }
+
       const r = await fetch(state.FHIR_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/fhir+json', Accept: 'application/fhir+json' },

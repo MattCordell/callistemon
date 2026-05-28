@@ -21,6 +21,4 @@ export const state = {
   activeProviderSupplement: null,
   // Bundle
   lastRequisitionId: null,
-  // JSON viewer instance, set during boot.
-  viewer: null,
 };

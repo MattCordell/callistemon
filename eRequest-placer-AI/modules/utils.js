@@ -4,17 +4,13 @@
 export function $(s) { return document.querySelector(s); }
 
 // ----- UUID -----
-export function uuidURN() {
-  return 'urn:uuid:' + (crypto && crypto.randomUUID
-    ? crypto.randomUUID()
-    : (Date.now() + '-' + Math.random().toString(16).slice(2)));
-}
-
 export function newUUID() {
   return (crypto && crypto.randomUUID
     ? crypto.randomUUID()
     : (Date.now() + '-' + Math.random().toString(16).slice(2)));
 }
+
+export function uuidURN() { return 'urn:uuid:' + newUUID(); }
 
 // ----- Address formatting -----
 export function formatAddress(addr) {

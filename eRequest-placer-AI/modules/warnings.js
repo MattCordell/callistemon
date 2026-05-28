@@ -22,8 +22,8 @@ export function warnText(t) {
   return t.warnSet && t.warnSet.size ? Array.from(t.warnSet).join(' • ') : '';
 }
 
-// ----- FHIR count helper (used by history checks) -----
-export async function fhirCount(resourceType, params) {
+// ----- FHIR count helper (module-private, used by history checks below) -----
+async function fhirCount(resourceType, params) {
   const tryDateParams = params.tryDateParams || ['authored', 'date', 'issued', 'effective', '_lastUpdated'];
   const codeParamOrder = [];
   if (params.code)      codeParamOrder.push({ k: 'code', v: params.code });
