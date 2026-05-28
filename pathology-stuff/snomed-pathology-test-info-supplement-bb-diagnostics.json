@@ -2,7 +2,7 @@
   "resourceType": "CodeSystem",
   "id": "347a04a9-f63b-4d46-8d41-b5ad222cc26e",
   "url": "https://github.com/MattCordell/callistemon/fhir/CodeSystem/snomed-pathology-test-info-supplement-bb-diagnostics",
-  "version": "1.20260430.1",
+  "version": "1.20260531.0",
   "name": "SNOMEDPathologyTestInfoSupplementBBDiagnostics",
   "title": "SNOMED CT Pathology Test Information Supplement - BB Diagnostics",
   "status": "draft",
@@ -22,7 +22,7 @@
   ],
   "description": "A CodeSystem supplement providing BB Diagnostics preferred test names for SNOMED CT pathology test concepts.",
   "content": "supplement",
-  "supplements": "http://snomed.info/sct|http://snomed.info/sct/32506021000036107/version/20260430",
+  "supplements": "http://snomed.info/sct|http://snomed.info/sct/32506021000036107/version/20260531",
   "property": [
     {
       "code": "collectionCentreRequirements",
