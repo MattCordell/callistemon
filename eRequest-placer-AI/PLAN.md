@@ -8,7 +8,7 @@
 
 ## Context
 
-The callistemon repo hosts a suite of static, GitHub-Pages-deployed FHIR demo apps under `https://callistemon.site/`. The flagship [eRequest-placer/](../eRequest-placer/) lets a clinician build an AU eRequesting FHIR Transaction Bundle (Patient + Encounter + group Task + per-test Task + ServiceRequests + optional pregnancy Observation) and POST it to a configurable FHIR server.
+The callistemon repo hosts a suite of static, GitHub-Pages-deployed FHIR demo apps under `https://mattcordell.github.io/callistemon/` (the unrelated `callistemon.site` referenced in module configs is the FHIR server backend, not the Pages site). The flagship [eRequest-placer/](../eRequest-placer/) lets a clinician build an AU eRequesting FHIR Transaction Bundle (Patient + Encounter + group Task + per-test Task + ServiceRequests + optional pregnancy Observation) and POST it to a configurable FHIR server.
 
 The product spec calls for a **sister app at [./](./) (`eRequest-placer-AI/`)** that retains every behaviour of the original and layers three AI enhancements on top:
 
@@ -18,7 +18,7 @@ The product spec calls for a **sister app at [./](./) (`eRequest-placer-AI/`)** 
 
 All three features share one AI pipeline: an Openrouter chat-completions call (OpenAI-compatible) that uses Ontoserver-backed `search_concepts` / `lookup_concept` tools, ECL-scoped per feature, with an accuracy-over-completeness principle.
 
-The original `eRequest-placer` stays unchanged as the reference implementation. The new app deploys to `https://callistemon.site/eRequest-placer-AI/` as a self-contained static directory.
+The original `eRequest-placer` stays unchanged as the reference implementation. The new app deploys to `https://mattcordell.github.io/callistemon/eRequest-placer-AI/` as a self-contained static directory.
 
 ---
 
