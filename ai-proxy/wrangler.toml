@@ -1,0 +1,9 @@
+name = "callistemon-ai-proxy"
+main = "worker.js"
+compatibility_date = "2026-05-01"
+
+# Per-IP rate-limit counters. Create the namespace, then paste the returned id:
+#   wrangler kv namespace create RATE_KV
+[[kv_namespaces]]
+binding = "RATE_KV"
+id = "9cce35be3d67480390d0d078b44b277c"
