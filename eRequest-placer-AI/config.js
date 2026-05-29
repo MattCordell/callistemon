@@ -95,7 +95,12 @@ export const AI_DEFAULTS = {
   // Feature B from procedures.
   REASON_ECL: '< 404684003 |Clinical finding|',
   TEST_ECL: '< 71388002 |Procedure|',
-  // Operator-tunable prompt context (spec §5.4, §C.4).
+  // Operator-tunable prompt guidance, injected PER FEATURE (no branching — each
+  // feature sees only its own field plus COMMON). COMMON applies to every AI
+  // request; REASON_PROMPT_SUPPLEMENTS feeds Feature A; PRE_PROMPT_SUPPLEMENTS is
+  // the Feature B field (spec §5.4 name, kept). GUIDELINES_SUMMARY feeds Feature C.
+  COMMON_PROMPT_SUPPLEMENTS: '',
+  REASON_PROMPT_SUPPLEMENTS: '',
   PRE_PROMPT_SUPPLEMENTS: 'When a pathology specimen type is not specified, prefer serum, then blood, then urine (in that order).',
   GUIDELINES_SUMMARY: '',
   // Feature toggles (spec §6, §C.11).

@@ -143,7 +143,15 @@ function buildPanelHtml(s) {
       </label>
 
       <label class="block">
-        <span class="block text-xs font-medium text-gray-600">Pre-prompt supplements</span>
+        <span class="block text-xs font-medium text-gray-600">Common guidance — applied to every AI request</span>
+        <textarea id="ai-common-supplements" rows="2" class="${ta}" placeholder="e.g. Prefer Australian SNOMED-CT-AU terms.">${escapeHtml(s.COMMON_PROMPT_SUPPLEMENTS || '')}</textarea>
+      </label>
+      <label class="block">
+        <span class="block text-xs font-medium text-gray-600">Reason coding guidance (Feature A only)</span>
+        <textarea id="ai-reason-supplements" rows="2" class="${ta}">${escapeHtml(s.REASON_PROMPT_SUPPLEMENTS || '')}</textarea>
+      </label>
+      <label class="block">
+        <span class="block text-xs font-medium text-gray-600">Test selection guidance (Feature B only)</span>
         <textarea id="ai-supplements" rows="2" class="${ta}">${escapeHtml(s.PRE_PROMPT_SUPPLEMENTS || '')}</textarea>
       </label>
       <label class="block">
@@ -168,6 +176,8 @@ function wirePanel(root, s) {
   const apiKey = $('#ai-api-key');
   const reasonEcl = $('#ai-reason-ecl');
   const testEcl = $('#ai-test-ecl');
+  const commonSupp = $('#ai-common-supplements');
+  const reasonSupp = $('#ai-reason-supplements');
   const supplements = $('#ai-supplements');
   const guidelines = $('#ai-guidelines');
   const reset = $('#ai-reset');
@@ -191,6 +201,8 @@ function wirePanel(root, s) {
   apiKey.addEventListener('input', () => setAiSetting('OPENROUTER_API_KEY', apiKey.value.trim()));
   reasonEcl.addEventListener('input', () => setAiSetting('REASON_ECL', reasonEcl.value));
   testEcl.addEventListener('input', () => setAiSetting('TEST_ECL', testEcl.value));
+  commonSupp.addEventListener('input', () => setAiSetting('COMMON_PROMPT_SUPPLEMENTS', commonSupp.value));
+  reasonSupp.addEventListener('input', () => setAiSetting('REASON_PROMPT_SUPPLEMENTS', reasonSupp.value));
   supplements.addEventListener('input', () => setAiSetting('PRE_PROMPT_SUPPLEMENTS', supplements.value));
   guidelines.addEventListener('input', () => setAiSetting('GUIDELINES_SUMMARY', guidelines.value));
   reset.addEventListener('click', () => {

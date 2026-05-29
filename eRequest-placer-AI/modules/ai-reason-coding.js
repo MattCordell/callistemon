@@ -9,10 +9,10 @@
 import { getAiSettings } from './settings-ai.js';
 import { runAgent } from './ai-agent.js';
 import { getTools, searchConcepts, lookupConcept } from './ontoserver-tools.js';
+import { gatherPatientContext, confirmInScope, combineGuidance, SCT } from './ai-context.js';
 
-const SCT = 'http://snomed.info/sct';
-
-// Spec §4.5, verbatim. {reason_ecl} is substituted at call time.
+// Based on spec §4.5, with an added "Operator guidance" block (so not verbatim).
+// {reason_ecl} and {guidance} are substituted at call time.
 const SYSTEM_PROMPT = [
   'You are a clinical coding assistant. Your task is to derive a minimal, accurate set of SNOMED CT codes representing the clinical meaning of a clinician\'s free-text notes.',
   '',
@@ -20,40 +20,15 @@ const SYSTEM_PROMPT = [
   '',
   'You have access to an Ontoserver MCP tool. Use `search_concepts` with the ECL expression `{reason_ecl}` to find and confirm every concept before including it. Only include a code if Ontoserver confirms it is valid, active, and within the ECL scope. If no match is found, omit the concept.',
   '',
+  'Operator guidance — apply any of the following that applies to this request:',
+  '{guidance}',
+  '',
   'Return a JSON array only, no prose or markdown formatting.',
 ].join('\n');
 
-/** Approximate age in whole years from a yyyy-mm-dd date string; null if absent/invalid. */
-export function ageFromDob(dobStr) {
-  if (!dobStr) return null;
-  const dob = new Date(dobStr);
-  if (isNaN(dob.getTime())) return null;
-  const now = new Date();
-  let age = now.getFullYear() - dob.getFullYear();
-  const m = now.getMonth() - dob.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age--;
-  return (age >= 0 && age < 200) ? age : null;
-}
-
 function gatherContext() {
   const notes = (document.getElementById('clinical-notes').value || '').trim();
-  const age = ageFromDob(document.getElementById('patient-dob').value);
-  const sex = document.getElementById('patient-gender').value || 'unknown';
-  const pregEl = document.getElementById('pregnancy-status');
-  // Include pregnancy only if a status is actually selected.
-  const pregnancy = (pregEl && pregEl.value) ? (pregEl.selectedOptions[0] && pregEl.selectedOptions[0].textContent.trim()) : null;
-  return { clinical_notes: notes, age, sex, pregnancy };
-}
-
-// Defence in depth: confirm the candidate's code is returned by an in-scope search
-// for its display term. Drops hallucinated codes. Conservative on error (drops).
-async function confirmInScope(candidate, reasonEcl) {
-  try {
-    const results = await searchConcepts({ query: candidate.display, valueSetEcl: reasonEcl, count: 30 });
-    return results.some((r) => r.code === candidate.code);
-  } catch (_e) {
-    return false;
-  }
+  return { clinical_notes: notes, ...gatherPatientContext() };
 }
 
 /**
@@ -73,7 +48,12 @@ export async function suggestReasonCodes() {
       return { codes: [], error: 'Enter clinical notes before suggesting codes.' };
     }
 
-    const systemPrompt = SYSTEM_PROMPT.replace('{reason_ecl}', reasonEcl);
+    // Function replacers so a literal `$` in operator guidance / ECL isn't treated
+    // as a String.replace special pattern ($&, $1, …).
+    const guidance = combineGuidance(s.COMMON_PROMPT_SUPPLEMENTS, s.REASON_PROMPT_SUPPLEMENTS);
+    const systemPrompt = SYSTEM_PROMPT
+      .replace('{reason_ecl}', () => reasonEcl)
+      .replace('{guidance}', () => guidance);
     const userMessage = JSON.stringify(ctx);
 
     // search_concepts is hard-coerced to REASON_ECL no matter what the model passes.

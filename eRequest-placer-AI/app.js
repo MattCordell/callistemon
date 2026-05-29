@@ -40,6 +40,7 @@ import {
 } from './modules/ontoserver-tools.js';
 import { runAgent } from './modules/ai-agent.js';
 import { suggestReasonCodes } from './modules/ai-reason-coding.js';
+import { suggestTests } from './modules/ai-test-selection.js';
 import {
   renderSuggestionReviewList, setLoadingState, renderEmptyState, renderErrorState,
 } from './modules/ai-ui.js';
@@ -160,6 +161,66 @@ function initReasonCoding() {
           onAccept: (item) => addReasonTag({ ...item, source: 'ai' }),
           onAcceptAll: (items) => items.forEach((item) => addReasonTag({ ...item, source: 'ai' })),
           onCountChange: reviewCount, // keeps #ai-codes-status fresh; clears at 0
+        });
+      }
+    } finally {
+      isRunning = false;
+      setLoadingState(btn, false);
+      updateBtnState();
+    }
+  }
+
+  btn.addEventListener('click', run);
+}
+
+// Feature B wiring: enable the Encode-tests button when the free-text box has
+// content, run the agent on click, and route accepted tests through the existing
+// addSelectedTest() so they behave identically to manually-selected tests.
+function initTestSelection() {
+  const input = document.getElementById('ai-test-input');
+  const btn = document.getElementById('ai-encode-tests');
+  const status = document.getElementById('ai-tests-status');
+  const review = document.getElementById('ai-tests-review');
+  if (!input || !btn || !review) return;
+
+  let isRunning = false;
+  const setStatus = (text) => { if (status) status.textContent = text; };
+  const reviewCount = (n) => setStatus(n > 0 ? (n + ' suggestion' + (n === 1 ? '' : 's') + ' to review') : '');
+  const updateBtnState = () => { btn.disabled = isRunning || !input.value.trim(); };
+  input.addEventListener('input', updateBtnState);
+  updateBtnState();
+
+  const accept = (item) => addSelectedTest({
+    system: item.system || 'http://snomed.info/sct',
+    code: item.code,
+    display: item.display,
+    kind: item.kind,
+  });
+
+  async function run() {
+    if (isRunning) return;
+    isRunning = true;
+    setLoadingState(btn, true, 'Encoding…');
+    updateBtnState();
+    setStatus('Encoding tests…');
+    review.classList.add('hidden');
+    review.replaceChildren();
+    try {
+      const { tests, error } = await suggestTests();
+      if (error) {
+        renderErrorState(review, error, run);
+        setStatus('Could not encode tests');
+      } else if (!tests.length) {
+        renderEmptyState(review, 'No tests could be confidently derived. Please add tests manually.');
+        setStatus('No tests derived');
+      } else {
+        renderSuggestionReviewList({
+          container: review,
+          items: tests,
+          kind: 'test',
+          onAccept: accept,
+          onAcceptAll: (items) => items.forEach(accept),
+          onCountChange: reviewCount,
         });
       }
     } finally {
@@ -361,6 +422,9 @@ function boot() {
 
   // ----- Feature A: AI reason coding -----
   initReasonCoding();
+
+  // ----- Feature B: AI test selection -----
+  initTestSelection();
 
   // ----- Pregnancy status -----
   populatePregnancyStatus();

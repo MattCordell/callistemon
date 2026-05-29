@@ -99,6 +99,14 @@ export function renderSuggestionReviewList({
       label.textContent = item.display + (item.code ? ' (' + item.code + ')' : '');
       li.appendChild(label);
 
+      // PATH/IMAG (or any caller-supplied kind) badge — used by Feature B.
+      if (item.kind) {
+        const badge = document.createElement('span');
+        badge.className = 'text-[10px] leading-none px-1 py-0.5 rounded border border-current opacity-70';
+        badge.textContent = item.kind;
+        li.appendChild(badge);
+      }
+
       const accept = document.createElement('button');
       accept.type = 'button';
       accept.className = 'opacity-80 hover:opacity-100 font-semibold';
