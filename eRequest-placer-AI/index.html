@@ -337,6 +337,18 @@
       </section>
     </div>
 
+    <!-- Feature B: AI test selection. .ai-feature-controls is the master-toggle hook (Phase 5).
+         Additive to the existing combo box / favourites / panels below (spec §5.8). -->
+    <section class="bg-white p-4 rounded-2xl shadow mb-3 ai-feature-controls">
+      <h3 class="font-semibold mb-2 flex items-center gap-1">✨ Describe tests in natural language</h3>
+      <div class="flex items-start gap-2">
+        <textarea id="ai-test-input" class="flex-1 border rounded p-2 h-20" placeholder="e.g. FBC, LFTs, fasting lipids, chest X-ray"></textarea>
+        <button id="ai-encode-tests" class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded self-start disabled:opacity-50" disabled>Encode tests</button>
+      </div>
+      <div id="ai-tests-review" class="mt-3 hidden"></div>
+      <div id="ai-tests-status" class="text-xs text-gray-500 mt-1" aria-live="polite"></div>
+    </section>
+
     <!-- Tabs: Pathology/Radiology -->
     <section class="bg-white rounded-2xl shadow">
       <div class="flex border-b">
