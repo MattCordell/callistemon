@@ -11,6 +11,9 @@ import { probeMcp } from './ontoserver-mcp.js';
 import * as mcp from './ontoserver-mcp.js';
 import * as rest from './ontoserver-rest.js';
 
+// 'unknown' until initOntoserverBackend() resolves the boot probe. Any concept
+// call made before then (e.g. a quick ?aitest=1 click) falls through to REST —
+// harmless, but it means MCP can be skipped for those early calls even when live.
 let backend = 'unknown'; // 'mcp' | 'rest' | 'unknown'
 
 /** Probe MCP and set the active backend. Returns the resolved backend name. */

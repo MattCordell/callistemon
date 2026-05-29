@@ -26,8 +26,8 @@ import { AI_DEFAULTS, AI_SETTINGS_KEY } from '../config.js';
 // it isn't already listed, so an operator-set custom model is never lost.
 const MODEL_OPTIONS = [
   'google/gemma-4-31b-it:free',
-  'anthropic/claude-haiku-4-5',
-  'anthropic/claude-sonnet-4-5',
+  'anthropic/claude-haiku-4.5',
+  'anthropic/claude-sonnet-4.5',
   'openai/gpt-4o-mini',
 ];
 
@@ -172,8 +172,9 @@ function wirePanel(root, s) {
   const guidelines = $('#ai-guidelines');
   const reset = $('#ai-reset');
 
-  // Master + decision-support toggles fire ai-enabled-changed so app.js can
-  // show/hide the .ai-feature-controls elements without a reload.
+  // Master + decision-support toggles fire ai-enabled-changed. The feature phases
+  // (Phase 2+, PLAN.md §147) add the listener that shows/hides the
+  // .ai-feature-controls elements without a reload; no such listener exists yet.
   function fireEnabledChanged() {
     document.dispatchEvent(new CustomEvent('ai-enabled-changed', {
       detail: { aiEnabled: isAiEnabled(), decisionSupportEnabled: isDecisionSupportEnabled() },

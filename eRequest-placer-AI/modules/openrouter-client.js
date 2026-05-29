@@ -18,6 +18,7 @@ import { setDebugUrl } from './utils.js';
  *   'parse'        — 2xx body was not valid JSON
  *   'rate-limited' — 429 (after the single retry)
  *   'unauthorized' — 401/403
+ *   'not-configured'— default proxy route selected but the proxy isn't deployed yet
  */
 export class OpenRouterError extends Error {
   constructor(message, { status, body, kind } = {}) {
@@ -44,7 +45,7 @@ export async function chatCompletion({ model, messages, tools, signal } = {}) {
   const s = getAiSettings();
   const useOwnKey = !!s.USE_OWN_OPENROUTER_KEY;
 
-  const base = (useOwnKey ? s.OPENROUTER_BASE : s.PROXY_BASE_URL || '').replace(/\/+$/, '');
+  const base = ((useOwnKey ? s.OPENROUTER_BASE : s.PROXY_BASE_URL) || '').replace(/\/+$/, '');
   const url = base + '/chat/completions';
 
   const headers = {
@@ -62,6 +63,13 @@ export async function chatCompletion({ model, messages, tools, signal } = {}) {
         { kind: 'unauthorized' });
     }
     headers.Authorization = 'Bearer ' + key;
+  } else if (!s.PROXY_DEPLOYED) {
+    // Refuse the proxy route until issue #20 deploys the worker: PROXY_BASE_URL is
+    // an unclaimed workers.dev placeholder, so POSTing clinical free-text there is
+    // a data-egress risk. Steer the user to their own key for now.
+    throw new OpenRouterError(
+      'The managed AI proxy is not deployed yet. Tick "Use my own OpenRouter key" in AI Settings and add a key to use the demo.',
+      { kind: 'not-configured' });
   }
 
   const payload = {

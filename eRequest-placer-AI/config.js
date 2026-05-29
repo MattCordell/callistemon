@@ -71,12 +71,19 @@ export const AI_DEFAULTS = {
   // key as a secret. Visitors don't need their own key. Replace this placeholder
   // with the real deployed worker URL once the proxy issue is closed.
   PROXY_BASE_URL: 'https://callistemon-ai-proxy.workers.dev',
+  // Guard: the host above is an UNCLAIMED workers.dev placeholder until issue #20
+  // deploys the worker. While false, openrouter-client refuses the proxy route
+  // (it would POST clinical free-text to an unowned domain) and tells the user to
+  // switch on their own key. Flip to true when #20 ships the real URL.
+  PROXY_DEPLOYED: false,
   // Fallback route: direct OpenRouter, used only when USE_OWN_OPENROUTER_KEY is
   // true (the "Use my own OpenRouter key" toggle in AI Settings).
   OPENROUTER_BASE: 'https://openrouter.ai/api/v1',
   // Free model chosen for initial dev; runtime-swappable via the AI Settings
-  // panel. If tool-calling proves unreliable, try anthropic/claude-haiku-4-5
-  // or openai/gpt-4o-mini.
+  // panel. Verified against the OpenRouter models API: the slug exists, is free,
+  // and reports tool-calling support. If real-world free-tier tool-calling proves
+  // unreliable, swap to anthropic/claude-haiku-4.5 or openai/gpt-4o-mini (paid,
+  // both verified tool-capable).
   OPENROUTER_MODEL: 'google/gemma-4-31b-it:free',
   // Hybrid key handling: default false -> proxy route. When true, the user's own
   // key (OPENROUTER_API_KEY) is read from settings and sent direct to OPENROUTER_BASE.
