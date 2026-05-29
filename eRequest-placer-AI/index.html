@@ -412,6 +412,11 @@
       </div>
     </section>
 
+    <!-- Feature C: decision support Tier 1 advisory panel (spec §C.9). Populated
+         by ai-ui.renderAdvisoryPanel at Send. .ai-feature-controls is the
+         master-toggle hook (Phase 5). -->
+    <div id="ai-advisory-panel" class="hidden ai-feature-controls mb-3"></div>
+
     <!-- Selected tests -->
     <section class="bg-white p-4 rounded-2xl shadow">
       <h3 class="font-semibold mb-2">Selected Tests</h3>
@@ -523,6 +528,29 @@
   </div>
 
   <!-- Body Site Modal -->
+  <!-- Feature C: decision support Tier 2 serious-review modal (spec §C.9). Driven
+       by ai-ui.openSeriousReviewModal; Proceed stays disabled until the checkbox
+       is ticked. -->
+  <div id="ai-serious-backdrop" class="backdrop" style="display:none">
+    <div class="modal p-4" role="dialog" aria-modal="true" aria-labelledby="ai-serious-title" style="max-width:640px;width:100%">
+      <div class="border-b pb-2 mb-3">
+        <h3 id="ai-serious-title" class="text-lg font-semibold">Please review before sending</h3>
+        <p class="text-sm text-gray-500">Decision support has flagged the following as warranting review.</p>
+      </div>
+      <div id="ai-serious-body" class="space-y-3 max-h-[60vh] overflow-y-auto"></div>
+      <div class="mt-3 border-t pt-3">
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" id="ai-serious-confirm">
+          I have reviewed these findings and wish to proceed
+        </label>
+        <div class="flex justify-end gap-2 mt-3">
+          <button id="ai-serious-edit" class="px-3 py-1.5 border rounded">Review and edit request</button>
+          <button id="ai-serious-proceed" class="px-3 py-1.5 bg-emerald-600 text-white rounded disabled:opacity-50" disabled>Proceed anyway</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="body-site-backdrop" class="backdrop" style="display:none">
     <div class="modal p-4" style="max-width:480px;width:100%">
       <div class="flex items-start justify-between gap-4 border-b pb-3">
