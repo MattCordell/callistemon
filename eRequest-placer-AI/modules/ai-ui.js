@@ -25,10 +25,11 @@ const KIND_STYLES = {
  * @param {(item:object)=>void} [o.onReject]
  * @param {(remaining:object[])=>void} [o.onAcceptAll]
  * @param {()=>void} [o.onRejectAll]
+ * @param {(remaining:number)=>void} [o.onCountChange] invoked after each render with the remaining count
  * @param {'reason'|'test'|'finding'} [o.kind]
  */
 export function renderSuggestionReviewList({
-  container, items, onAccept, onReject, onAcceptAll, onRejectAll, kind = 'reason',
+  container, items, onAccept, onReject, onAcceptAll, onRejectAll, onCountChange, kind = 'reason',
 }) {
   if (!container) return;
   const style = KIND_STYLES[kind] || KIND_STYLES.reason;
@@ -38,7 +39,11 @@ export function renderSuggestionReviewList({
 
   function render() {
     container.replaceChildren();
-    if (!working.length) { container.classList.add('hidden'); return; }
+    if (!working.length) {
+      container.classList.add('hidden');
+      if (typeof onCountChange === 'function') onCountChange(0);
+      return;
+    }
     container.classList.remove('hidden');
 
     // ----- header: count + bulk actions -----
@@ -113,6 +118,7 @@ export function renderSuggestionReviewList({
       ul.appendChild(li);
     });
     container.appendChild(ul);
+    if (typeof onCountChange === 'function') onCountChange(working.length);
   }
 
   render();

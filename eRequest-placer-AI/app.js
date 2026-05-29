@@ -125,24 +125,33 @@ function initReasonCoding() {
   const review = document.getElementById('ai-codes-review');
   if (!notes || !btn || !review) return;
 
-  const updateBtnState = () => { btn.disabled = !notes.value.trim(); };
+  let isRunning = false;
+  const setStatus = (text) => { if (status) status.textContent = text; };
+  // Reflect the remaining review count; clears at 0 so the hint never lingers
+  // after accept-all / reject-all (or the last individual accept/reject).
+  const reviewCount = (n) => setStatus(n > 0 ? (n + ' suggestion' + (n === 1 ? '' : 's') + ' to review') : '');
+  // Disabled while a run is in flight (prevents a concurrent submission even if
+  // the user edits the notes mid-run) or when there is nothing to send.
+  const updateBtnState = () => { btn.disabled = isRunning || !notes.value.trim(); };
   notes.addEventListener('input', updateBtnState);
   updateBtnState();
 
   async function run() {
+    if (isRunning) return;
+    isRunning = true;
     setLoadingState(btn, true, 'Deriving codes…');
-    if (status) status.textContent = 'Deriving codes…';
+    updateBtnState();
+    setStatus('Deriving codes…');
     review.classList.add('hidden');
     review.replaceChildren();
-    let outcome = '';
     try {
       const { codes, error } = await suggestReasonCodes();
       if (error) {
         renderErrorState(review, error, run);
-        outcome = 'Could not derive codes';
+        setStatus('Could not derive codes');
       } else if (!codes.length) {
         renderEmptyState(review, 'No codes could be confidently derived. Please add codes manually.');
-        outcome = 'No codes derived';
+        setStatus('No codes derived');
       } else {
         renderSuggestionReviewList({
           container: review,
@@ -150,13 +159,13 @@ function initReasonCoding() {
           kind: 'reason',
           onAccept: (item) => addReasonTag({ ...item, source: 'ai' }),
           onAcceptAll: (items) => items.forEach((item) => addReasonTag({ ...item, source: 'ai' })),
+          onCountChange: reviewCount, // keeps #ai-codes-status fresh; clears at 0
         });
-        outcome = codes.length + ' suggestion' + (codes.length === 1 ? '' : 's') + ' to review';
       }
     } finally {
+      isRunning = false;
       setLoadingState(btn, false);
-      if (status) status.textContent = outcome;
-      updateBtnState(); // re-apply content-based disabled state after restoring the button
+      updateBtnState();
     }
   }
 
