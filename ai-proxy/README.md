@@ -15,7 +15,10 @@ their own key:
 - accepts `POST /chat/completions` from an allow-listed origin with **no** auth
   header;
 - adds `Authorization: Bearer <secret>` and forwards to OpenRouter;
-- applies an Origin allowlist + per-IP hourly rate limit to bound abuse.
+- applies an Origin allowlist + per-IP hourly rate limit to bound abuse;
+- **serves free models only** — rejects any request whose `model` slug doesn't
+  end in `:free` with a 400. The proxy bills the deployer's key, so paid models
+  must go via the user's own key (the direct route).
 
 The app's hybrid client (`eRequest-placer-AI/modules/openrouter-client.js`) uses
 this proxy as the **default** route. Users who prefer their own key can tick
@@ -104,7 +107,11 @@ documented dev server (`python -m http.server 8000`).
 
 This proxy is deliberately minimal. Do **not** add streaming support, response
 caching, or model routing — those are application concerns and would bloat the
-Worker. Authentication is Origin + rate-limit only; if abuse becomes a real
-problem, add a shared-secret query parameter the app supplies and the Worker
-checks (still spoofable by anyone who reads the deployed app JS, but raises the
-bar another notch).
+Worker. Authentication is Origin + rate-limit + free-model-only; if abuse becomes
+a real problem, add a shared-secret query parameter the app supplies and the
+Worker checks (still spoofable by anyone who reads the deployed app JS, but
+raises the bar another notch).
+
+**Recommended:** give the OpenRouter key behind the secret a hard spend cap (or
+no payment method on the account) so the worst case for any bypass is exhausting
+the free quota, not real charges.

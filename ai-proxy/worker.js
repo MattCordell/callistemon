@@ -45,10 +45,7 @@ export default {
     const rateKey = `rl:${ip}:${hour}`;
     const current = parseInt((await env.RATE_KV.get(rateKey)) || '0', 10);
     if (current >= RATE_LIMIT_PER_HOUR) {
-      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
-        status: 429,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
-      });
+      return jsonResponse(429, { error: 'Rate limit exceeded' }, origin);
     }
     await env.RATE_KV.put(rateKey, String(current + 1), { expirationTtl: 3700 });
 
@@ -57,6 +54,23 @@ export default {
     // forwarding `request.body` directly (some runtimes require a `duplex` hint
     // when the init contains a stream body). A buffered string is unambiguous.
     const reqBody = await request.text();
+
+    // Model allowlist. This managed proxy bills the DEPLOYER's key, so it serves
+    // FREE models only (slug ending in ":free"); paid models require the user's
+    // own key via the direct route. The Origin check above is spoofable by any
+    // non-browser client, so this server-side guard is the real bound preventing
+    // someone from billing an expensive model to the deployer.
+    let parsed;
+    try {
+      parsed = JSON.parse(reqBody);
+    } catch (_e) {
+      return jsonResponse(400, { error: 'Invalid JSON body' }, origin);
+    }
+    if (typeof parsed.model !== 'string' || !parsed.model.endsWith(':free')) {
+      return jsonResponse(400, {
+        error: 'Only free models (slug ending in ":free") are allowed via the managed proxy. Use your own OpenRouter key for paid models.',
+      }, origin);
+    }
 
     // Forward to OpenRouter
     let upstream;
@@ -71,11 +85,9 @@ export default {
         },
         body: reqBody,
       });
-    } catch (e) {
-      return new Response(JSON.stringify({ error: 'Upstream unreachable', detail: String(e) }), {
-        status: 502,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
-      });
+    } catch (_e) {
+      // Don't echo the internal error detail back to the caller.
+      return jsonResponse(502, { error: 'Upstream unreachable' }, origin);
     }
 
     // Pass body + status through; replace headers (preserve content-type, add CORS)
@@ -89,11 +101,22 @@ export default {
   },
 };
 
+function jsonResponse(status, obj, origin) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders(origin) },
+  });
+}
+
 function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : '',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    // Allow the attribution headers too, so any client sending OpenRouter-style
+    // headers passes preflight (the app itself only sends them on the direct route).
+    'Access-Control-Allow-Headers': 'Content-Type, HTTP-Referer, X-Title',
     'Access-Control-Max-Age': '86400',
+    // ACAO is origin-dependent; Vary prevents a shared cache reusing it cross-origin.
+    'Vary': 'Origin',
   };
 }
