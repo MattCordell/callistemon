@@ -11,15 +11,15 @@ import { state } from './state.js';
 import { getAiSettings } from './settings-ai.js';
 import { runAgent } from './ai-agent.js';
 import { getTools, searchConcepts, lookupConcept } from './ontoserver-tools.js';
-import { gatherPatientContext, confirmInScope, SCT } from './ai-context.js';
+import { gatherPatientContext, confirmInScope, combineGuidance, SCT } from './ai-context.js';
 
 // Spec §5.6, verbatim, with {pre_prompt_supplements} + {test_ecl} substituted,
 // plus the §5.7 output shape extended with a `kind` field (PATH/IMAG).
 const SYSTEM_PROMPT = [
   'You are a clinical test coding assistant. Your task is to derive a set of SNOMED CT procedure codes representing the diagnostic tests described in the clinician\'s free-text input.',
   '',
-  'Apply the following default assumptions where the input is ambiguous:',
-  '{pre_prompt_supplements}',
+  'Operator guidance — apply any of the following that applies to this request:',
+  '{guidance}',
   '',
   'Prioritise accuracy over completeness. Do not speculate. Do not use concept IDs from memory.',
   '',
@@ -60,9 +60,12 @@ export async function suggestTests() {
       patient: gatherPatientContext(),
     });
 
+    // Function replacers so a literal `$` in operator guidance / ECL isn't treated
+    // as a String.replace special pattern ($&, $1, …).
+    const guidance = combineGuidance(s.COMMON_PROMPT_SUPPLEMENTS, s.PRE_PROMPT_SUPPLEMENTS);
     const systemPrompt = SYSTEM_PROMPT
-      .replace('{pre_prompt_supplements}', (s.PRE_PROMPT_SUPPLEMENTS || '').trim() || '(none)')
-      .replace('{test_ecl}', testEcl);
+      .replace('{guidance}', () => guidance)
+      .replace('{test_ecl}', () => testEcl);
 
     // search_concepts is hard-coerced to TEST_ECL no matter what the model passes.
     const toolImpl = {

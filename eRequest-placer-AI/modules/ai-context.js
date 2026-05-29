@@ -45,4 +45,15 @@ export async function confirmInScope(candidate, ecl) {
   }
 }
 
+/**
+ * Combine the operator's COMMON guidance with a feature-specific guidance block
+ * for injection into a system prompt. Returns '(none)' when both are empty so the
+ * prompt slot is never left dangling. No branching — the caller passes only the
+ * fields relevant to its feature.
+ */
+export function combineGuidance(commonText, specificText) {
+  const parts = [String(commonText || '').trim(), String(specificText || '').trim()].filter(Boolean);
+  return parts.length ? parts.join('\n') : '(none)';
+}
+
 export { SCT };

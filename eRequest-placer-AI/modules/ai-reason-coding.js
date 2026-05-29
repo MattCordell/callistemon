@@ -9,7 +9,7 @@
 import { getAiSettings } from './settings-ai.js';
 import { runAgent } from './ai-agent.js';
 import { getTools, searchConcepts, lookupConcept } from './ontoserver-tools.js';
-import { gatherPatientContext, confirmInScope, SCT } from './ai-context.js';
+import { gatherPatientContext, confirmInScope, combineGuidance, SCT } from './ai-context.js';
 
 // Spec §4.5, verbatim. {reason_ecl} is substituted at call time.
 const SYSTEM_PROMPT = [
@@ -18,6 +18,9 @@ const SYSTEM_PROMPT = [
   'Prioritise accuracy over completeness. Return only codes you are confident are correct. Do not speculate. Do not use concept IDs from memory.',
   '',
   'You have access to an Ontoserver MCP tool. Use `search_concepts` with the ECL expression `{reason_ecl}` to find and confirm every concept before including it. Only include a code if Ontoserver confirms it is valid, active, and within the ECL scope. If no match is found, omit the concept.',
+  '',
+  'Operator guidance — apply any of the following that applies to this request:',
+  '{guidance}',
   '',
   'Return a JSON array only, no prose or markdown formatting.',
 ].join('\n');
@@ -44,7 +47,12 @@ export async function suggestReasonCodes() {
       return { codes: [], error: 'Enter clinical notes before suggesting codes.' };
     }
 
-    const systemPrompt = SYSTEM_PROMPT.replace('{reason_ecl}', reasonEcl);
+    // Function replacers so a literal `$` in operator guidance / ECL isn't treated
+    // as a String.replace special pattern ($&, $1, …).
+    const guidance = combineGuidance(s.COMMON_PROMPT_SUPPLEMENTS, s.REASON_PROMPT_SUPPLEMENTS);
+    const systemPrompt = SYSTEM_PROMPT
+      .replace('{reason_ecl}', () => reasonEcl)
+      .replace('{guidance}', () => guidance);
     const userMessage = JSON.stringify(ctx);
 
     // search_concepts is hard-coerced to REASON_ECL no matter what the model passes.
