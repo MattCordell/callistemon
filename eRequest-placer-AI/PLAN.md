@@ -8,7 +8,7 @@
 
 ## Context
 
-The callistemon repo hosts a suite of static, GitHub-Pages-deployed FHIR demo apps under `https://callistemon.site/`. The flagship [eRequest-placer/](../eRequest-placer/) lets a clinician build an AU eRequesting FHIR Transaction Bundle (Patient + Encounter + group Task + per-test Task + ServiceRequests + optional pregnancy Observation) and POST it to a configurable FHIR server.
+The callistemon repo hosts a suite of static, GitHub-Pages-deployed FHIR demo apps under `https://mattcordell.github.io/callistemon/` (the unrelated `callistemon.site` referenced in module configs is the FHIR server backend, not the Pages site). The flagship [eRequest-placer/](../eRequest-placer/) lets a clinician build an AU eRequesting FHIR Transaction Bundle (Patient + Encounter + group Task + per-test Task + ServiceRequests + optional pregnancy Observation) and POST it to a configurable FHIR server.
 
 The product spec calls for a **sister app at [./](./) (`eRequest-placer-AI/`)** that retains every behaviour of the original and layers three AI enhancements on top:
 
@@ -18,7 +18,7 @@ The product spec calls for a **sister app at [./](./) (`eRequest-placer-AI/`)** 
 
 All three features share one AI pipeline: an Openrouter chat-completions call (OpenAI-compatible) that uses Ontoserver-backed `search_concepts` / `lookup_concept` tools, ECL-scoped per feature, with an accuracy-over-completeness principle.
 
-The original `eRequest-placer` stays unchanged as the reference implementation. The new app deploys to `https://callistemon.site/eRequest-placer-AI/` as a self-contained static directory.
+The original `eRequest-placer` stays unchanged as the reference implementation. The new app deploys to `https://mattcordell.github.io/callistemon/eRequest-placer-AI/` as a self-contained static directory.
 
 ---
 
@@ -57,8 +57,21 @@ Build the substrate before any feature UI lands. Add to [./config.js](./config.j
 
 ```js
 export const AI_DEFAULTS = {
+  // Default route: managed Cloudflare Worker proxy that holds the OpenRouter
+  // API key as a secret. Visitors don't need their own key. Replaced with the
+  // real deployed worker URL once the proxy lands (see "OpenRouter proxy"
+  // issue).
+  PROXY_BASE_URL: 'https://callistemon-ai-proxy.workers.dev',
+  // Fallback route: direct OpenRouter, used only when the user flips the
+  // "Use my own OpenRouter key" toggle in settings.
   OPENROUTER_BASE: 'https://openrouter.ai/api/v1',
-  OPENROUTER_MODEL: 'anthropic/claude-sonnet-4-5',
+  // Free model chosen for initial dev; runtime-swappable via the AI Settings
+  // panel. If tool-calling proves unreliable, try anthropic/claude-haiku-4-5
+  // or openai/gpt-4o-mini.
+  OPENROUTER_MODEL: 'google/gemma-4-31b-it:free',
+  // Hybrid key handling: default false → proxy. When true, OPENROUTER_API_KEY
+  // is read from settings and sent direct to OPENROUTER_BASE.
+  USE_OWN_OPENROUTER_KEY: false,
   MCP_URL: 'https://ontoserver.app/mcp',
   REST_TX_BASE: 'https://tx.dev.hl7.org.au/fhir',
   REASON_ECL: '< 404684003 |Clinical finding|',
@@ -72,8 +85,8 @@ export const AI_DEFAULTS = {
 
 New modules under [./modules/](./modules/):
 
-- **`settings-ai.js`** — localStorage-backed `getAiSettings()` / `setAiSetting()` over `AI_DEFAULTS`. Extends the existing `#server-panel` popout with an "AI Settings" `<details>` block (do not introduce a new floating button). API key, model, two ECLs, pre-prompt supplements, guidelines summary, two toggle checkboxes. Document API-key risk in a JSDoc comment. Fires `CustomEvent('ai-enabled-changed')` on toggle.
-- **`openrouter-client.js`** — `chatCompletion({ model, messages, tools, signal })` → POST to `${OPENROUTER_BASE}/chat/completions`, OpenAI-format response. Non-streaming. Headers include `Authorization: Bearer <key>`, `HTTP-Referer`, `X-Title`. One retry on 429/5xx. `setDebugUrl(url)` before fetch so calls appear in the existing debug panel.
+- **`settings-ai.js`** — localStorage-backed `getAiSettings()` / `setAiSetting()` over `AI_DEFAULTS`. Extends the existing `#server-panel` popout with an "AI Settings" `<details>` block (do not introduce a new floating button). Settings UI: model dropdown, two ECLs, pre-prompt supplements, guidelines summary, master AI toggle, decision-support toggle, **"Use my own OpenRouter key" checkbox** — when checked, reveals an API key field (`<input type="password">`) and disables the proxy route. JSDoc on top of the file: in default mode no client-side key, no exposure; in override mode the key is in localStorage with the same risk posture as the existing FHIR auth tokens. Fires `CustomEvent('ai-enabled-changed')` on toggle.
+- **`openrouter-client.js`** — `chatCompletion({ model, messages, tools, signal })` → POST to either `${PROXY_BASE_URL}/chat/completions` (default — proxy adds the auth header) or `${OPENROUTER_BASE}/chat/completions` with `Authorization: Bearer <userKey>` (when `USE_OWN_OPENROUTER_KEY` is true). The choice is made per-call by reading current settings, so flipping the toggle takes effect immediately without reload. OpenAI-format response either way. Common headers: `HTTP-Referer`, `X-Title`. Non-streaming. One retry on 429/5xx. `setDebugUrl(url)` before fetch so calls appear in the existing debug panel.
 - **`ontoserver-mcp.js`** — `class McpClient` with `initialize()`, `listTools()`, `callTool(name, args)`; JSON-RPC over POST, captures `Mcp-Session-Id`. Handles both `application/json` and `text/event-stream` responses (parse last `data:` event). Exports `probeMcp(url, timeoutMs)` (returns boolean), plus `searchConcepts({query, valueSetEcl, count})` and `lookupConcept({system, code})` normalised to `{code, display, system}[]`. Throws `McpTransportError` on any failure so the wrapper can fall back. `setDebugUrl` on every POST.
 - **`ontoserver-rest.js`** — identical surface, REST backend. `searchConcepts` uses `${REST_TX_BASE}/ValueSet/$expand?url=http://snomed.info/sct?fhir_vs=ecl/{ecl}&filter={q}&count={n}&includeDesignations=true`; `lookupConcept` uses `${REST_TX_BASE}/CodeSystem/$lookup?system=…&code=…`. Maps `expansion.contains` → `{code, display, system}`. Surface `OperationOutcome.diagnostics` on errors. The expand pattern is already used in [../eRequest-placer/modules/terminology.js](../eRequest-placer/modules/terminology.js) — reuse it.
 - **`ontoserver-tools.js`** — `initOntoserverBackend()` runs `probeMcp` at boot, stores `backend = 'mcp' | 'rest'`. Exposes the unified `searchConcepts` / `lookupConcept` (delegates; on first MCP failure during a call, sticky-fall-back to REST). Exports `getTools()` returning OpenAI tool descriptors with names `search_concepts` and `lookup_concept` (snake_case, matching spec §3.2). `getActiveBackendName()` for the debug banner.
@@ -81,7 +94,9 @@ New modules under [./modules/](./modules/):
 
 **Manual test harness:** add a `#ai-test-harness` block in `index.html`, revealed only by `?aitest=1`. Buttons that exercise `searchConcepts` and `runAgent` end-to-end. Used during phases 1–4; left behind the `?aitest=1` gate at the end.
 
-**Verify:** open `?aitest=1`, set Openrouter key in settings, click both test buttons. Confirm: an Openrouter POST in DevTools, MCP POSTs (or REST GETs) interleaved with tool_call responses, all URLs land in the debug panel, `getActiveBackendName()` matches reality. Force REST by setting a temporary localStorage flag and re-test.
+**Verify:** open `?aitest=1`, click both test buttons. By default the requests should go to `PROXY_BASE_URL` and the proxy adds the auth header upstream — confirm via DevTools Network. Then flip "Use my own OpenRouter key" in settings, paste a personal key, re-run — requests should now go direct to `OPENROUTER_BASE` with `Authorization: Bearer …` visible in the outbound headers. Confirm: MCP POSTs (or REST GETs) interleaved with tool_call responses, all URLs land in the debug panel, `getActiveBackendName()` matches reality. Force REST by setting a temporary localStorage flag and re-test.
+
+> **Proxy prerequisite for "default mode"**: the Cloudflare Worker tracked in the [OpenRouter proxy](../tree/main/eRequest-placer-AI/PLAN.md) issue must be deployed before the proxy route works end-to-end. Phase 1 can be developed and verified using the "Use my own key" override path without the worker.
 
 ---
 
@@ -171,12 +186,17 @@ New modules under [./modules/](./modules/):
 ## Risks & unknowns
 
 1. **MCP CORS at `https://ontoserver.app/mcp`** — the fallback handles failure transparently. The boot banner surfaces which backend is live.
-2. **Model identifier** — `anthropic/claude-sonnet-4-5` is the spec default. Settings allow runtime swap. Verify availability on Openrouter at build time.
-3. **MCP tool names** — spec assumes `search_concepts` / `lookup_concept`. `listTools()` at probe time should confirm; if Ontoserver MCP names differ, translate inside `ontoserver-mcp.js` keeping the unified surface.
-4. **Agent JSON output reliability** — defensive extractor handles fences and stray prose; surface true parse failure as the empty/error state per spec §4.7.
-5. **`_sort=-authored` server support** — fall back to `-_lastUpdated` once if rejected.
-6. **`file://` no longer works** — locked ES6-modules decision. Document in README.
-7. **Ack-note placement** — appended to every ServiceRequest's `note[]` in the bundle. Flag if a different convention (single SR, Provenance) is preferred.
+2. **Model identifier** — Spec §3.1 lists `anthropic/claude-sonnet-4-5` as the suggested default with "developer to confirm at build time"; this plan's actual chosen default is `google/gemma-4-31b-it:free`. Free-tier rate limits (~50 req/day without credits) and Gemma's historical tool-calling reliability are the two things to watch. Settings allow runtime swap.
+
+3. **API key storage (hybrid)** — Two routes by design:
+   - **Default**: client calls a managed Cloudflare Worker proxy that holds the OpenRouter API key as a secret env var (`OPENROUTER_API_KEY`). The browser never sees the key. The deployer pays for usage; per-IP rate limiting and origin allowlist on the proxy bound abuse. See the "OpenRouter proxy" deployment issue for the worker template and setup steps.
+   - **Override**: a "Use my own OpenRouter key" toggle in settings switches `openrouter-client.js` to call OpenRouter directly with a user-supplied key from localStorage. Risk posture for that key matches the existing FHIR auth tokens (spec §3.1, §9, §9.1).
+   - GitHub Secrets are **not** a fit on either route: the static page has no server runtime, and baking the key into the deployed JS at build time would expose it in DevTools and burn credits on every visitor.
+4. **MCP tool names** — spec assumes `search_concepts` / `lookup_concept`. `listTools()` at probe time should confirm; if Ontoserver MCP names differ, translate inside `ontoserver-mcp.js` keeping the unified surface.
+5. **Agent JSON output reliability** — defensive extractor handles fences and stray prose; surface true parse failure as the empty/error state per spec §4.7.
+6. **`_sort=-authored` server support** — fall back to `-_lastUpdated` once if rejected.
+7. **`file://` no longer works** — locked ES6-modules decision. Document in README.
+8. **Ack-note placement** — appended to every ServiceRequest's `note[]` in the bundle. Flag if a different convention (single SR, Provenance) is preferred.
 
 ---
 
