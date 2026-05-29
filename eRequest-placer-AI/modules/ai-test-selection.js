@@ -13,8 +13,9 @@ import { runAgent } from './ai-agent.js';
 import { getTools, searchConcepts, lookupConcept } from './ontoserver-tools.js';
 import { gatherPatientContext, confirmInScope, combineGuidance, SCT } from './ai-context.js';
 
-// Spec §5.6, verbatim, with {pre_prompt_supplements} + {test_ecl} substituted,
-// plus the §5.7 output shape extended with a `kind` field (PATH/IMAG).
+// Based on spec §5.6 (not verbatim): the §5.6 "default assumptions" line is
+// generalised to an "Operator guidance" block ({guidance}); {test_ecl} is also
+// substituted; and the §5.7 output shape is extended with a `kind` field (PATH/IMAG).
 const SYSTEM_PROMPT = [
   'You are a clinical test coding assistant. Your task is to derive a set of SNOMED CT procedure codes representing the diagnostic tests described in the clinician\'s free-text input.',
   '',

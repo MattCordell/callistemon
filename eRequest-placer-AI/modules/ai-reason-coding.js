@@ -11,7 +11,8 @@ import { runAgent } from './ai-agent.js';
 import { getTools, searchConcepts, lookupConcept } from './ontoserver-tools.js';
 import { gatherPatientContext, confirmInScope, combineGuidance, SCT } from './ai-context.js';
 
-// Spec §4.5, verbatim. {reason_ecl} is substituted at call time.
+// Based on spec §4.5, with an added "Operator guidance" block (so not verbatim).
+// {reason_ecl} and {guidance} are substituted at call time.
 const SYSTEM_PROMPT = [
   'You are a clinical coding assistant. Your task is to derive a minimal, accurate set of SNOMED CT codes representing the clinical meaning of a clinician\'s free-text notes.',
   '',
