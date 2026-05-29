@@ -30,8 +30,18 @@ const SYSTEM_PROMPT = [
   'Return a JSON array only, no prose or markdown formatting.',
 ].join('\n');
 
-function normaliseKind(k) {
-  return String(k || '').toUpperCase().startsWith('IMAG') ? 'IMAG' : 'PATH';
+// Map a model-supplied kind to PATH/IMAG. The prompt constrains output to those
+// two, but be defensive: IMAG/RAD prefixes -> IMAG; anything else -> PATH, warning
+// on an unrecognised value (a misclassified imaging test would otherwise be coded
+// as Laboratory and wrongly trigger the PATH-only supplement fetch).
+export function normaliseKind(k) {
+  const v = String(k || '').trim().toUpperCase();
+  if (v.startsWith('IMAG') || v.startsWith('RAD')) return 'IMAG';
+  // PATH / PATHOLOGY / LAB / LABORATORY (and blank) -> PATH silently; warn otherwise.
+  if (v && !v.startsWith('PATH') && !v.startsWith('LAB')) {
+    console.warn('ai-test-selection: unrecognised test kind "' + k + '" coerced to PATH');
+  }
+  return 'PATH';
 }
 
 /**
