@@ -68,14 +68,13 @@ export const CAT = {
 // so editing a default here propagates unless the user has overridden that key.
 export const AI_DEFAULTS = {
   // Default route: managed Cloudflare Worker proxy that holds the OpenRouter API
-  // key as a secret. Visitors don't need their own key. Replace this placeholder
-  // with the real deployed worker URL once the proxy issue is closed.
-  PROXY_BASE_URL: 'https://callistemon-ai-proxy.workers.dev',
-  // Guard: the host above is an UNCLAIMED workers.dev placeholder until issue #20
-  // deploys the worker. While false, openrouter-client refuses the proxy route
-  // (it would POST clinical free-text to an unowned domain) and tells the user to
-  // switch on their own key. Flip to true when #20 ships the real URL.
-  PROXY_DEPLOYED: false,
+  // key as a secret, so visitors don't need their own key. Deployed per issue #20
+  // (source in /ai-proxy). The worker allow-lists mattcordell.github.io and rate-
+  // limits per IP; it injects the key upstream so no auth header is sent from here.
+  PROXY_BASE_URL: 'https://callistemon-ai-proxy.callistemon.workers.dev',
+  // Guard checked by openrouter-client before using the proxy route. Now true: the
+  // worker above is deployed and owned, so POSTing clinical free-text to it is safe.
+  PROXY_DEPLOYED: true,
   // Fallback route: direct OpenRouter, used only when USE_OWN_OPENROUTER_KEY is
   // true (the "Use my own OpenRouter key" toggle in AI Settings).
   OPENROUTER_BASE: 'https://openrouter.ai/api/v1',

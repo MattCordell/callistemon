@@ -48,12 +48,7 @@ export async function chatCompletion({ model, messages, tools, signal } = {}) {
   const base = ((useOwnKey ? s.OPENROUTER_BASE : s.PROXY_BASE_URL) || '').replace(/\/+$/, '');
   const url = base + '/chat/completions';
 
-  const headers = {
-    'Content-Type': 'application/json',
-    // OpenRouter attribution headers (harmless on the proxy route too).
-    'HTTP-Referer': (typeof location !== 'undefined' && location.origin) || 'https://callistemon',
-    'X-Title': 'callistemon-ai',
-  };
+  const headers = { 'Content-Type': 'application/json' };
 
   if (useOwnKey) {
     const key = (s.OPENROUTER_API_KEY || '').trim();
@@ -63,6 +58,12 @@ export async function chatCompletion({ model, messages, tools, signal } = {}) {
         { kind: 'unauthorized' });
     }
     headers.Authorization = 'Bearer ' + key;
+    // OpenRouter attribution headers — only on the direct route. On the proxy
+    // route the worker sets HTTP-Referer/X-Title itself when forwarding upstream,
+    // so sending them from the browser is redundant AND, being non-safelisted
+    // custom headers, would trip the CORS preflight against the worker.
+    headers['HTTP-Referer'] = (typeof location !== 'undefined' && location.origin) || 'https://callistemon';
+    headers['X-Title'] = 'callistemon-ai';
   } else if (!s.PROXY_DEPLOYED) {
     // Refuse the proxy route until issue #20 deploys the worker: PROXY_BASE_URL is
     // an unclaimed workers.dev placeholder, so POSTing clinical free-text there is
