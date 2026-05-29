@@ -9,18 +9,46 @@ export function renderReasonTags() {
   const wrap = document.querySelector('#notes-tags');
   wrap.innerHTML = '';
   state.reasonTags.forEach((t, idx) => {
+    const isAi = t.source === 'ai';
     const chip = document.createElement('span');
-    chip.className = 'inline-flex items-center gap-1.5 border border-emerald-100 bg-emerald-50 text-emerald-800 rounded-full px-2 py-0.5 text-xs';
-    chip.innerHTML = '<span>' + t.display + '</span>';
+    // AI-derived tags are indigo + ✨ so they are visibly distinct from the
+    // emerald manual tags; manual styling is unchanged.
+    chip.className = isAi
+      ? 'inline-flex items-center gap-1.5 border border-indigo-200 bg-indigo-50 text-indigo-800 rounded-full px-2 py-0.5 text-xs'
+      : 'inline-flex items-center gap-1.5 border border-emerald-100 bg-emerald-50 text-emerald-800 rounded-full px-2 py-0.5 text-xs';
+    if (isAi) {
+      const spark = document.createElement('span');
+      spark.setAttribute('aria-hidden', 'true');
+      spark.textContent = '✨';
+      chip.appendChild(spark);
+    }
+    // textContent (not innerHTML) — display may be AI-sourced.
+    const label = document.createElement('span');
+    label.textContent = t.display;
+    chip.appendChild(label);
     const x = document.createElement('button');
     x.type = 'button';
     x.textContent = '✕';
     x.className = 'opacity-70 hover:opacity-100';
+    x.setAttribute('aria-label', 'Remove ' + (t.display || 'reason'));
     x.onclick = () => { state.reasonTags.splice(idx, 1); renderReasonTags(); };
     chip.appendChild(x);
     wrap.appendChild(chip);
   });
   computeAndRenderSuggestions();
+}
+
+// Add a reason tag (deduped by code+system) and re-render. Shared by the manual
+// autocomplete and the AI accept path. `source` ('manual' | 'ai') drives chip
+// styling only — it is NOT serialised into the FHIR bundle (buildReasonCodeArray
+// reads only system/code/display). Returns true if added, false if a duplicate.
+export function addReasonTag({ system, code, display, source = 'manual' }) {
+  const sys = system || 'http://snomed.info/sct';
+  if (!code) return false;
+  if (state.reasonTags.some((t) => t.code === code && t.system === sys)) return false;
+  state.reasonTags.push({ system: sys, code, display: display || code, source });
+  renderReasonTags();
+  return true;
 }
 
 export function buildReasonCodeArray() {
@@ -68,10 +96,7 @@ export function showReasonSuggestions(items) {
       const system = it.system || 'http://snomed.info/sct';
       const display = it.display || it.code;
 
-      if (!state.reasonTags.some((t) => t.code === code && t.system === system)) {
-        state.reasonTags.push({ system, code, display });
-        renderReasonTags();
-      }
+      addReasonTag({ system, code, display }); // source defaults to 'manual'
 
       const notes = document.getElementById('clinical-notes');
       const start = notes.selectionStart;

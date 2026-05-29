@@ -13,7 +13,7 @@ import {
   updatePtToggleVisuals,
 } from './modules/patient.js';
 import {
-  renderReasonTags, wireNotesAutocomplete,
+  renderReasonTags, wireNotesAutocomplete, addReasonTag,
 } from './modules/reason-tags.js';
 import {
   setupSearch, setupCustomAdder, renderFavsForUser, renderSelectedTests, initBodySiteModal,
@@ -39,6 +39,10 @@ import {
   searchConcepts, lookupConcept, getTools,
 } from './modules/ontoserver-tools.js';
 import { runAgent } from './modules/ai-agent.js';
+import { suggestReasonCodes } from './modules/ai-reason-coding.js';
+import {
+  renderSuggestionReviewList, setLoadingState, renderEmptyState, renderErrorState,
+} from './modules/ai-ui.js';
 
 // JSON viewer instance — owned by this module (boot sets it). Domain modules
 // like bundle-builder.js are no longer aware of it; the caller of buildBundle()
@@ -109,6 +113,54 @@ function initAiTestHarness() {
       agentBtn.classList.remove('btn-disabled');
     }
   });
+}
+
+// Feature A wiring: enable the Suggest-codes button when notes are present, run
+// the agent on click, and route the review list's accept actions through
+// addReasonTag (tagging them source:'ai' so they render as distinct indigo chips).
+function initReasonCoding() {
+  const notes = document.getElementById('clinical-notes');
+  const btn = document.getElementById('ai-suggest-codes');
+  const status = document.getElementById('ai-codes-status');
+  const review = document.getElementById('ai-codes-review');
+  if (!notes || !btn || !review) return;
+
+  const updateBtnState = () => { btn.disabled = !notes.value.trim(); };
+  notes.addEventListener('input', updateBtnState);
+  updateBtnState();
+
+  async function run() {
+    setLoadingState(btn, true, 'Deriving codes…');
+    if (status) status.textContent = 'Deriving codes…';
+    review.classList.add('hidden');
+    review.replaceChildren();
+    let outcome = '';
+    try {
+      const { codes, error } = await suggestReasonCodes();
+      if (error) {
+        renderErrorState(review, error, run);
+        outcome = 'Could not derive codes';
+      } else if (!codes.length) {
+        renderEmptyState(review, 'No codes could be confidently derived. Please add codes manually.');
+        outcome = 'No codes derived';
+      } else {
+        renderSuggestionReviewList({
+          container: review,
+          items: codes,
+          kind: 'reason',
+          onAccept: (item) => addReasonTag({ ...item, source: 'ai' }),
+          onAcceptAll: (items) => items.forEach((item) => addReasonTag({ ...item, source: 'ai' })),
+        });
+        outcome = codes.length + ' suggestion' + (codes.length === 1 ? '' : 's') + ' to review';
+      }
+    } finally {
+      setLoadingState(btn, false);
+      if (status) status.textContent = outcome;
+      updateBtnState(); // re-apply content-based disabled state after restoring the button
+    }
+  }
+
+  btn.addEventListener('click', run);
 }
 
 function boot() {
@@ -297,6 +349,9 @@ function boot() {
 
   // ----- Notes autocomplete -----
   wireNotesAutocomplete();
+
+  // ----- Feature A: AI reason coding -----
+  initReasonCoding();
 
   // ----- Pregnancy status -----
   populatePregnancyStatus();

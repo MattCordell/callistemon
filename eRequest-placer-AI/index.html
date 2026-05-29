@@ -315,6 +315,13 @@
         <label class="block font-medium mb-1">Clinical Notes</label>
         <textarea id="clinical-notes" class="w-full border rounded p-2 h-50" placeholder="Optional clinical context for the request"></textarea>
 
+        <!-- Feature A: AI reason coding. .ai-feature-controls is the master-toggle hook (Phase 5). -->
+        <div class="mt-2 flex items-center gap-2 ai-feature-controls">
+          <button id="ai-suggest-codes" class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded disabled:opacity-50" disabled>✨ Suggest codes</button>
+          <span id="ai-codes-status" class="text-xs text-gray-500" aria-live="polite"></span>
+        </div>
+        <div id="ai-codes-review" class="mt-3 hidden"></div>
+
         <div id="notes-suggestions" class="mt-2 hidden">
           <div class="text-xs text-gray-500 mb-1">Autocomplete suggestions</div>
           <div id="notes-suggestion-list" class="flex flex-wrap gap-2"></div>
