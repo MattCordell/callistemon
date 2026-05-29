@@ -58,7 +58,10 @@ Build the substrate before any feature UI lands. Add to [./config.js](./config.j
 ```js
 export const AI_DEFAULTS = {
   OPENROUTER_BASE: 'https://openrouter.ai/api/v1',
-  OPENROUTER_MODEL: 'anthropic/claude-sonnet-4-5',
+  // Free model chosen for initial dev; runtime-swappable via the AI Settings
+  // panel. If tool-calling proves unreliable, try anthropic/claude-haiku-4-5
+  // or openai/gpt-4o-mini.
+  OPENROUTER_MODEL: 'google/gemma-4-31b-it:free',
   MCP_URL: 'https://ontoserver.app/mcp',
   REST_TX_BASE: 'https://tx.dev.hl7.org.au/fhir',
   REASON_ECL: '< 404684003 |Clinical finding|',
@@ -171,7 +174,9 @@ New modules under [./modules/](./modules/):
 ## Risks & unknowns
 
 1. **MCP CORS at `https://ontoserver.app/mcp`** — the fallback handles failure transparently. The boot banner surfaces which backend is live.
-2. **Model identifier** — `anthropic/claude-sonnet-4-5` is the spec default. Settings allow runtime swap. Verify availability on Openrouter at build time.
+2. **Model identifier** — Spec §3.1 lists `anthropic/claude-sonnet-4-5` as the suggested default with "developer to confirm at build time"; this plan's actual chosen default is `google/gemma-4-31b-it:free`. Free-tier rate limits (~50 req/day without credits) and Gemma's historical tool-calling reliability are the two things to watch. Settings allow runtime swap.
+
+3. **API key storage** — Client-side localStorage, **not** GitHub Secrets. The app is a static page with no server runtime, so secrets injected at build time would be visible in the deployed JS (and would burn the deployer's credits on every visitor). Each user supplies their own key via the settings panel; risk posture matches the existing FHIR auth tokens (spec §3.1, §9, §9.1).
 3. **MCP tool names** — spec assumes `search_concepts` / `lookup_concept`. `listTools()` at probe time should confirm; if Ontoserver MCP names differ, translate inside `ontoserver-mcp.js` keeping the unified surface.
 4. **Agent JSON output reliability** — defensive extractor handles fences and stray prose; surface true parse failure as the empty/error state per spec §4.7.
 5. **`_sort=-authored` server support** — fall back to `-_lastUpdated` once if rejected.
