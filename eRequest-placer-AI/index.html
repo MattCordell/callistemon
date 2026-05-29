@@ -431,6 +431,18 @@
         <span class="bg-blue-800 px-1.5 py-0.5 rounded">Tip</span> run via a local server (<span class="mono">python3 -m http.server 8000</span>) instead of opening as <span class="mono">file://</span>.
       </p>
     </section>
+
+    <!-- AI Test Harness — hidden unless the page is opened with ?aitest=1.
+         Exercises the shared AI substrate (Ontoserver tools + agent loop)
+         independently of any feature UI. Kept in the codebase through phases 2-4. -->
+    <section id="ai-test-harness" class="bg-white p-4 rounded-2xl shadow hidden">
+      <h3 class="font-semibold mb-2">AI Test Harness <span class="text-xs font-normal text-gray-500">(?aitest=1)</span></h3>
+      <div class="flex flex-wrap gap-3 mb-3">
+        <button id="ai-test-search" class="px-4 py-2 bg-indigo-600 text-white rounded">Run search test</button>
+        <button id="ai-test-agent" class="px-4 py-2 bg-indigo-600 text-white rounded">Run agent test</button>
+      </div>
+      <pre id="ai-test-output" class="text-xs whitespace-pre-wrap bg-gray-50 border rounded p-3 max-h-96 overflow-auto">Ready. Tip: tick "Use my own OpenRouter key" in the Server panel's AI Settings before the agent test (the proxy route needs the worker deployed).</pre>
+    </section>
   </main>
 
   <!-- Floating toggles -->
@@ -448,6 +460,7 @@
         </div>
       </div>
       <div class="p-3">
+        <div id="ai-backend-banner" class="text-[11px] text-yellow-900 mb-2 font-medium bg-yellow-50 border border-yellow-200 rounded p-2">AI: initialising…</div>
         <div class="text-xs text-yellow-900 mb-1">Most recent URL:</div>
         <div id="last-expand-url" class="text-[11px] break-all bg-yellow-50 border border-yellow-200 rounded p-2"></div>
         <div class="text-xs text-yellow-900 mt-3 mb-1">History (most recent first):</div>
@@ -463,7 +476,7 @@
         <div class="font-semibold text-blue-900 text-sm">FHIR Server</div>
         <button id="server-close" class="text-xs px-2 py-1 rounded border border-blue-300 bg-white">Close</button>
       </div>
-      <div class="p-4 space-y-2">
+      <div id="server-panel-body" class="p-4 space-y-2 max-h-[85vh] overflow-y-auto">
         <label class="block">
           <span class="block text-sm font-medium">FHIR Server URL</span>
           <input id="fhir-base" class="border rounded w-full p-2 mono" value="https://server.callistemon.site/fhir" placeholder="https://your.fhir.server"/>

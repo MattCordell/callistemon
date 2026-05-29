@@ -31,6 +31,14 @@ import {
   initAuthFetch, maybePromptPasswordFor, initAuthManage,
   initQrModal, initSendButton,
 } from './modules/server.js';
+import {
+  getAiSettings, initAiSettingsPanel,
+} from './modules/settings-ai.js';
+import {
+  initOntoserverBackend, getActiveBackendName,
+  searchConcepts, lookupConcept, getTools,
+} from './modules/ontoserver-tools.js';
+import { runAgent } from './modules/ai-agent.js';
 
 // JSON viewer instance — owned by this module (boot sets it). Domain modules
 // like bundle-builder.js are no longer aware of it; the caller of buildBundle()
@@ -43,6 +51,64 @@ function updateSpecialtyDisplay(name) {
   const text = sp ? ('Specialty: ' + sp.display) : '';
   el.textContent = text;
   if (text) el.classList.remove('hidden'); else el.classList.add('hidden');
+}
+
+// Manual test harness for the shared AI substrate (revealed by ?aitest=1).
+// Exercises the Ontoserver tool surface and the agent loop without any feature
+// UI. Stays behind the gate through phases 2-4.
+function initAiTestHarness() {
+  const section = document.getElementById('ai-test-harness');
+  if (!section) return;
+  section.classList.remove('hidden');
+
+  const out = document.getElementById('ai-test-output');
+  const searchBtn = document.getElementById('ai-test-search');
+  const agentBtn = document.getElementById('ai-test-agent');
+
+  const print = (label, data) => {
+    const body = (typeof data === 'string') ? data : JSON.stringify(data, null, 2);
+    out.textContent = label + '\n\n' + body;
+  };
+
+  searchBtn.addEventListener('click', async () => {
+    searchBtn.classList.add('btn-disabled');
+    out.textContent = 'Running search test…';
+    try {
+      const res = await searchConcepts({ query: 'diabetes', valueSetEcl: '< 404684003' });
+      print('search_concepts → backend=' + getActiveBackendName() + ', count=' + res.length, res);
+    } catch (e) {
+      print('Search test failed', String((e && e.message) || e));
+    } finally {
+      searchBtn.classList.remove('btn-disabled');
+    }
+  });
+
+  agentBtn.addEventListener('click', async () => {
+    agentBtn.classList.add('btn-disabled');
+    out.textContent = 'Running agent test… (makes OpenRouter calls)';
+    const tools = getTools();
+    const toolImpl = {
+      search_concepts: (args) => searchConcepts(args),
+      lookup_concept: (args) => lookupConcept(args),
+    };
+    try {
+      const result = await runAgent({
+        systemPrompt: "Return JSON array of SNOMED codes for 'type 2 diabetes mellitus'. Use search_concepts to verify.",
+        userMessage: 'type 2 diabetes mellitus',
+        tools,
+        toolImpl,
+        model: getAiSettings().OPENROUTER_MODEL,
+      });
+      const summary = 'runAgent → backend=' + getActiveBackendName()
+        + (result.error ? (', error=' + result.error) : '')
+        + ', transcript turns=' + result.transcript.length;
+      print(summary, result.parsed != null ? result.parsed : (result.finalContent || '(no content)'));
+    } catch (e) {
+      print('Agent test failed', String((e && e.message) || e));
+    } finally {
+      agentBtn.classList.remove('btn-disabled');
+    }
+  });
 }
 
 function boot() {
@@ -86,6 +152,22 @@ function boot() {
     if (toggle) toggle.addEventListener('click', () => panel.classList.toggle('hidden'));
     if (close) close.addEventListener('click', () => panel.classList.add('hidden'));
   }
+
+  // ----- AI settings panel (extends #server-panel; no new floating button) -----
+  initAiSettingsPanel();
+
+  // ----- Ontoserver backend probe + one-line debug banner (backend + model) -----
+  (async () => {
+    let backend = 'unknown';
+    try { backend = await initOntoserverBackend(); } catch (_e) { backend = 'rest'; }
+    const banner = document.getElementById('ai-backend-banner');
+    if (banner) {
+      banner.textContent = 'AI: Ontoserver backend = ' + backend + ' · model = ' + getAiSettings().OPENROUTER_MODEL;
+    }
+  })();
+
+  // ----- AI test harness (revealed only by ?aitest=1) -----
+  if (location.search.includes('aitest=1')) initAiTestHarness();
 
   // ----- Server preset handlers -----
   {

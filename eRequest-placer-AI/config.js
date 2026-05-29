@@ -61,3 +61,39 @@ export const CAT = {
   PATH: { coding: [{ system: 'http://snomed.info/sct', code: '108252007', display: 'Laboratory procedure' }] },
   IMAG: { coding: [{ system: 'http://snomed.info/sct', code: '363679005', display: 'Imaging' }] },
 };
+
+// ----- AI infrastructure defaults (Phase 1, spec §3, §6, §7) -----
+// These seed the localStorage-backed AI settings store (modules/settings-ai.js).
+// getAiSettings() returns { ...AI_DEFAULTS, ...storedOverrides } on every read,
+// so editing a default here propagates unless the user has overridden that key.
+export const AI_DEFAULTS = {
+  // Default route: managed Cloudflare Worker proxy that holds the OpenRouter API
+  // key as a secret. Visitors don't need their own key. Replace this placeholder
+  // with the real deployed worker URL once the proxy issue is closed.
+  PROXY_BASE_URL: 'https://callistemon-ai-proxy.workers.dev',
+  // Fallback route: direct OpenRouter, used only when USE_OWN_OPENROUTER_KEY is
+  // true (the "Use my own OpenRouter key" toggle in AI Settings).
+  OPENROUTER_BASE: 'https://openrouter.ai/api/v1',
+  // Free model chosen for initial dev; runtime-swappable via the AI Settings
+  // panel. If tool-calling proves unreliable, try anthropic/claude-haiku-4-5
+  // or openai/gpt-4o-mini.
+  OPENROUTER_MODEL: 'google/gemma-4-31b-it:free',
+  // Hybrid key handling: default false -> proxy route. When true, the user's own
+  // key (OPENROUTER_API_KEY) is read from settings and sent direct to OPENROUTER_BASE.
+  USE_OWN_OPENROUTER_KEY: false,
+  // Ontoserver: MCP first, REST fallback (probed at boot in ontoserver-tools.js).
+  MCP_URL: 'https://ontoserver.app/mcp',
+  REST_TX_BASE: 'https://tx.dev.hl7.org.au/fhir',
+  // Per-feature ECL scoping (spec §7). Feature A draws from clinical findings,
+  // Feature B from procedures.
+  REASON_ECL: '< 404684003 |Clinical finding|',
+  TEST_ECL: '< 71388002 |Procedure|',
+  // Operator-tunable prompt context (spec §5.4, §C.4).
+  PRE_PROMPT_SUPPLEMENTS: 'When a pathology specimen type is not specified, prefer serum, then blood, then urine (in that order).',
+  GUIDELINES_SUMMARY: '',
+  // Feature toggles (spec §6, §C.11).
+  AI_FEATURES_ENABLED: true,
+  DECISION_SUPPORT_ENABLED: true,
+};
+
+export const AI_SETTINGS_KEY = 'callistemon_ai_settings';
