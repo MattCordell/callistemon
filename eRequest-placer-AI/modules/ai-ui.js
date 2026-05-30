@@ -182,12 +182,213 @@ export function renderErrorState(container, message, onRetry) {
   container.appendChild(box);
 }
 
-// ----- Phase 4 (decision support) stubs — implemented in that phase. -----
-export function renderAdvisoryPanel(/* { container, findings, onAddTest, onDismiss } */) {
-  console.warn('ai-ui.renderAdvisoryPanel is a Phase 4 stub — not implemented yet.');
+// ----- Feature C: decision support (spec §C.9) -----
+
+const SEVERITY_STYLE = {
+  advisory: { row: 'border-amber-200 bg-amber-50', dot: 'bg-amber-500', label: 'Advisory' },
+  serious:  { row: 'border-red-300 bg-red-50',     dot: 'bg-red-600',   label: 'Review' },
+};
+
+// A SNOMED concept id is a bare integer string — only those get an "Add test"
+// affordance (we can't add a test we can't identify).
+function isSnomedId(s) { return /^[0-9]+$/.test(String(s || '')); }
+
+function severityBadge(severity) {
+  const style = SEVERITY_STYLE[severity] || SEVERITY_STYLE.advisory;
+  const wrap = document.createElement('span');
+  wrap.className = 'inline-flex items-center gap-1 text-[11px] font-medium';
+  const dot = document.createElement('span');
+  dot.className = 'inline-block w-2 h-2 rounded-full ' + style.dot;
+  dot.setAttribute('aria-hidden', 'true');
+  const txt = document.createElement('span');
+  txt.textContent = style.label;
+  wrap.appendChild(dot);
+  wrap.appendChild(txt);
+  return wrap;
 }
 
-export function openSeriousReviewModal(/* { findings, advisoryFindings } */) {
-  console.warn('ai-ui.openSeriousReviewModal is a Phase 4 stub — not implemented yet.');
-  return Promise.resolve({ action: 'proceed' });
+/**
+ * Tier 1 — inline, non-blocking advisory panel (spec §C.9). Renders every finding
+ * with its summary + severity indicator. `suggestion` findings whose related_tests
+ * contain a SNOMED id get one-click "Add test" buttons. All text via textContent.
+ *
+ * @param {object} o
+ * @param {HTMLElement} o.container
+ * @param {Array} o.findings              — validated findings (severity, dimension, summary, …)
+ * @param {(code:string)=>void} [o.onAddTest]
+ * @param {()=>void} [o.onDismiss]
+ */
+export function renderAdvisoryPanel({ container, findings, onAddTest, onDismiss }) {
+  if (!container) return;
+  container.replaceChildren();
+  const list = Array.isArray(findings) ? findings : [];
+  if (!list.length) { container.classList.add('hidden'); return; }
+  container.classList.remove('hidden');
+
+  const box = document.createElement('div');
+  box.className = 'border border-gray-200 rounded-lg p-3 bg-white';
+
+  const header = document.createElement('div');
+  header.className = 'flex items-center justify-between gap-2 mb-2';
+  const h = document.createElement('div');
+  h.className = 'text-sm font-semibold text-gray-700';
+  h.textContent = 'Decision support — ' + list.length + ' point' + (list.length === 1 ? '' : 's') + ' to consider';
+  header.appendChild(h);
+  const dismiss = document.createElement('button');
+  dismiss.type = 'button';
+  dismiss.className = 'text-xs px-2 py-1 rounded border bg-white hover:bg-gray-50';
+  dismiss.textContent = 'Dismiss';
+  dismiss.onclick = () => { container.classList.add('hidden'); if (typeof onDismiss === 'function') onDismiss(); };
+  header.appendChild(dismiss);
+  box.appendChild(header);
+
+  const ul = document.createElement('ul');
+  ul.setAttribute('role', 'list');
+  ul.className = 'space-y-2';
+  list.forEach((f) => {
+    const style = SEVERITY_STYLE[f.severity] || SEVERITY_STYLE.advisory;
+    const li = document.createElement('li');
+    li.className = 'border rounded-md p-2 ' + style.row;
+
+    const top = document.createElement('div');
+    top.className = 'flex items-start justify-between gap-2';
+    const summary = document.createElement('span');
+    summary.className = 'text-sm text-gray-800';
+    summary.textContent = f.summary || '';
+    top.appendChild(summary);
+    top.appendChild(severityBadge(f.severity));
+    li.appendChild(top);
+
+    // One-click "Add test" for suggestion findings with identifiable SNOMED codes.
+    if (f.dimension === 'suggestion' && typeof onAddTest === 'function' && Array.isArray(f.related_tests)) {
+      const codes = f.related_tests.filter(isSnomedId);
+      if (codes.length) {
+        const actions = document.createElement('div');
+        actions.className = 'flex flex-wrap gap-2 mt-1.5';
+        codes.forEach((code) => {
+          const add = document.createElement('button');
+          add.type = 'button';
+          add.className = 'text-xs px-2 py-1 rounded bg-indigo-600 text-white';
+          add.textContent = '+ Add test (' + code + ')';
+          // Pass the finding's category through so an imaging suggestion isn't added as pathology.
+          add.onclick = () => { add.disabled = true; add.classList.add('btn-disabled'); onAddTest(code, f.kind); };
+          actions.appendChild(add);
+        });
+        li.appendChild(actions);
+      }
+    }
+    ul.appendChild(li);
+  });
+  box.appendChild(ul);
+  container.appendChild(box);
+}
+
+/**
+ * Tier 2 — blocking serious-review modal (spec §C.9). Resolves with the string
+ * 'edit' (return to form) or 'proceed' (send as-is, acknowledgement recorded).
+ * Proceed stays disabled until the confirm checkbox is ticked. Keyboard
+ * accessible: focus trap, ESC resolves 'edit', focus returns to the send button.
+ *
+ * @param {object} o
+ * @param {Array} o.findings           — serious findings (summary + detail)
+ * @param {Array} [o.advisoryFindings] — advisory findings, shown for completeness
+ * @returns {Promise<'edit'|'proceed'>}
+ */
+export function openSeriousReviewModal({ findings, advisoryFindings } = {}) {
+  const backdrop = document.getElementById('ai-serious-backdrop');
+  const body = document.getElementById('ai-serious-body');
+  const confirm = document.getElementById('ai-serious-confirm');
+  const editBtn = document.getElementById('ai-serious-edit');
+  const proceedBtn = document.getElementById('ai-serious-proceed');
+  // If the markup is missing, fail safe to 'edit' (never silently send).
+  if (!backdrop || !body || !confirm || !editBtn || !proceedBtn) {
+    console.warn('ai-ui.openSeriousReviewModal: modal markup missing — defaulting to edit.');
+    return Promise.resolve('edit');
+  }
+
+  const serious = Array.isArray(findings) ? findings : [];
+  const advisory = Array.isArray(advisoryFindings) ? advisoryFindings : [];
+
+  // ----- populate -----
+  body.replaceChildren();
+  serious.forEach((f) => body.appendChild(findingBlock(f, 'serious')));
+  if (advisory.length) {
+    const sub = document.createElement('div');
+    sub.className = 'pt-2 mt-1 border-t';
+    const lbl = document.createElement('div');
+    lbl.className = 'text-xs font-medium text-gray-500 mb-1';
+    lbl.textContent = 'Also noted (no acknowledgement required)';
+    sub.appendChild(lbl);
+    advisory.forEach((f) => sub.appendChild(findingBlock(f, 'advisory')));
+    body.appendChild(sub);
+  }
+
+  // ----- reset controls -----
+  confirm.checked = false;
+  proceedBtn.disabled = true;
+  const previouslyFocused = document.activeElement;
+
+  return new Promise((resolve) => {
+    const focusables = () => Array.from(
+      backdrop.querySelectorAll('button, input, [href], [tabindex]:not([tabindex="-1"])')
+    ).filter((el) => !el.disabled && el.offsetParent !== null);
+
+    const onConfirmChange = () => { proceedBtn.disabled = !confirm.checked; };
+
+    const close = (result) => {
+      backdrop.style.display = 'none';
+      confirm.removeEventListener('change', onConfirmChange);
+      editBtn.removeEventListener('click', onEdit);
+      proceedBtn.removeEventListener('click', onProceed);
+      backdrop.removeEventListener('keydown', onKeydown);
+      // Return focus to the send button (spec §C.9 accessibility).
+      const sendBtn = document.getElementById('send-btn');
+      const target = sendBtn || previouslyFocused;
+      if (target && typeof target.focus === 'function') target.focus();
+      resolve(result);
+    };
+
+    const onEdit = () => close('edit');
+    const onProceed = () => { if (!proceedBtn.disabled) close('proceed'); };
+    function onKeydown(e) {
+      if (e.key === 'Escape') { e.preventDefault(); close('edit'); return; }
+      if (e.key !== 'Tab') return;
+      const els = focusables();
+      if (!els.length) return;
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+
+    confirm.addEventListener('change', onConfirmChange);
+    editBtn.addEventListener('click', onEdit);
+    proceedBtn.addEventListener('click', onProceed);
+    backdrop.addEventListener('keydown', onKeydown);
+
+    backdrop.style.display = 'flex';
+    // Initial focus inside the modal.
+    confirm.focus();
+  });
+}
+
+function findingBlock(f, severity) {
+  const style = SEVERITY_STYLE[severity] || SEVERITY_STYLE.serious;
+  const block = document.createElement('div');
+  block.className = 'border rounded-md p-2 mb-2 ' + style.row;
+  const top = document.createElement('div');
+  top.className = 'flex items-start justify-between gap-2';
+  const summary = document.createElement('span');
+  summary.className = 'text-sm font-medium text-gray-800';
+  summary.textContent = (f && f.summary) || '';
+  top.appendChild(summary);
+  top.appendChild(severityBadge(severity));
+  block.appendChild(top);
+  if (f && f.detail) {
+    const detail = document.createElement('p');
+    detail.className = 'text-sm text-gray-600 mt-1';
+    detail.textContent = f.detail;
+    block.appendChild(detail);
+  }
+  return block;
 }

@@ -43,7 +43,11 @@ import { suggestReasonCodes } from './modules/ai-reason-coding.js';
 import { suggestTests } from './modules/ai-test-selection.js';
 import {
   renderSuggestionReviewList, setLoadingState, renderEmptyState, renderErrorState,
+  renderAdvisoryPanel, openSeriousReviewModal,
 } from './modules/ai-ui.js';
+import {
+  shouldRunDecisionSupport, evaluateRequest, appendAcknowledgementNote,
+} from './modules/ai-decision-support.js';
 
 // JSON viewer instance — owned by this module (boot sets it). Domain modules
 // like bundle-builder.js are no longer aware of it; the caller of buildBundle()
@@ -231,6 +235,61 @@ function initTestSelection() {
   }
 
   btn.addEventListener('click', run);
+}
+
+// Feature C wiring: the pre-send hook (spec §C.3 / §C.9). Invoked by the send
+// button between bundle construction and POST. Skips silently when not
+// applicable; on a serious result, blocks the send behind the Tier 2 modal and
+// records the override on the bundle if the clinician proceeds.
+const SCT = 'http://snomed.info/sct';
+
+async function decisionSupportPreHook(bundle) {
+  const notes = (document.getElementById('clinical-notes').value || '');
+  if (!shouldRunDecisionSupport(bundle, notes)) return { proceed: true };
+
+  const { result, error } = await evaluateRequest(bundle);
+
+  // Unavailable -> brief inline notice, send proceeds (spec §C.3, §C.9).
+  if (error || !result) {
+    showStatus('Decision support unavailable — please review your request before sending');
+    return { proceed: true };
+  }
+  if (result.overall_severity === 'none') return { proceed: true };
+
+  // Tier 1: always show the advisory panel for any findings (spec §C.9).
+  const panel = document.getElementById('ai-advisory-panel');
+  const onAddTest = async (code, kind) => {
+    let display = code;
+    try {
+      const res = await lookupConcept({ system: SCT, code });
+      const hit = Array.isArray(res) ? res[0] : null;
+      if (hit && hit.display) display = hit.display;
+    } catch (_e) { /* fall back to the bare code as display */ }
+    // Use the category the model assigned to the suggestion; default PATH when it
+    // didn't specify one. Surface the chosen category in the confirmation so a
+    // defaulted (or wrong) categorisation is visible to the clinician.
+    const k = (kind === 'IMAG') ? 'IMAG' : 'PATH';
+    addSelectedTest({ system: SCT, code, display, kind: k });
+    showStatus('Added ' + display + (k === 'IMAG' ? ' (imaging)' : ' (pathology)'));
+  };
+  renderAdvisoryPanel({
+    container: panel,
+    findings: result.findings,
+    onAddTest,
+    onDismiss: () => { if (panel) panel.classList.add('hidden'); },
+  });
+
+  // Tier 2: serious findings block the send behind the review modal.
+  if (result.overall_severity === 'serious') {
+    const seriousFindings = result.findings.filter((f) => f.severity === 'serious');
+    const advisoryFindings = result.findings.filter((f) => f.severity === 'advisory');
+    const choice = await openSeriousReviewModal({ findings: seriousFindings, advisoryFindings });
+    if (choice === 'edit') return { proceed: false };
+    appendAcknowledgementNote(bundle, seriousFindings); // spec §C.10
+    return { proceed: true };
+  }
+
+  return { proceed: true };
 }
 
 function boot() {
@@ -435,9 +494,12 @@ function boot() {
 
   // ----- Send button -----
   // `onBundleBuilt` updates the JSON viewer so users who skip "Build" still see
-  // the bundle they sent. Phase 4 will additionally pass `preSendHook` here for
-  // decision-support gating.
-  initSendButton({ onBundleBuilt: (bundle) => viewer.show(bundle) });
+  // the bundle they sent. `preSendHook` is Feature C decision support (spec §C.3):
+  // it gates the POST and may mutate the bundle (acknowledgement note, §C.10).
+  initSendButton({
+    onBundleBuilt: (bundle) => viewer.show(bundle),
+    preSendHook: decisionSupportPreHook,
+  });
 
   // ----- Copy server response -----
   document.getElementById('copy-server-response').addEventListener('click', async (e) => {
