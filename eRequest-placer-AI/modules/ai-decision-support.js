@@ -41,11 +41,13 @@ const SYSTEM_PROMPT = [
   '      "dimension": "appropriateness | suggestion | duplicate | context",',
   '      "summary": "Brief plain-English summary, 1-2 sentences, for a clinician — no jargon, no alarm language",',
   '      "detail": "Optional longer explanation",',
-  '      "related_tests": ["<SNOMED concept id from the current request this relates to>"]',
+  '      "related_tests": ["<SNOMED concept id>"],',
+  '      "kind": "PATH | IMAG"',
   '    }',
   '  ]',
   '}',
-  'overall_severity is "serious" if any finding is serious, otherwise "advisory" if any findings exist, otherwise "none". findings may be an empty array. related_tests may be empty.',
+  'overall_severity is "serious" if any finding is serious, otherwise "advisory" if any findings exist, otherwise "none". findings may be an empty array.',
+  'For most findings related_tests holds SNOMED ids from the CURRENT request that the finding relates to (may be empty). For a "suggestion" finding, related_tests holds the SNOMED id(s) of the test(s) you are suggesting be ADDED, and "kind" is that test\'s category — "IMAG" for imaging/radiology or "PATH" for pathology/laboratory. Omit "kind" for non-suggestion findings.',
 ].join('\n');
 
 /**
@@ -136,6 +138,14 @@ export function validateDecisionResult(parsed) {
     } else {
       finding.related_tests = [];
     }
+    // Optional category for a suggested test (drives the "Add test" affordance so
+    // an imaging suggestion isn't silently added as pathology). Only kept when the
+    // model gives a recognisable value; left undefined otherwise.
+    // Lenient prefix match (as Feature B's normaliseKind): IMAG/IMAGING/RAD… ->
+    // IMAG; PATH/PATHOLOGY/LAB… -> PATH; anything else leaves kind undefined.
+    const k = String(f.kind || '').trim().toUpperCase();
+    if (k.startsWith('IMAG') || k.startsWith('RAD')) finding.kind = 'IMAG';
+    else if (k.startsWith('PATH') || k.startsWith('LAB')) finding.kind = 'PATH';
     findings.push(finding);
   }
 

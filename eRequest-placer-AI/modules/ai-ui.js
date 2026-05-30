@@ -270,7 +270,8 @@ export function renderAdvisoryPanel({ container, findings, onAddTest, onDismiss 
           add.type = 'button';
           add.className = 'text-xs px-2 py-1 rounded bg-indigo-600 text-white';
           add.textContent = '+ Add test (' + code + ')';
-          add.onclick = () => { add.disabled = true; add.classList.add('btn-disabled'); onAddTest(code); };
+          // Pass the finding's category through so an imaging suggestion isn't added as pathology.
+          add.onclick = () => { add.disabled = true; add.classList.add('btn-disabled'); onAddTest(code, f.kind); };
           actions.appendChild(add);
         });
         li.appendChild(actions);

@@ -258,16 +258,19 @@ async function decisionSupportPreHook(bundle) {
 
   // Tier 1: always show the advisory panel for any findings (spec §C.9).
   const panel = document.getElementById('ai-advisory-panel');
-  const onAddTest = async (code) => {
+  const onAddTest = async (code, kind) => {
     let display = code;
     try {
       const res = await lookupConcept({ system: SCT, code });
       const hit = Array.isArray(res) ? res[0] : null;
       if (hit && hit.display) display = hit.display;
     } catch (_e) { /* fall back to the bare code as display */ }
-    // kind isn't recoverable from a bare SNOMED id — default PATH (demo limitation).
-    addSelectedTest({ system: SCT, code, display, kind: 'PATH' });
-    showStatus('Added ' + display);
+    // Use the category the model assigned to the suggestion; default PATH when it
+    // didn't specify one. Surface the chosen category in the confirmation so a
+    // defaulted (or wrong) categorisation is visible to the clinician.
+    const k = (kind === 'IMAG') ? 'IMAG' : 'PATH';
+    addSelectedTest({ system: SCT, code, display, kind: k });
+    showStatus('Added ' + display + (k === 'IMAG' ? ' (imaging)' : ' (pathology)'));
   };
   renderAdvisoryPanel({
     container: panel,
