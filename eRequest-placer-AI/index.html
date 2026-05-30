@@ -477,18 +477,23 @@
   <div id="debug-panel" class="fixed bottom-16 right-4 z-40 w-[min(90vw,42rem)] max-h-[50vh] overflow-hidden hidden">
     <div class="bg-yellow-100 border border-yellow-300 rounded shadow">
       <div class="flex items-center justify-between px-3 py-2 border-b border-yellow-300">
-        <div class="font-semibold text-yellow-900 text-sm">Terminology/FHIR calls — recent</div>
+        <div class="font-semibold text-yellow-900 text-sm">Debug — recent calls &amp; AI prompts</div>
         <div class="flex items-center gap-2">
           <button id="debug-copy" class="text-xs px-2 py-1 rounded border border-yellow-400 bg-white">Copy last</button>
           <button id="debug-close" class="text-xs px-2 py-1 rounded border border-yellow-400 bg-white">Close</button>
         </div>
       </div>
-      <div class="p-3">
+      <div class="p-3 overflow-auto max-h-[44vh]">
         <div id="ai-backend-banner" class="text-[11px] text-yellow-900 mb-2 font-medium bg-yellow-50 border border-yellow-200 rounded p-2">AI: initialising…</div>
         <div class="text-xs text-yellow-900 mb-1">Most recent URL:</div>
         <div id="last-expand-url" class="text-[11px] break-all bg-yellow-50 border border-yellow-200 rounded p-2"></div>
-        <div class="text-xs text-yellow-900 mt-3 mb-1">History (most recent first):</div>
-        <ul id="expand-history" class="text-[11px] space-y-1 max-h-[22vh] overflow-auto pr-1"></ul>
+        <div class="text-xs text-yellow-900 mt-3 mb-1">Terminology/FHIR calls (most recent first):</div>
+        <ul id="expand-history" class="text-[11px] space-y-1 max-h-[16vh] overflow-auto pr-1"></ul>
+        <div class="text-xs text-yellow-900 mt-3 mb-1 flex items-center justify-between gap-2">
+          <span>AI prompts sent to the model (most recent first):</span>
+          <button id="ai-prompt-copy" class="text-[11px] px-2 py-0.5 rounded border border-yellow-400 bg-white">Copy all</button>
+        </div>
+        <ul id="ai-prompt-log" class="text-[11px] space-y-1 max-h-[22vh] overflow-auto pr-1"></ul>
       </div>
     </div>
   </div>
