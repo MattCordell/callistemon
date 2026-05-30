@@ -82,11 +82,20 @@ const aiPromptLog = { history: [], max: 20 };
 
 export function logAiPrompt(entry) {
   if (!entry) return;
+  // Snapshot the messages at capture time. runAgent reuses ONE messages array and
+  // mutates it across tool-loop iterations, so holding the live reference would
+  // make every entry for a run show the final transcript, not the per-call
+  // payload. Deep-clone (payloads are JSON-serialisable — they're JSON.stringify'd
+  // to send anyway); fall back to a shallow copy if cloning ever fails.
+  let messages = [];
+  try { messages = JSON.parse(JSON.stringify(entry.messages || [])); }
+  catch (_e) { messages = Array.isArray(entry.messages) ? entry.messages.slice() : []; }
+
   aiPromptLog.history.unshift({
     ts: new Date(),
     model: entry.model || '(default)',
     route: entry.route || '',
-    messages: Array.isArray(entry.messages) ? entry.messages : [],
+    messages,
     toolCount: entry.toolCount || 0,
   });
   if (aiPromptLog.history.length > aiPromptLog.max) aiPromptLog.history.pop();
