@@ -9,7 +9,7 @@
 //                 Authorization: Bearer <userKey>
 
 import { getAiSettings } from './settings-ai.js';
-import { setDebugUrl } from './utils.js';
+import { setDebugUrl, logAiPrompt } from './utils.js';
 
 /**
  * Thrown for any non-success outcome. `kind` lets callers branch:
@@ -84,6 +84,17 @@ export async function chatCompletion({ model, messages, tools, signal } = {}) {
     payload.tool_choice = 'auto';
   }
   const body = JSON.stringify(payload);
+
+  // Debug-only: record the exact payload sent to the model so it can be inspected
+  // from the Debug panel. Once per call (not per retry). Never throws.
+  try {
+    logAiPrompt({
+      model: payload.model,
+      route: useOwnKey ? 'own-key' : 'proxy',
+      messages,
+      toolCount: Array.isArray(tools) ? tools.length : 0,
+    });
+  } catch (_e) { /* logging must never break a request */ }
 
   // One retry on 429/5xx with a fixed backoff; no retry on other statuses.
   let attempt = 0;
