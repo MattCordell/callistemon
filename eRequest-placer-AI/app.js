@@ -42,8 +42,8 @@ import { runAgent } from './modules/ai-agent.js';
 import { suggestReasonCodes } from './modules/ai-reason-coding.js';
 import { suggestTests } from './modules/ai-test-selection.js';
 import {
-  renderSuggestionReviewList, setLoadingState, renderEmptyState, renderErrorState,
-  renderAdvisoryPanel, openSeriousReviewModal,
+  renderSuggestionReviewList, renderSuggestionPickList, setLoadingState, renderEmptyState,
+  renderErrorState, renderAdvisoryPanel, openSeriousReviewModal,
 } from './modules/ai-ui.js';
 import {
   shouldRunDecisionSupport, evaluateRequest, appendAcknowledgementNote,
@@ -121,8 +121,11 @@ function initAiTestHarness() {
 }
 
 // Feature A wiring: enable the Suggest-codes button when notes are present, run
-// the agent on click, and route the review list's accept actions through
-// addReasonTag (tagging them source:'ai' so they render as distinct indigo chips).
+// the agent on click, and render the results as a click-to-add pick list. Clicking
+// a suggestion routes through addReasonTag (tagging it source:'ai' so it renders as
+// a distinct indigo chip); suggestions are not accepted/rejected — the user just
+// clicks the ones they want and ignores the rest (the ✕ remove lives on the
+// committed Reason tags, not on suggestions).
 function initReasonCoding() {
   const notes = document.getElementById('clinical-notes');
   const btn = document.getElementById('ai-suggest-codes');
@@ -132,9 +135,9 @@ function initReasonCoding() {
 
   let isRunning = false;
   const setStatus = (text) => { if (status) status.textContent = text; };
-  // Reflect the remaining review count; clears at 0 so the hint never lingers
-  // after accept-all / reject-all (or the last individual accept/reject).
-  const reviewCount = (n) => setStatus(n > 0 ? (n + ' suggestion' + (n === 1 ? '' : 's') + ' to review') : '');
+  // Reflect the remaining suggestion count; clears at 0 so the hint never lingers
+  // once every suggestion has been added or the list is otherwise empty.
+  const reviewCount = (n) => setStatus(n > 0 ? (n + ' suggestion' + (n === 1 ? '' : 's') + ' — click to add') : '');
   // Disabled while a run is in flight (prevents a concurrent submission even if
   // the user edits the notes mid-run) or when there is nothing to send.
   const updateBtnState = () => { btn.disabled = isRunning || !notes.value.trim(); };
@@ -158,12 +161,11 @@ function initReasonCoding() {
         renderEmptyState(review, 'No codes could be confidently derived. Please add codes manually.');
         setStatus('No codes derived');
       } else {
-        renderSuggestionReviewList({
+        renderSuggestionPickList({
           container: review,
           items: codes,
           kind: 'reason',
-          onAccept: (item) => addReasonTag({ ...item, source: 'ai' }),
-          onAcceptAll: (items) => items.forEach((item) => addReasonTag({ ...item, source: 'ai' })),
+          onPick: (item) => addReasonTag({ ...item, source: 'ai' }),
           onCountChange: reviewCount, // keeps #ai-codes-status fresh; clears at 0
         });
       }

@@ -132,6 +132,94 @@ export function renderSuggestionReviewList({
   render();
 }
 
+/**
+ * Render a click-to-add list of AI suggestions into `container`.
+ *
+ * Unlike renderSuggestionReviewList, there are no per-chip ✓/✕ buttons and no
+ * Accept-all/Reject-all actions: the user clicks a chip to add it (onPick) and it
+ * leaves the list; unwanted suggestions are simply ignored. This mirrors the
+ * non-AI reason-suggestion UX (reason-tags.js showReasonSuggestions) — the
+ * "remove" affordance lives only on the committed tags, not on suggestions.
+ *
+ * The concept CODE is intentionally NOT displayed (text only); callers still
+ * receive the full item — code/system included — via onPick, so it flows into the
+ * FHIR bundle unchanged.
+ *
+ * @param {object} o
+ * @param {HTMLElement} o.container
+ * @param {Array<{system?:string,code:string,display:string,kind?:string}>} o.items
+ * @param {(item:object)=>void} [o.onPick]   invoked when a suggestion is clicked
+ * @param {(remaining:number)=>void} [o.onCountChange]
+ * @param {'reason'|'test'|'finding'} [o.kind]
+ */
+export function renderSuggestionPickList({
+  container, items, onPick, onCountChange, kind = 'reason',
+}) {
+  if (!container) return;
+  const style = KIND_STYLES[kind] || KIND_STYLES.reason;
+  const working = Array.isArray(items) ? items.slice() : [];
+
+  const remove = (item) => { const i = working.indexOf(item); if (i > -1) working.splice(i, 1); };
+
+  function render() {
+    container.replaceChildren();
+    if (!working.length) {
+      container.classList.add('hidden');
+      if (typeof onCountChange === 'function') onCountChange(0);
+      return;
+    }
+    container.classList.remove('hidden');
+
+    const h = document.createElement('div');
+    h.className = 'text-xs font-medium text-gray-600 mb-2';
+    h.textContent = style.heading + ' — click to add';
+    container.appendChild(h);
+
+    const ul = document.createElement('ul');
+    ul.setAttribute('role', 'list');
+    ul.className = 'flex flex-wrap gap-2';
+    working.forEach((item) => {
+      const li = document.createElement('li');
+      // The whole chip is the button — click to add, matching the non-AI
+      // suggestion buttons (reason-tags.js showReasonSuggestions).
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'inline-flex items-center gap-1.5 border ' + style.chip
+        + ' rounded-full px-2 py-0.5 text-xs hover:opacity-80';
+
+      if (style.spark) {
+        const s = document.createElement('span');
+        s.setAttribute('aria-hidden', 'true');
+        s.textContent = '✨';
+        btn.appendChild(s);
+      }
+      const label = document.createElement('span');
+      // Display text ONLY — the code is kept on the item (and in the bundle) but
+      // not shown to the user.
+      label.textContent = item.display || item.code || '';
+      btn.appendChild(label);
+
+      // PATH/IMAG (or any caller-supplied kind) badge — used by Feature B.
+      if (item.kind) {
+        const badge = document.createElement('span');
+        badge.className = 'text-[10px] leading-none px-1 py-0.5 rounded border border-current opacity-70';
+        badge.textContent = item.kind;
+        btn.appendChild(badge);
+      }
+
+      btn.setAttribute('aria-label', 'Add ' + (item.display || item.code));
+      btn.onclick = () => { if (typeof onPick === 'function') onPick(item); remove(item); render(); };
+
+      li.appendChild(btn);
+      ul.appendChild(li);
+    });
+    container.appendChild(ul);
+    if (typeof onCountChange === 'function') onCountChange(working.length);
+  }
+
+  render();
+}
+
 /** Disable a button and swap its label to a loading indicator; restores on false. */
 export function setLoadingState(buttonEl, isLoading, loadingText = 'Working…') {
   if (!buttonEl) return;

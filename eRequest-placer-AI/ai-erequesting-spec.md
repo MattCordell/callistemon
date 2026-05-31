@@ -83,7 +83,7 @@ The user types clinical notes, and the app performs a live FHIR ValueSet autocom
 
 ### 4.2 New Behaviour
 
-The clinical notes field remains free-text. When the user triggers the AI coding step, the app calls the AI agent with the clinical notes and patient context. The agent uses the Ontoserver MCP (scoped to the reason coding ECL) to derive a validated set of SNOMED CT reason codes, which are then presented to the clinician for confirmation.
+The clinical notes field remains free-text. When the user triggers the AI coding step, the app calls the AI agent with the clinical notes and patient context. The agent uses the Ontoserver MCP (scoped to the reason coding ECL) to derive a validated set of SNOMED CT reason codes, which are then presented to the clinician as a click-to-add suggestion list.
 
 ### 4.3 Trigger
 
@@ -127,9 +127,11 @@ An empty array is valid.
 
 ### 4.7 UI
 
-- AI-suggested codes are displayed in the Reason Tags area, visually distinguished as AI-suggested.
-- The clinician can accept or reject individual codes, or use accept-all / reject-all bulk actions.
-- Codes are not added to reason tags without explicit clinician confirmation.
+- AI-suggested codes are displayed near the Reason Tags area as a suggestion list, visually distinguished as AI-suggested (indigo + ✨).
+- Each suggestion shows the display term ONLY — the SNOMED code is retained for the bundle but not shown to the clinician.
+- The clinician clicks a suggestion to add it as a reason tag; it then leaves the suggestion list. Unwanted suggestions are simply ignored — there are no per-code accept/reject buttons or bulk actions. This mirrors the manual autocomplete suggestion behaviour.
+- The ✕ "remove" affordance lives only on the committed reason tags, not on the suggestions.
+- Codes are not added to reason tags until the clinician clicks them.
 - Empty result: display a non-alarming inline message ("No codes could be confidently derived. Please add codes manually.").
 - Error state: inline error with retry option. Must not block the rest of the form.
 - The existing manual autocomplete remains available as a fallback.
@@ -300,8 +302,8 @@ The sister app is hosted on GitHub Pages, consistent with the existing callistem
 
 **Feature A - Reason coding:**
 5. A clinician can trigger AI reason code suggestions from the Clinical Notes field with a single action.
-6. Suggested codes are presented for clinician review before being added as reason tags.
-7. The clinician can accept or reject individual codes or bulk-accept/reject.
+6. Suggested codes are presented as a click-to-add list; none are added until the clinician clicks them.
+7. The clinician adds codes by clicking individual suggestions; unwanted suggestions are ignored (no accept/reject or bulk actions), and the code is not shown on suggestions.
 8. Empty result and error states are handled gracefully.
 9. The existing manual autocomplete remains available.
 
@@ -402,7 +404,7 @@ The app must remain compliant with the AU eRequesting FHIR specification and any
 |---|---|---|
 | Selected tests | Current FHIR bundle (ServiceRequests) | Code + display term for each |
 | Clinical notes | Clinical Notes field | |
-| Reason tags | Accepted reason codes | Code + display term |
+| Reason tags | Reason codes added to the request | Code + display term |
 | Patient age | Derived from DOB | Approximate age in years |
 | Patient sex | Gender field | male / female / other / unknown |
 | Pregnancy status | Pregnancy Status dropdown | Include only if set |

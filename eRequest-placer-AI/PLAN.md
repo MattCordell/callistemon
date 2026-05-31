@@ -104,14 +104,14 @@ New modules under [./modules/](./modules/):
 
 - **New `modules/ai-reason-coding.js`** — `suggestReasonCodes()` reads `#clinical-notes`, derives age from `#patient-dob`, reads `#patient-gender` and `#pregnancy-status`, loads `REASON_ECL` from settings, composes the spec §4.5 system prompt with `{reason_ecl}` substituted, calls `runAgent` with `getTools()` and a `toolImpl` that **coerces `valueSetEcl` to `REASON_ECL`** server-side regardless of what the agent passes. Validates each parsed entry; **confirms each in scope** via a final `searchConcepts({query: display, valueSetEcl: REASON_ECL})` (drop anything not present) to enforce spec §10.3 even against hallucinations. Returns `{codes, error}`.
 - **New `modules/ai-ui.js`** — shared UI helpers used by A/B/C:
-  - `renderSuggestionReviewList({container, items, onAccept, onReject, onAcceptAll, onRejectAll, kind})` with `kind ∈ {reason, test, finding}` controlling chip styling. AI-suggested reason chips use `bg-indigo-50 border-indigo-200 text-indigo-800` + ✨ icon (visually distinct from existing `bg-emerald-50` manual chips at [../eRequest-placer/modules/reason-tags.js](../eRequest-placer/modules/reason-tags.js)).
+  - `renderSuggestionReviewList({container, items, onAccept, onReject, onAcceptAll, onRejectAll, kind})` — accept/reject review list (used by Feature B tests) — and `renderSuggestionPickList({container, items, onPick, kind})` — click-to-add list with no accept/reject and display-term-only chips (used by Feature A reason codes). Both take `kind ∈ {reason, test, finding}` controlling chip styling. AI-suggested reason chips use `bg-indigo-50 border-indigo-200 text-indigo-800` + ✨ icon (visually distinct from existing `bg-emerald-50` manual chips at [../eRequest-placer/modules/reason-tags.js](../eRequest-placer/modules/reason-tags.js)).
   - `setLoadingState(btn, isLoading, text)`, `renderEmptyState`, `renderErrorState(container, msg, onRetry)`.
   - Stubs for the Tier-1 advisory panel and Tier-2 modal (filled in Phase 4).
 - **`index.html` additions:** below `#clinical-notes`, a button row `<button id="ai-suggest-codes" class="… ai-feature-controls">✨ Suggest codes</button>` plus `<div id="ai-codes-review" class="hidden">`. The `.ai-feature-controls` class is the master-toggle hook.
-- **`reason-tags.js` extension:** export a small `addReasonTag({system, code, display})` helper to share between manual autocomplete and AI acceptance.
-- **`app.js` wiring:** input listener disables the button when notes are empty; click → loading state → `suggestReasonCodes()` → render review list. Accept individual / accept-all routes through `addReasonTag`.
+- **`reason-tags.js` extension:** export a small `addReasonTag({system, code, display})` helper to share between manual autocomplete and AI suggestions.
+- **`app.js` wiring:** input listener disables the button when notes are empty; click → loading state → `suggestReasonCodes()` → render click-to-add pick list. Clicking a suggestion routes through `addReasonTag` (no accept/reject).
 
-**Verify:** spec §10.5-9 — type clinical notes, click Suggest codes, accept individual + accept-all, manual autocomplete still works on the same textarea, empty input keeps button disabled, clearing the API key surfaces an inline retry error without blocking the rest of the form.
+**Verify:** spec §10.5-9 — type clinical notes, click Suggest codes, click suggestions to add them as reason tags, manual autocomplete still works on the same textarea, empty input keeps button disabled, clearing the API key surfaces an inline retry error without blocking the rest of the form.
 
 ---
 
@@ -204,7 +204,7 @@ New modules under [./modules/](./modules/):
 
 1. **Smoke** — `python -m http.server 8000` in repo root, open `/eRequest-placer-AI/`. Open settings popout, paste an Openrouter API key. Confirm boot banner shows backend + model.
 2. **Phase-0 parity** — Disable AI features (master toggle off). Walk every interaction in the original app's README; bundle output should be byte-identical (UUIDs aside) to a corresponding `eRequest-placer/` send.
-3. **Feature A** — Clinical notes: "Type 2 diabetes with microalbuminuria, eGFR declining." Click Suggest codes. Expect `44054006`, `90708001` (or equivalent), all indigo, all individually accept/rejectable. Verify final bundle's `reasonCode` array contains accepted codes only.
+3. **Feature A** — Clinical notes: "Type 2 diabetes with microalbuminuria, eGFR declining." Click Suggest codes. Expect `44054006`, `90708001` (or equivalent), all indigo, display term only (no code shown), each click-to-add. Verify final bundle's `reasonCode` array contains the codes the clinician clicked (incl. their SNOMED `code`).
 4. **Feature B** — Free text: "FBC, fasting lipids, LFTs, urine MCS, chest X-ray." Click Encode tests. Accept all. Verify mixed PATH+IMAG ServiceRequests appear with priority controls, supplement props, and fasting warnings firing where appropriate.
 5. **Feature C** — Use a server-resolved patient with prior requests. Build a request that should be flagged. Confirm Tier-1 panel appears with advisory finding. Then build a serious case and confirm the modal blocks send, checkbox is required, proceed appends the ack note, the posted bundle's ServiceRequest.note contains the ack.
 6. **Failure modes** — Clear the Openrouter key; each feature degrades to a retry-able inline error without breaking the form. Force REST; backend banner updates; everything still works.
