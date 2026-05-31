@@ -271,6 +271,7 @@ The developer should treat the original app's FHIR interactions as the reference
 
 - All AI calls are non-blocking. The form must remain interactive during processing.
 - No clinical notes or patient data are logged or stored beyond what already occurs in the existing app.
+- **PHI egress to the LLM (decision support).** Feature C sends clinical context to the model. With the `query_patient_history` tool (issue #25) this expands beyond the clinician's notes and prior-request *codes* to the patient's actual **lab values (Observation), diagnoses (Condition), medications (MedicationRequest), and reports (DiagnosticReport)** — gated behind the decision-support toggle and offered only when a patient is resolved. Summaries omit direct identifiers (no name/MRN), but results, diagnoses, and meds are sensitive. On the default proxy route with a free-tier model, that data flows through the deployer's key to a provider that may log/retain it. **Adopters handling real patient data should use the own-key route with a paid/non-logging model (or self-hosted inference) for decision support**, and treat this as the same demo/reference risk posture as the API key and FHIR tokens (§9.1).
 - The Openrouter API key is stored client-side. This is consistent with the existing FHIR server auth model. The risk should be documented in a code comment.
 - Both AI features degrade gracefully if Openrouter or Ontoserver MCP is unavailable.
 - The shared AI module (Section 3) must be testable independently of the UI.

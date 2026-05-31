@@ -201,18 +201,32 @@ function summarise(resourceType, res) {
 
 function summariseObservation(res) {
   const cd = codeDisplay(res.code);
-  let value = null;
-  if (res.valueQuantity) {
-    value = { value: res.valueQuantity.value, unit: res.valueQuantity.unit || res.valueQuantity.code || null };
-  } else if (res.valueCodeableConcept) {
-    value = codeDisplay(res.valueCodeableConcept).display;
-  } else if (res.valueString != null) {
-    value = String(res.valueString);
-  }
   return {
-    code: cd.code, display: cd.display, value, status: res.status || null,
+    code: cd.code, display: cd.display, value: observationValue(res), status: res.status || null,
     effective: res.effectiveDateTime || (res.effectivePeriod && res.effectivePeriod.start) || null,
   };
+}
+
+// Observation.value[x] — cover the common types. A null value can mislead a
+// history-dependent rule into thinking a result is missing (e.g. a boolean
+// positive/negative or an integer count), so handle boolean/integer/ratio too,
+// not just quantity/codeable/string. `!= null` keeps falsy-but-present values
+// (false, 0).
+function observationValue(res) {
+  if (res.valueQuantity) {
+    return { value: res.valueQuantity.value, unit: res.valueQuantity.unit || res.valueQuantity.code || null };
+  }
+  if (res.valueCodeableConcept) return codeDisplay(res.valueCodeableConcept).display;
+  if (res.valueString != null) return String(res.valueString);
+  if (res.valueBoolean != null) return res.valueBoolean;
+  if (res.valueInteger != null) return res.valueInteger;
+  if (res.valueRatio) {
+    const num = res.valueRatio.numerator && res.valueRatio.numerator.value;
+    const den = res.valueRatio.denominator && res.valueRatio.denominator.value;
+    if (num != null && den != null) return num + ':' + den;
+  }
+  if (res.valueDateTime != null) return String(res.valueDateTime);
+  return null;
 }
 
 function summariseDiagnosticReport(res) {

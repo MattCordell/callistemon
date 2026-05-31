@@ -137,6 +137,12 @@ guardrails enforced in the impl regardless of what the model asks:
 To adjust the limits, edit the constants (`ALLOWED_TYPES`, `MAX_COUNT`, `QUERY_BUDGET`) at the
 top of `modules/patient-history-tool.js`.
 
+> **Data egress note.** Enabling decision support sends clinical context to the LLM. This tool
+> expands that to the patient's actual lab values, diagnoses, medications, and reports
+> (summarised, with no name/MRN). On the default proxy route with a free-tier model that data
+> reaches a provider that may log it. For real patient data, use the "Use my own OpenRouter key"
+> route with a paid/non-logging model. See spec §9.
+
 ## What's next
 
 This directory is the scaffold for the AI-enhanced sister of `eRequest-placer`. Phase 1+ work introduces:
