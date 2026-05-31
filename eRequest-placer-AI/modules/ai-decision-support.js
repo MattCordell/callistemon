@@ -110,9 +110,13 @@ export async function evaluateRequest(bundle) {
       tools,
       toolImpl,
       model: s.OPENROUTER_MODEL,
-      // History-querying adds round-trips on top of terminology validation;
-      // give the loop a little more headroom than the 8-iteration default.
-      maxIterations: 12,
+      // Each iteration is one model request, so this caps the per-run request
+      // burst that was tripping OpenRouter's free-tier rate limit (~20/min).
+      // Lowered 12 -> 5 to ease that pressure. RE-EVALUATE if evaluations start
+      // failing with "did not produce a final answer within N iterations": that
+      // means 5 is too tight for the history-querying + terminology round-trips a
+      // complete answer needs, and it should be raised (8 was the prior default).
+      maxIterations: 5,
     });
 
     if (error) return { result: null, error };
