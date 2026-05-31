@@ -96,6 +96,10 @@ export async function suggestTests() {
       tools: getTools(),
       toolImpl,
       model: s.OPENROUTER_MODEL,
+      // See ai-reason-coding.js: same multi-term search strategy, same need for
+      // headroom over the default 8 so a sequential-calling free model doesn't hit
+      // the iteration cap on a multi-test request and return nothing.
+      maxIterations: 12,
     });
 
     if (error) return { tests: [], error };

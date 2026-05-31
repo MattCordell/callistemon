@@ -81,6 +81,15 @@ export async function suggestReasonCodes() {
       tools: getTools(),
       toolImpl,
       model: s.OPENROUTER_MODEL,
+      // Headroom for the multi-term search strategy this prompt now asks for
+      // (>=2 searches per concept, rephrase-on-miss). Each iteration is one model
+      // request; a small/free model that issues tool calls sequentially (one per
+      // turn) can otherwise exhaust the default 8 on a multi-concept note and
+      // return the iteration-cap error -> empty suggestions, exactly the rich
+      // inputs this change is meant to help. 12 stays within a single run's
+      // free-tier rate budget (~20/min). (Feature C uses a tighter 5 because it
+      // bursts at Send alongside other calls; A/B are user-triggered in isolation.)
+      maxIterations: 12,
     });
 
     if (error) return { codes: [], error };
