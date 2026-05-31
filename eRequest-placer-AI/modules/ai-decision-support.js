@@ -10,22 +10,24 @@ import { state } from './state.js';
 import { getAiSettings, isDecisionSupportEnabled } from './settings-ai.js';
 import { runAgent } from './ai-agent.js';
 import { getTools, searchConcepts, lookupConcept } from './ontoserver-tools.js';
-import { gatherPatientContext, combineGuidance } from './ai-context.js';
+import { gatherPatientContext, guidanceBlock } from './ai-context.js';
 import { fetchAndSummarisePrior } from './prior-requests.js';
 import { getHistoryTools, makeHistoryToolImpl } from './patient-history-tool.js';
 
 const VALID_SEVERITY = new Set(['advisory', 'serious']);
 const VALID_DIMENSION = new Set(['appropriateness', 'suggestion', 'duplicate', 'context']);
 
-// Spec §C.7 (system prompt) + §C.8 (output format). {guidelines} is substituted
-// with the operator's COMMON + decision-support guidance (combineGuidance); it is
-// '(none)' when both are empty so the slot never dangles, and the feature then
-// runs on the model's general clinical training alone (spec §C.4).
+const GUIDELINES_HEADING = 'Apply the following clinical guidelines and local rules as authoritative where they conflict with your general training:';
+
+// Spec §C.7 (system prompt) + §C.8 (output format). {guidance_block} is the
+// operator's COMMON + decision-support guidance under GUIDELINES_HEADING, or ''
+// when both are empty — in which case the whole block is omitted (the surrounding
+// blank run is collapsed) and the feature runs on the model's general clinical
+// training alone (spec §C.4).
 const SYSTEM_PROMPT = [
   'You are a clinical decision support assistant for a general practice requesting clinician. You will be given a draft pathology or radiology request and must evaluate it across four dimensions: appropriateness, missed tests, duplicates, and context completeness.',
   '',
-  'Apply the following clinical guidelines and local rules as authoritative where they conflict with your general training:',
-  '{guidelines}',
+  '{guidance_block}',
   '',
   'For each finding, assign a severity:',
   '- "advisory" — informational, non-urgent; the clinician may proceed without action.',
@@ -78,9 +80,13 @@ export async function evaluateRequest(bundle) {
     const priorRequests = pid ? await fetchAndSummarisePrior(pid) : [];
 
     // Function replacer so a literal `$` in operator guidance isn't treated as a
-    // String.replace special pattern ($&, $1, …).
-    const guidance = combineGuidance(s.COMMON_PROMPT_SUPPLEMENTS, s.GUIDELINES_SUMMARY);
-    const systemPrompt = SYSTEM_PROMPT.replace('{guidelines}', () => guidance);
+    // String.replace special pattern ($&, $1, …). When there's no operator
+    // guidance the block is '' — collapse the resulting blank run.
+    const guidance = guidanceBlock(GUIDELINES_HEADING, s.COMMON_PROMPT_SUPPLEMENTS, s.GUIDELINES_SUMMARY);
+    const systemPrompt = SYSTEM_PROMPT
+      .replace('{guidance_block}', () => guidance)
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
 
     const userMessage = JSON.stringify({
       selected_tests: selectedTests,

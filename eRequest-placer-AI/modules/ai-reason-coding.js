@@ -9,21 +9,30 @@
 import { getAiSettings } from './settings-ai.js';
 import { runAgent } from './ai-agent.js';
 import { getTools, searchConcepts, lookupConcept } from './ontoserver-tools.js';
-import { gatherPatientContext, confirmInScope, combineGuidance, SCT } from './ai-context.js';
+import { gatherPatientContext, confirmInScope, guidanceBlock, SCT } from './ai-context.js';
 
-// Based on spec §4.5, with an added "Operator guidance" block (so not verbatim).
-// {reason_ecl} and {guidance} are substituted at call time.
+const GUIDANCE_HEADING = 'Operator guidance — apply any of the following that applies to this request:';
+
+// Based on spec §4.5/§4.6, extended (so not verbatim) with: an explicit element
+// schema, a pre-search parsing step, search-strategy guidance, demographic
+// disambiguation, and an "Operator guidance" block. {reason_ecl} and
+// {guidance_block} are substituted at call time; {guidance_block} is '' when the
+// operator set no guidance, and the surrounding blank run is then collapsed.
 const SYSTEM_PROMPT = [
   'You are a clinical coding assistant. Your task is to derive a minimal, accurate set of SNOMED CT codes representing the clinical meaning of a clinician\'s free-text notes.',
   '',
   'Prioritise accuracy over completeness. Return only codes you are confident are correct. Do not speculate. Do not use concept IDs from memory.',
   '',
-  'You have access to an Ontoserver MCP tool. Use `search_concepts` with the ECL expression `{reason_ecl}` to find and confirm every concept before including it. Only include a code if Ontoserver confirms it is valid, active, and within the ECL scope. If no match is found, omit the concept.',
+  'Before searching, identify each distinct clinical concept in the notes. For each, note your interpretation of any abbreviation, acronym, or apparent typo, and determine the preferred clinical terminology to search with. Use the patient age, sex, and pregnancy status to disambiguate where the meaning would differ across populations, and do not include concepts that are clinically inconsistent with those demographics.',
   '',
-  'Operator guidance — apply any of the following that applies to this request:',
-  '{guidance}',
+  'You have access to an Ontoserver MCP tool. For each concept, use `search_concepts` with the ECL expression `{reason_ecl}` to find and confirm it before including it. Try at least two search terms — a lay phrasing and a formal clinical equivalent — and if the first search returns nothing useful, rephrase using formal clinical terminology. Prefer the most specific valid concept that accurately reflects the clinical text; do not broaden to a parent concept unless no specific match exists. Only include a code if Ontoserver confirms it is valid, active, and within the ECL scope. The ECL scope is intentionally limited (typically to clinical findings and disorders); if a concept falls outside it or has no valid match, omit that concept.',
   '',
-  'Return a JSON array only, no prose or markdown formatting.',
+  '{guidance_block}',
+  '',
+  'Return a JSON array only (an empty array if no codes can be confidently derived), with no prose or markdown formatting. Each element must be an object with these keys:',
+  '- "code": string — the SNOMED CT concept ID confirmed by Ontoserver',
+  '- "display": string — the preferred term exactly as returned by Ontoserver, not paraphrased',
+  '- "system": string — always "http://snomed.info/sct"',
 ].join('\n');
 
 function gatherContext() {
@@ -49,11 +58,15 @@ export async function suggestReasonCodes() {
     }
 
     // Function replacers so a literal `$` in operator guidance / ECL isn't treated
-    // as a String.replace special pattern ($&, $1, …).
-    const guidance = combineGuidance(s.COMMON_PROMPT_SUPPLEMENTS, s.REASON_PROMPT_SUPPLEMENTS);
+    // as a String.replace special pattern ($&, $1, …). When there's no operator
+    // guidance the block is '' — collapse the resulting blank run so the prompt
+    // doesn't carry a dangling gap.
+    const guidance = guidanceBlock(GUIDANCE_HEADING, s.COMMON_PROMPT_SUPPLEMENTS, s.REASON_PROMPT_SUPPLEMENTS);
     const systemPrompt = SYSTEM_PROMPT
       .replace('{reason_ecl}', () => reasonEcl)
-      .replace('{guidance}', () => guidance);
+      .replace('{guidance_block}', () => guidance)
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
     const userMessage = JSON.stringify(ctx);
 
     // search_concepts is hard-coerced to REASON_ECL no matter what the model passes.
