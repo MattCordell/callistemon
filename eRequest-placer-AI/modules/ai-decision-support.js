@@ -12,6 +12,7 @@ import { runAgent } from './ai-agent.js';
 import { getTools, searchConcepts, lookupConcept } from './ontoserver-tools.js';
 import { gatherPatientContext, combineGuidance } from './ai-context.js';
 import { fetchAndSummarisePrior } from './prior-requests.js';
+import { getHistoryTools, makeHistoryToolImpl } from './patient-history-tool.js';
 
 const VALID_SEVERITY = new Set(['advisory', 'serious']);
 const VALID_DIMENSION = new Set(['appropriateness', 'suggestion', 'duplicate', 'context']);
@@ -31,6 +32,7 @@ const SYSTEM_PROMPT = [
   '- "serious" — warrants clinician review before sending; one or more of: the test is clinically inappropriate for the patient\'s demographics; the combination of tests or implied diagnoses carries potential clinical risk; critical context is missing that would affect how the request is actioned; a high-risk test has been ordered without documented clinical justification.',
   '',
   'You have an Ontoserver tool (search_concepts / lookup_concept) available to validate a SNOMED concept if useful; using it is optional.',
+  'When a patient is identified you also have a query_patient_history tool: a read-only window onto THIS patient\'s FHIR record (Observation, Condition, MedicationRequest, DiagnosticReport, ServiceRequest), beyond the prior_requests already provided. Use it ONLY when a rule you are applying needs history not already in the context — e.g. to check whether a test was resulted recently, whether a documented indication (Condition) exists, or whether a relevant medication is active. It is patient-scoped and budget-limited, so be selective; if it is not offered or a query fails, reason from the context you do have.',
   '',
   'Return a JSON object ONLY (no prose, no markdown) in exactly this shape:',
   '{',
@@ -93,12 +95,24 @@ export async function evaluateRequest(bundle) {
       lookup_concept: (args) => lookupConcept(args),
     };
 
+    // History tool only when the patient is server-resolved (same condition as
+    // prior_requests above). The impl closes over `pid` so the agent can never
+    // query another patient, and over a per-evaluation query budget.
+    const tools = getTools();
+    if (pid) {
+      tools.push(...getHistoryTools());
+      toolImpl.query_patient_history = makeHistoryToolImpl({ patientId: pid });
+    }
+
     const { parsed, error } = await runAgent({
       systemPrompt,
       userMessage,
-      tools: getTools(),
+      tools,
       toolImpl,
       model: s.OPENROUTER_MODEL,
+      // History-querying adds round-trips on top of terminology validation;
+      // give the loop a little more headroom than the 8-iteration default.
+      maxIterations: 12,
     });
 
     if (error) return { result: null, error };

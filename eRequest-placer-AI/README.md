@@ -116,6 +116,27 @@ If *any* reason tag is a subtype of a parent code, all tests in that rule are su
 
 Edit **`clinicians.js`**. Add entries to `practitionerResources`, `roleSpecialties`, and `userFavourites`, then add a matching `<option>` in the doctor-select dropdown in `index.html`.
 
+## Decision support: agent patient-history tool
+
+Feature C (decision support) gives the agent a read-only `query_patient_history` tool
+(`modules/patient-history-tool.js`) so history-dependent rules are actionable — e.g.
+"don't repeat a test resulted recently" (Observation / DiagnosticReport), "flag a test
+with no documented indication" (Condition), or "avoid this test on medication X"
+(MedicationRequest). The agent decides what to pull per rule; the app no longer has to
+pre-fetch a fixed set.
+
+It is a thin local function (no MCP server) reusing the existing authed `fetch`, with
+guardrails enforced in the impl regardless of what the model asks:
+
+- **read-only** — GET only;
+- **allow-list** — `Observation`, `Condition`, `MedicationRequest`, `DiagnosticReport`, `ServiceRequest`;
+- **patient-scoped** — every query is forced to `subject=Patient/{id}`; the model cannot widen it;
+- **`_count` capped** and a **per-evaluation query budget** to bound latency / cost;
+- offered only when the patient is server-resolved; every query is logged to the debug panel.
+
+To adjust the limits, edit the constants (`ALLOWED_TYPES`, `MAX_COUNT`, `QUERY_BUDGET`) at the
+top of `modules/patient-history-tool.js`.
+
 ## What's next
 
 This directory is the scaffold for the AI-enhanced sister of `eRequest-placer`. Phase 1+ work introduces:

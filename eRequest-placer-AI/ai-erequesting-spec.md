@@ -505,14 +505,16 @@ Add the following to the settings panel (extending Section 6 of the main spec):
 
 ## C.12 FHIR Compliance Notes
 
-Decision support introduces one new FHIR interaction: a read query for prior ServiceRequests. This must:
+Decision support introduces new **read-only** FHIR interactions: a query for prior ServiceRequests (C.5), and — once the patient is resolved — agent-initiated history queries via the `query_patient_history` tool (issue #25). These must:
 
 - Use the FHIR server configured in the existing settings panel.
-- Conform to the AU eRequesting FHIR profile and any relevant AU Base profiles for ServiceRequest search.
+- Conform to the AU eRequesting FHIR profile and any relevant AU Base profiles for the resource being searched.
 - Respect any auth configuration already in place for the FHIR server connection.
 - Appear in the existing terminology/FHIR call debug log (the "recent calls" panel already present in the app).
 
-No new FHIR resource types are written or modified beyond the existing bundle submission, except the optional note appended per C.10.
+Agent-initiated history queries are read-only (GET), restricted to an allow-list of resource types (`Observation`, `Condition`, `MedicationRequest`, `DiagnosticReport`, `ServiceRequest`), always scoped to the current `subject=Patient/{id}`, `_count`-capped, and subject to a per-evaluation query budget.
+
+No FHIR resources are written or modified beyond the existing bundle submission, except the optional note appended per C.10.
 
 ---
 
