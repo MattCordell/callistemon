@@ -32,7 +32,10 @@ const MAX_COUNT = 20;
 
 // Per-evaluation ceiling on the number of history queries the agent may make.
 // Bounds prompt size / latency / cost of agent-initiated fetching (issue #25).
-const QUERY_BUDGET = 6;
+// Exported so the decision-support agent's maxIterations can be derived from it —
+// the iteration cap must leave room for this many queries plus the final answer,
+// or the history capability is stranded (see ai-decision-support.js).
+export const QUERY_BUDGET = 6;
 
 // Per-resource clinical date search parameter for the optional `dateFrom` filter.
 // Falls back to the universal `_lastUpdated` if the server rejects the clinical

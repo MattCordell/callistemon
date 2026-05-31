@@ -12,7 +12,22 @@ import { runAgent } from './ai-agent.js';
 import { getTools, searchConcepts, lookupConcept } from './ontoserver-tools.js';
 import { gatherPatientContext, guidanceBlock } from './ai-context.js';
 import { fetchAndSummarisePrior } from './prior-requests.js';
-import { getHistoryTools, makeHistoryToolImpl } from './patient-history-tool.js';
+import { getHistoryTools, makeHistoryToolImpl, QUERY_BUDGET } from './patient-history-tool.js';
+
+// Iteration cap for the decision-support agent. Derived from the history tool's
+// QUERY_BUDGET rather than a bare magic number: a free model that issues tool
+// calls sequentially (one per turn) spends one iteration per query, so the cap
+// must clear QUERY_BUDGET history queries PLUS headroom for a couple of optional
+// terminology lookups and the final-answer turn — otherwise runAgent returns the
+// iteration-cap error before the agent can use the history capability from #28
+// and decision support reports "unavailable". The history tool still enforces
+// QUERY_BUDGET itself as the real bound on fetching, so this cap is a safety
+// ceiling, not the limiter. (This supersedes fa5dd04's flat cap of 5, which was a
+// blunt rate-limit lever: capping a single run's burst against the free tier's
+// ~20/min. The right rate-limit control is client-side backoff/throttle — already
+// a single 429 retry in openrouter-client — or a paid key, not starving the
+// agent's iteration budget. A/B use a comparable 12; see ai-reason-coding.js.)
+const DECISION_MAX_ITERATIONS = QUERY_BUDGET + 4;
 
 const VALID_SEVERITY = new Set(['advisory', 'serious']);
 const VALID_DIMENSION = new Set(['appropriateness', 'suggestion', 'duplicate', 'context']);
@@ -116,13 +131,9 @@ export async function evaluateRequest(bundle) {
       tools,
       toolImpl,
       model: s.OPENROUTER_MODEL,
-      // Each iteration is one model request, so this caps the per-run request
-      // burst that was tripping OpenRouter's free-tier rate limit (~20/min).
-      // Lowered 12 -> 5 to ease that pressure. RE-EVALUATE if evaluations start
-      // failing with "did not produce a final answer within N iterations": that
-      // means 5 is too tight for the history-querying + terminology round-trips a
-      // complete answer needs, and it should be raised (8 was the prior default).
-      maxIterations: 5,
+      // Derived from the history QUERY_BUDGET (see DECISION_MAX_ITERATIONS above)
+      // so the iteration cap can't strand the #28 history capability.
+      maxIterations: DECISION_MAX_ITERATIONS,
     });
 
     if (error) return { result: null, error };
