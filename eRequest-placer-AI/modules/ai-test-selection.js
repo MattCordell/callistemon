@@ -11,24 +11,27 @@ import { state } from './state.js';
 import { getAiSettings } from './settings-ai.js';
 import { runAgent } from './ai-agent.js';
 import { getTools, searchConcepts, lookupConcept } from './ontoserver-tools.js';
-import { gatherPatientContext, confirmInScope, combineGuidance, SCT } from './ai-context.js';
+import { gatherPatientContext, confirmInScope, guidanceBlock, SCT } from './ai-context.js';
+
+const GUIDANCE_HEADING = 'Operator guidance — apply any of the following that applies to this request:';
 
 // Based on spec §5.6 (not verbatim): the §5.6 "default assumptions" line is
-// generalised to an "Operator guidance" block ({guidance}); {test_ecl} is also
-// substituted; and the §5.7 output shape is extended with a `kind` field (PATH/IMAG).
+// generalised to an "Operator guidance" block ({guidance_block}, omitted when the
+// operator set none); {test_ecl} is substituted; the §5.7 output shape is extended
+// with a `kind` field (PATH/IMAG); and — mirroring Feature A — a pre-search parsing
+// step, search-strategy guidance, and demographic disambiguation are added.
 const SYSTEM_PROMPT = [
   'You are a clinical test coding assistant. Your task is to derive a set of SNOMED CT procedure codes representing the diagnostic tests described in the clinician\'s free-text input.',
   '',
-  'Operator guidance — apply any of the following that applies to this request:',
-  '{guidance}',
-  '',
   'Prioritise accuracy over completeness. Do not speculate. Do not use concept IDs from memory.',
   '',
-  'You have access to an Ontoserver MCP tool. Use `search_concepts` with the ECL expression `{test_ecl}` to find and confirm every concept. Only include a code if Ontoserver confirms it is valid, active, and within the ECL scope. If no match is found, omit the concept.',
+  'Before searching, identify each distinct test described in the input. For each, note your interpretation of any abbreviation, acronym, or apparent typo, and determine the preferred clinical terminology to search with. Use the patient age, sex, and pregnancy status to disambiguate where the meaning would differ across populations, and do not include tests that are clinically inconsistent with those demographics. Do not re-add a test that is already selected.',
   '',
-  'Each array element must be an object with keys "code", "display", "system" (always "http://snomed.info/sct"), and "kind" — "PATH" for pathology/laboratory tests or "IMAG" for imaging/radiology. If unsure, use "PATH".',
+  'You have access to an Ontoserver MCP tool. For each test, use `search_concepts` with the ECL expression `{test_ecl}` to find and confirm it. Try at least two search terms — a lay phrasing and a formal clinical equivalent — and if the first search returns nothing useful, rephrase using formal clinical terminology. Prefer the most specific valid concept that accurately reflects the requested test; do not broaden to a parent concept unless no specific match exists. Only include a code if Ontoserver confirms it is valid, active, and within the ECL scope. If a test falls outside the scope or has no valid match, omit it.',
   '',
-  'Return a JSON array only, no prose or markdown formatting.',
+  '{guidance_block}',
+  '',
+  'Return a JSON array only (an empty array if no tests can be confidently derived), with no prose or markdown formatting. Each element must be an object with keys "code" (the confirmed SNOMED CT concept ID), "display" (the preferred term exactly as returned by Ontoserver), "system" (always "http://snomed.info/sct"), and "kind" — "PATH" for pathology/laboratory tests or "IMAG" for imaging/radiology. If unsure, use "PATH".',
 ].join('\n');
 
 // Map a model-supplied kind to PATH/IMAG. The prompt constrains output to those
@@ -72,11 +75,14 @@ export async function suggestTests() {
     });
 
     // Function replacers so a literal `$` in operator guidance / ECL isn't treated
-    // as a String.replace special pattern ($&, $1, …).
-    const guidance = combineGuidance(s.COMMON_PROMPT_SUPPLEMENTS, s.PRE_PROMPT_SUPPLEMENTS);
+    // as a String.replace special pattern ($&, $1, …). When there's no operator
+    // guidance the block is '' — collapse the resulting blank run.
+    const guidance = guidanceBlock(GUIDANCE_HEADING, s.COMMON_PROMPT_SUPPLEMENTS, s.PRE_PROMPT_SUPPLEMENTS);
     const systemPrompt = SYSTEM_PROMPT
-      .replace('{guidance}', () => guidance)
-      .replace('{test_ecl}', () => testEcl);
+      .replace('{guidance_block}', () => guidance)
+      .replace('{test_ecl}', () => testEcl)
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
 
     // search_concepts is hard-coerced to TEST_ECL no matter what the model passes.
     const toolImpl = {
@@ -90,6 +96,10 @@ export async function suggestTests() {
       tools: getTools(),
       toolImpl,
       model: s.OPENROUTER_MODEL,
+      // See ai-reason-coding.js: same multi-term search strategy, same need for
+      // headroom over the default 8 so a sequential-calling free model doesn't hit
+      // the iteration cap on a multi-test request and return nothing.
+      maxIterations: 12,
     });
 
     if (error) return { tests: [], error };
