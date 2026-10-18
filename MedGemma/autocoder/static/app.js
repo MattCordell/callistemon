@@ -274,11 +274,23 @@
   const RANKS = ['Most likely', 'Second', 'Third'];
   const dx = { list: [], selected: -1, endorsed: -1, notes: '' };
 
-  async function postJson(url, body) {
-    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.detail || 'Server returned ' + r.status);
-    return j;
+  // wake: {status, current} - while MedGemma wakes from zero, show progress in status and
+  // retry until it answers, gives up, or current() says the result is no longer wanted
+  async function postJson(url, body, wake) {
+    const t0 = performance.now();
+    for (;;) {
+      const r = await fetch(C.API_BASE + url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) return j;
+      const d = j.detail;
+      if (!(d && d.warming)) throw new Error((typeof d === 'string' && d) || 'Server returned ' + r.status);
+      const waited = performance.now() - t0;
+      if (waited > C.WAKE_GIVE_UP_MS) throw new Error('MedGemma did not wake up in time. Try again later.');
+      if (wake && wake.current && !wake.current()) throw new Error('Cancelled.');
+      if (wake) setStatus(wake.status, d.message + ' Waiting ' + Math.round(waited / 1000) + ' s so far...', true);
+      await new Promise((res) => setTimeout(res, C.WAKE_RETRY_MS));
+      if (wake && wake.current && !wake.current()) throw new Error('Cancelled.');
+    }
   }
 
   function setStatus(el, text, busy, isError) {
@@ -332,7 +344,7 @@
     const t0 = performance.now();
     try {
       const temperature = parseFloat($('dx-temp').value);  // Part 2 only
-      const res = await postJson('/api/diagnose', { notes: dx.notes, temperature });
+      const res = await postJson('/api/diagnose', { notes: dx.notes, temperature }, { status });
       dx.list = res.diagnoses;
       $('dx-reasoning').textContent = res.reasoning || '';
       setStatus(status, 'MedGemma suggested ' + dx.list.length + ' diagnoses in ' +
@@ -441,7 +453,8 @@
     setStatus($('code-status'), 'Coding "' + term + '" to SNOMED CT and ICD-11 (rewording, searching, MedGemma choosing)...', true);
     const t0 = performance.now();
     try {
-      const res = await postJson('/api/code', { term });  // the endorsed term only
+      const res = await postJson('/api/code', { term },  // the endorsed term only
+        { status: $('code-status'), current: () => run === codingRun });
       if (run !== codingRun) return;
       renderCoding(res);
       setStatus($('code-status'), 'Coded in ' + ((performance.now() - t0) / 1000).toFixed(0) + ' s.');
@@ -449,6 +462,35 @@
       if (run === codingRun) setStatus($('code-status'), e.message, false, true);
     } finally {
       if (run === codingRun) $('dx-endorse').disabled = dx.selected < 0;
+    }
+  }
+
+  // ---------- MedGemma state badge ----------
+
+  const MG_LABELS = { ready: 'Ready', waking: 'Waking', asleep: 'Asleep', offline: 'Offline', unknown: 'Unknown' };
+  const MG_TIPS = {
+    ready: 'MedGemma is running and will answer straight away.',
+    waking: 'MedGemma is starting up. This can take a few minutes.',
+    asleep: 'MedGemma sleeps when idle. Your first request wakes it, which can take a few minutes.',
+    offline: 'MedGemma is not deployed at the moment.',
+    unknown: 'Could not check MedGemma.',
+  };
+
+  function showMgState(state) {
+    const badge = $('mg-state');
+    badge.dataset.state = state;
+    badge.querySelector('b').textContent = MG_LABELS[state] || state;
+    badge.title = MG_TIPS[state] || '';
+  }
+
+  // Polls the server, which reads the endpoint's replica count: checking does not wake MedGemma
+  async function checkMgState() {
+    if (document.hidden) return;
+    try {
+      const r = await fetch(C.API_BASE + '/api/status');
+      showMgState(r.ok ? (await r.json()).state : 'unknown');
+    } catch (e) {
+      showMgState('unknown');
     }
   }
 
@@ -531,6 +573,9 @@
     $('dx-endorse').onclick = codeDiagnosis;
     render();
     resetDiagnoses();
+    checkMgState();
+    setInterval(checkMgState, C.STATUS_POLL_MS);
+    document.addEventListener('visibilitychange', checkMgState);
   }
 
   init();

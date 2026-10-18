@@ -2,11 +2,18 @@
 
 Run from the MedGemma folder:
     .\\.venv\\Scripts\\python -m uvicorn autocoder.server:app --port 8000
+
+Hosted: the page is on GitHub Pages and this server runs on Cloud Run (see DEPLOY.md).
 """
 import sys
+import time
+from collections import defaultdict
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+import requests
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -15,7 +22,39 @@ import medgemma_pipeline as pipeline  # noqa: E402
 
 STATIC_DIR = Path(__file__).with_name("static")
 
+# Pages allowed to call the API from a browser. Not a security boundary (non-browser
+# clients can send any Origin); the rate limit below bounds what they can cost.
+ALLOWED_ORIGINS = ["https://mattcordell.github.io", "http://localhost:8000", "http://127.0.0.1:8000"]
+RATE_LIMIT_PER_HOUR = 30  # API calls per client IP; in memory, so Cloud Run runs at most 1 instance
+
 app = FastAPI(title="AutoCoder")
+
+_calls = defaultdict(list)  # client IP -> times of recent API calls
+
+
+def client_ip(request):
+    """Cloud Run puts the caller's address first in X-Forwarded-For."""
+    forwarded = request.headers.get("x-forwarded-for")
+    return forwarded.split(",")[0].strip() if forwarded else request.client.host
+
+
+@app.middleware("http")
+async def guard_api(request: Request, call_next):
+    """Origin check and per-IP hourly limit on the API calls that reach MedGemma."""
+    if request.method == "POST" and request.url.path.startswith("/api/"):
+        origin = request.headers.get("origin")
+        if origin and origin not in ALLOWED_ORIGINS:
+            return JSONResponse({"detail": "This page is not allowed to use the AutoCoder API."}, 403)
+        now = time.time()
+        recent = [t for t in _calls[client_ip(request)] if now - t < 3600]
+        if len(recent) >= RATE_LIMIT_PER_HOUR:
+            return JSONResponse({"detail": "Too many requests from your address. Try again in an hour."}, 429)
+        response = await call_next(request)
+        if response.status_code != 503:  # "waking up" replies are retried by the page, so they don't count
+            recent.append(now)
+        _calls[client_ip(request)] = recent
+        return response
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -40,9 +79,56 @@ class CodeIn(BaseModel):
     term: str
 
 
+WAKING_FOR = 20 * 60  # seconds after a "not ready" reply during which a sleeping model counts as waking
+STATUS_CACHE_FOR = 10  # seconds; many open pages share one endpoint lookup
+_last_not_ready = 0.0  # when MedGemma last answered "not ready" (a wake-up is under way)
+_status_cache = {"at": 0.0, "body": None}
+
+
+def model_unavailable(e):
+    """Turn MedGemma endpoint states into messages the page can act on, or None for other errors.
+
+    The endpoint scales to zero when idle: while it starts up it answers 429, and the page retries.
+    """
+    global _last_not_ready
+    if not isinstance(e, requests.HTTPError) or e.response is None or pipeline.MEDGEMMA_URL not in e.response.url:
+        return None
+    if e.response.status_code == 429:
+        _last_not_ready = time.time()
+        _status_cache["at"] = 0.0  # show "Waking" straight away
+        return HTTPException(503, {"warming": True,
+                                   "message": "MedGemma is waking up. This can take a few minutes."})
+    if e.response.status_code == 404:
+        return HTTPException(503, "MedGemma is offline at the moment. It runs during demo sessions only.")
+    return None
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "icd_release": pipeline.ICD_RELEASE}
+
+
+@app.get("/api/status")
+def status():
+    """MedGemma state for the page's badge: ready, waking, asleep, offline or unknown. Does not wake it."""
+    now = time.time()
+    if now - _status_cache["at"] < STATUS_CACHE_FOR:
+        return _status_cache["body"]
+    try:
+        replicas = pipeline.medgemma_replicas()
+    except Exception as e:  # demonstrator: report the lookup failure rather than break the page
+        print(f"[Warning: could not read MedGemma status: {e}]")
+        replicas = "unknown"
+    if replicas == "unknown":
+        state = "unknown"
+    elif replicas is None:
+        state = "offline"
+    elif replicas > 0:
+        state = "ready"
+    else:
+        state = "waking" if now - _last_not_ready < WAKING_FOR else "asleep"
+    _status_cache.update(at=now, body={"state": state})
+    return _status_cache["body"]
 
 
 @app.post("/api/diagnose")
@@ -54,7 +140,7 @@ def diagnose(body: NotesIn):
         diagnoses, reasoning = pipeline.propose_diagnoses_with_rationale(
             body.notes, temperature=min(max(body.temperature, 0.1), 0.9))
     except Exception as e:  # demonstrator: pass any failure back to the page
-        raise HTTPException(502, f"MedGemma request failed: {e}")
+        raise model_unavailable(e) or HTTPException(502, f"MedGemma request failed: {e}")
     return {"diagnoses": diagnoses, "reasoning": reasoning}
 
 
@@ -66,8 +152,12 @@ def code(body: CodeIn):
     try:
         return pipeline.autocode(body.term)
     except Exception as e:  # demonstrator: pass any failure back to the page
-        raise HTTPException(502, f"Coding failed: {e}")
+        raise model_unavailable(e) or HTTPException(502, f"Coding failed: {e}")
 
+
+# Added last so it is the outermost layer: guard_api's refusals still carry CORS headers the page can read
+app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST"],
+                   allow_headers=["Content-Type"])
 
 # Mounted last so the /api routes above take precedence
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

@@ -3,6 +3,15 @@
 window.AC_CONFIG = {
   TX_BASE: 'https://r4.ontoserver.csiro.au/fhir',
 
+  // AutoCoder API: the Cloud Run service when hosted on GitHub Pages, otherwise
+  // the local server that also serves this page (see DEPLOY.md)
+  API_BASE: location.hostname.endsWith('github.io') ? 'https://autocoder-6515564380.us-central1.run.app' : '',
+
+  // MedGemma scales to zero when idle; retry while it wakes up
+  WAKE_RETRY_MS: 20000,
+  WAKE_GIVE_UP_MS: 15 * 60 * 1000,
+  STATUS_POLL_MS: 15000,  // how often the MedGemma state badge is refreshed
+
   // Plain FHIR value set (not ECL)
   GENDER_VS: 'http://hl7.org/fhir/ValueSet/administrative-gender',
 

@@ -24,6 +24,11 @@ MEDGEMMA_URL = (
     f"https://{DEDICATED_DNS}/v1/projects/{PROJECT_NUMBER}"
     f"/locations/{REGION}/endpoints/{ENDPOINT_ID}:predict"
 )
+# Endpoint details (not a prediction), used to see whether the model is running
+ENDPOINT_INFO_URL = (
+    f"https://{REGION}-aiplatform.googleapis.com/v1/projects/{PROJECT_NUMBER}"
+    f"/locations/{REGION}/endpoints/{ENDPOINT_ID}"
+)
 
 # --- Ontoserver ---
 ONTOSERVER_BASE = "https://r4.ontoserver.csiro.au/fhir"
@@ -94,6 +99,21 @@ def ask_medgemma(prompt, max_tokens=1024, answer_prefix="", warn_if_cut=True, te
     if "<unused95>" in content:
         content = content.split("<unused95>", 1)[1]
     return content.strip()
+
+
+def medgemma_replicas():
+    """Number of MedGemma replicas running (0 when scaled to zero), or None if no model is deployed.
+
+    Reads the endpoint's details, so it does not wake the model.
+    """
+    if not credentials.valid:
+        credentials.refresh(Request())
+    resp = requests.get(ENDPOINT_INFO_URL, headers={"Authorization": f"Bearer {credentials.token}"}, timeout=15)
+    resp.raise_for_status()
+    models = resp.json().get("deployedModels", [])
+    if not models:
+        return None
+    return models[0].get("status", {}).get("availableReplicaCount", 0)
 
 
 def parse_terms(text):
@@ -320,10 +340,10 @@ def search_icd(term):
 def lookup_icd_entity(uri):
     """Get the details of an ICD-11 MMS entity from its URI.
 
-    A search hit for a combined code (main entity plus extension) has an id like
-    '<stem uri> / <extension uri>'. Only the stem is a URI that can be fetched, so use that.
+    A hit for a combined code (main entity plus extension) has an id like '<stem uri> / <extension uri>'
+    or '<stem uri> & <extension uri>'. Only the stem is a URI that can be fetched, so use that.
     """
-    stem_uri = uri.split(" / ")[0].strip()
+    stem_uri = re.split(r"\s+[/&]\s+", uri)[0].strip()
     data = icd_get(stem_uri.replace("http://", "https://", 1))
     return {
         "code": data.get("code"),
