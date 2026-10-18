@@ -94,7 +94,7 @@ def model_unavailable(e):
     The endpoint scales to zero when idle: while it starts up it answers 429, and the page retries.
     """
     global _last_not_ready
-    if not isinstance(e, requests.HTTPError) or e.response is None or pipeline.MEDGEMMA_URL not in e.response.url:
+    if not isinstance(e, requests.HTTPError) or e.response is None or ".prediction.vertexai.goog" not in e.response.url:
         return None
     if e.response.status_code == 429:
         _last_not_ready = time.time()

@@ -18,17 +18,12 @@ from google.auth.transport.requests import Request
 ENDPOINT_ID = "mg-endpoint-0c12b6ca-97e1-40e9-86c1-9ea493e41b64"
 REGION = "us-central1"
 PROJECT_NUMBER = "6515564380"  # project that owns the endpoint (used in the URL path)
-DNS_PROJECT_NUMBER = "895839229031"  # differs: taken from the endpoint's dedicatedEndpointDns
-DEDICATED_DNS = f"{ENDPOINT_ID}.{REGION}-{DNS_PROJECT_NUMBER}.prediction.vertexai.goog"
-MEDGEMMA_URL = (
-    f"https://{DEDICATED_DNS}/v1/projects/{PROJECT_NUMBER}"
-    f"/locations/{REGION}/endpoints/{ENDPOINT_ID}:predict"
-)
-# Endpoint details (not a prediction), used to see whether the model is running
+# Endpoint details (not a prediction): the prediction host name and whether the model is running
 ENDPOINT_INFO_URL = (
     f"https://{REGION}-aiplatform.googleapis.com/v1/projects/{PROJECT_NUMBER}"
     f"/locations/{REGION}/endpoints/{ENDPOINT_ID}"
 )
+MEDGEMMA_URL = None  # set by medgemma_url() from the endpoint's dedicatedEndpointDns, which changes on redeploy
 
 # --- Ontoserver ---
 ONTOSERVER_BASE = "https://r4.ontoserver.csiro.au/fhir"
@@ -68,8 +63,6 @@ def ask_medgemma(prompt, max_tokens=1024, answer_prefix="", warn_if_cut=True, te
       1.0       the model's own distribution (Google's suggested setting for Gemma models).
       above 1.2 erratic and often wrong; avoid.
     """
-    if not credentials.valid:
-        credentials.refresh(Request())
     payload = {
         "instances": [{
             "@requestFormat": "chatCompletions",
@@ -85,12 +78,13 @@ def ask_medgemma(prompt, max_tokens=1024, answer_prefix="", warn_if_cut=True, te
             "temperature": temperature,
         }]
     }
-    resp = requests.post(
-        MEDGEMMA_URL,
-        headers={"Authorization": f"Bearer {credentials.token}"},
-        json=payload,
-        timeout=300,
-    )
+    global MEDGEMMA_URL
+    url = medgemma_url()
+    try:
+        resp = requests.post(url, headers={"Authorization": f"Bearer {auth_token()}"}, json=payload, timeout=300)
+    except requests.ConnectionError:
+        MEDGEMMA_URL = None  # the endpoint may have been redeployed under a new host name: look it up next time
+        raise
     resp.raise_for_status()
     choice = resp.json()["predictions"]["choices"][0]
     if warn_if_cut and choice.get("finish_reason") == "length":
@@ -101,16 +95,35 @@ def ask_medgemma(prompt, max_tokens=1024, answer_prefix="", warn_if_cut=True, te
     return content.strip()
 
 
+def auth_token():
+    """Google access token for Vertex AI (refreshed when it expires)."""
+    if not credentials.valid:
+        credentials.refresh(Request())
+    return credentials.token
+
+
+def endpoint_info():
+    """The endpoint's details from Vertex AI. Reading them does not wake the model."""
+    resp = requests.get(ENDPOINT_INFO_URL, headers={"Authorization": f"Bearer {auth_token()}"}, timeout=15)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def medgemma_url():
+    """MedGemma's prediction URL. The host name comes from the endpoint, since a redeploy can change it."""
+    global MEDGEMMA_URL
+    if not MEDGEMMA_URL:
+        dns = endpoint_info()["dedicatedEndpointDns"]
+        MEDGEMMA_URL = f"https://{dns}/v1/projects/{PROJECT_NUMBER}/locations/{REGION}/endpoints/{ENDPOINT_ID}:predict"
+    return MEDGEMMA_URL
+
+
 def medgemma_replicas():
     """Number of MedGemma replicas running (0 when scaled to zero), or None if no model is deployed.
 
     Reads the endpoint's details, so it does not wake the model.
     """
-    if not credentials.valid:
-        credentials.refresh(Request())
-    resp = requests.get(ENDPOINT_INFO_URL, headers={"Authorization": f"Bearer {credentials.token}"}, timeout=15)
-    resp.raise_for_status()
-    models = resp.json().get("deployedModels", [])
+    models = endpoint_info().get("deployedModels", [])
     if not models:
         return None
     return models[0].get("status", {}).get("availableReplicaCount", 0)
