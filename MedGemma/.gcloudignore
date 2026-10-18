@@ -1,0 +1,10 @@
+# Keep secrets and local files out of the Cloud Build upload
+.env
+.venv/
+__pycache__/
+*.pyc
+medgemma_results.json
+test_medgemma.py
+tests/
+requirements-dev.txt
+.pytest_cache/

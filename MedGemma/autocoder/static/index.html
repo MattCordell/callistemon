@@ -64,6 +64,13 @@
     .badge-auto{ background:var(--ok); color:#fff; }
     .badge-muted{ background:#e2e8f0; color:#475569; }
     .badge-agree{ background:#dbeafe; color:#1e40af; }
+    .mg-state{ display:inline-flex; align-items:center; gap:.35rem; font-size:.75rem; border:1px solid var(--line); border-radius:999px; padding:.1rem .6rem; background:#fff; }
+    .mg-state .dot{ width:.55rem; height:.55rem; border-radius:999px; background:#94a3b8; }
+    .mg-state[data-state="ready"] .dot{ background:var(--ok); }
+    .mg-state[data-state="waking"] .dot{ background:#d97706; animation:pulse 1.2s ease-in-out infinite; }
+    .mg-state[data-state="asleep"] .dot{ background:#64748b; }
+    .mg-state[data-state="offline"] .dot{ background:#b91c1c; }
+    @keyframes pulse{ 50%{ opacity:.3; } }
     @keyframes spin{ to{ transform:rotate(360deg); } }
   </style>
 </head>
@@ -75,7 +82,13 @@
         <div class="font-semibold leading-tight">AutoCoder</div>
         <div class="hint leading-tight">MedGemma diagnosis suggestion and SNOMED CT / ICD-11 coding</div>
       </div>
-      <span class="ml-auto text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-800">Demonstrator - not for clinical use</span>
+      <span id="mg-state" class="mg-state ml-auto" data-state="unknown" title="MedGemma sleeps when idle and wakes on the first request">
+        <span class="dot"></span>MedGemma: <b>Checking...</b>
+      </span>
+      <button id="mg-wake" class="btn btn-primary hidden" style="padding:.15rem .6rem; font-size:.72rem" title="Start MedGemma now, so it is ready by the time you need it">Wake up</button>
+      <span id="mg-wake-note" class="hint hidden"></span>
+      <span id="mg-wake-msg" class="hint err hidden"></span>
+      <span class="text-xs px-2 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-800">Demonstrator - not for clinical use</span>
     </div>
   </header>
 

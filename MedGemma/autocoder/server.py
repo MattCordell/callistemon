@@ -2,11 +2,18 @@
 
 Run from the MedGemma folder:
     .\\.venv\\Scripts\\python -m uvicorn autocoder.server:app --port 8000
+
+Hosted: the page is on GitHub Pages and this server runs on Cloud Run (see DEPLOY.md).
 """
 import sys
+import time
+from collections import defaultdict
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+import requests
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -15,7 +22,67 @@ import medgemma_pipeline as pipeline  # noqa: E402
 
 STATIC_DIR = Path(__file__).with_name("static")
 
+# Pages allowed to call the API from a browser. Not a security boundary (non-browser
+# clients can send any Origin); the rate limit below bounds what they can cost.
+ALLOWED_ORIGINS = ["https://mattcordell.github.io", "http://localhost:8000", "http://127.0.0.1:8000"]
+RATE_LIMIT_PER_HOUR = 30  # API calls per client IP; in memory, so Cloud Run runs at most 1 instance
+
 app = FastAPI(title="AutoCoder")
+
+_calls = defaultdict(list)  # client IP -> times of recent API calls
+SWEEP_EVERY = 600  # seconds between clean-ups of addresses with no recent calls
+_last_sweep = 0.0
+
+
+def client_ip(request):
+    """The caller's address. Cloud Run appends it to any X-Forwarded-For the client sent, so use the last entry
+    (the earlier ones can be faked). If a load balancer is put in front, use the second-to-last instead."""
+    forwarded = request.headers.get("x-forwarded-for")
+    return forwarded.split(",")[-1].strip() if forwarded else request.client.host
+
+
+def recent_times(store, key, window, now):
+    """Times in store[key] within the window, pruned in place. Each list is changed in place, never replaced,
+    so requests running at the same time all see and add to the same list."""
+    times = store[key]
+    times[:] = [t for t in times if now - t < window]
+    return times
+
+
+def sweep(now):
+    """Forget addresses with no calls in the last day, so memory doesn't grow with every new caller."""
+    global _last_sweep
+    if now - _last_sweep < SWEEP_EVERY:
+        return
+    _last_sweep = now
+    for store, window in ((_calls, 3600), (_wakes, 86400)):
+        for key in [k for k, times in store.items() if not any(now - t < window for t in times)]:
+            del store[key]
+
+
+@app.middleware("http")
+async def guard_api(request: Request, call_next):
+    """Origin check and per-IP hourly limit on the API calls that reach MedGemma.
+
+    /api/wake has its own daily limits (see wake), so it isn't counted here.
+    """
+    if request.method == "POST" and request.url.path.startswith("/api/"):
+        origin = request.headers.get("origin")
+        if origin and origin not in ALLOWED_ORIGINS:
+            return JSONResponse({"detail": "This page is not allowed to use the AutoCoder API."}, 403)
+        if request.url.path == "/api/wake":
+            return await call_next(request)
+        now = time.time()
+        sweep(now)
+        calls = recent_times(_calls, client_ip(request), 3600, now)
+        if len(calls) >= RATE_LIMIT_PER_HOUR:
+            return JSONResponse({"detail": "Too many requests from your address. Try again in an hour."}, 429)
+        calls.append(now)  # recorded before the call runs, so a burst of parallel requests can't all get through
+        response = await call_next(request)
+        if response.status_code == 503 and now in calls:  # "waking up" replies are retried by the page: don't count
+            calls.remove(now)
+        return response
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -40,9 +107,109 @@ class CodeIn(BaseModel):
     term: str
 
 
+WAKES_PER_IP_PER_DAY = 5  # "Wake up" button presses that start a wake-up; in memory, like the hourly limit
+WAKES_PER_DAY = 20  # all callers together: a ceiling on GPU time from the button (each wake-up is >= 30 min)
+_wakes = defaultdict(list)  # client IP -> times this caller started a wake-up
+WAKING_FOR = 20 * 60  # seconds after a "not ready" reply during which a sleeping model counts as waking
+STATUS_CACHE_FOR = 10  # seconds; many open pages share one endpoint lookup
+_last_not_ready = 0.0  # when MedGemma last answered "not ready" (a wake-up is under way)
+_wake_started = 0.0  # when the current wake-up began (retries during it don't move this)
+_last_answer = 0.0  # when MedGemma last answered; Vertex's replica count lags behind a fresh wake-up
+ANSWERED_FOR = 120  # seconds after an answer during which the model counts as ready whatever the count says
+_status_cache = {"at": 0.0, "body": None}
+
+
+def mark_waking():
+    """Record a "not ready" reply from MedGemma; the first in a while starts a new wake-up."""
+    global _last_not_ready, _wake_started
+    now = time.time()
+    if now - _last_not_ready >= WAKING_FOR:
+        _wake_started = now
+    _last_not_ready = now
+    _status_cache["at"] = 0.0  # show "Waking" straight away
+
+
+def model_unavailable(e):
+    """Turn MedGemma endpoint states into messages the page can act on, or None for other errors.
+
+    The endpoint scales to zero when idle: while it starts up it answers 429, and the page retries.
+    """
+    if not isinstance(e, requests.HTTPError) or e.response is None or ".prediction.vertexai.goog" not in e.response.url:
+        return None
+    if e.response.status_code == 429:
+        mark_waking()
+        return HTTPException(503, {"warming": True,
+                                   "message": "MedGemma is waking up. This can take a few minutes."})
+    if e.response.status_code == 404:
+        return HTTPException(503, "MedGemma is offline at the moment. It runs during demo sessions only.")
+    return None
+
+
+def model_answered():
+    """Record a MedGemma answer, so the badge shows Ready straight away."""
+    global _last_answer, _last_not_ready
+    _last_answer = time.time()
+    _last_not_ready = 0.0
+    _status_cache["at"] = 0.0
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "icd_release": pipeline.ICD_RELEASE}
+
+
+@app.get("/api/status")
+def status():
+    """MedGemma state for the page's badge: ready, waking, asleep, offline or unknown. Does not wake it."""
+    now = time.time()
+    if now - _status_cache["at"] < STATUS_CACHE_FOR:
+        return _status_cache["body"]
+    try:
+        replicas = pipeline.medgemma_replicas()
+    except Exception as e:  # demonstrator: report the lookup failure rather than break the page
+        print(f"[Warning: could not read MedGemma status: {e}]")
+        replicas = "unknown"
+    if replicas == "unknown":
+        state = "unknown"
+    elif replicas is None:
+        state = "offline"
+    elif replicas > 0 or now - _last_answer < ANSWERED_FOR:
+        state = "ready"
+    else:
+        state = "waking" if now - _last_not_ready < WAKING_FOR else "asleep"
+    body = {"state": state}
+    if state == "waking":
+        body["waking_for"] = round(now - _wake_started)  # seconds; the page counts down from its expected wake time
+    _status_cache.update(at=now, body=body)
+    return body
+
+
+@app.post("/api/wake")
+def wake(request: Request):
+    """Start MedGemma waking up, for the page's "Wake up" button. Only a real wake-up counts towards the limits."""
+    _status_cache["at"] = 0.0
+    if status()["state"] != "asleep":
+        return status()  # already waking, ready or offline: nothing to do
+    now = time.time()
+    sweep(now)
+    ip = client_ip(request)
+    mine = [t for t in _wakes.get(ip, []) if now - t < 86400]
+    everyone = sum(1 for times in _wakes.values() for t in times if now - t < 86400)
+    if len(mine) >= WAKES_PER_IP_PER_DAY:
+        raise HTTPException(429, f"You can wake MedGemma {WAKES_PER_IP_PER_DAY} times a day. Try again tomorrow.")
+    if everyone >= WAKES_PER_DAY:
+        raise HTTPException(429, "MedGemma has been woken too often today. Try again tomorrow.")
+    try:
+        pipeline.ask_medgemma("Hi", max_tokens=1, warn_if_cut=False)  # while asleep this is refused, which starts the wake-up
+    except Exception as e:  # demonstrator: pass any failure back to the page
+        if not (isinstance(e, requests.HTTPError) and e.response is not None and e.response.status_code == 429):
+            raise model_unavailable(e) or HTTPException(502, f"Could not wake MedGemma: {e}")
+    else:
+        model_answered()  # it was already up and the replica count was lagging: not a wake-up, so not counted
+        return status()
+    _wakes[ip] = mine + [now]
+    mark_waking()
+    return status()
 
 
 @app.post("/api/diagnose")
@@ -54,7 +221,8 @@ def diagnose(body: NotesIn):
         diagnoses, reasoning = pipeline.propose_diagnoses_with_rationale(
             body.notes, temperature=min(max(body.temperature, 0.1), 0.9))
     except Exception as e:  # demonstrator: pass any failure back to the page
-        raise HTTPException(502, f"MedGemma request failed: {e}")
+        raise model_unavailable(e) or HTTPException(502, f"MedGemma request failed: {e}")
+    model_answered()
     return {"diagnoses": diagnoses, "reasoning": reasoning}
 
 
@@ -64,10 +232,16 @@ def code(body: CodeIn):
     if not body.term.strip():
         raise HTTPException(400, "No diagnosis to code.")
     try:
-        return pipeline.autocode(body.term)
+        result = pipeline.autocode(body.term)
     except Exception as e:  # demonstrator: pass any failure back to the page
-        raise HTTPException(502, f"Coding failed: {e}")
+        raise model_unavailable(e) or HTTPException(502, f"Coding failed: {e}")
+    model_answered()
+    return result
 
+
+# Added last so it is the outermost layer: guard_api's refusals still carry CORS headers the page can read
+app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST"],
+                   allow_headers=["Content-Type"])
 
 # Mounted last so the /api routes above take precedence
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
