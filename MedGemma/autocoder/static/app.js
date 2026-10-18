@@ -562,35 +562,97 @@
     });
   }
 
-  // ---------- Sample case (from test_medgemma.py) ----------
+  // ---------- Sample cases ----------
+  // Terms are search text; each resolves to the first match from the field's value set.
+  // The first case comes from test_medgemma.py.
+
+  const SAMPLE_CASES = [
+    {
+      label: 'Anxiety after cocaine use (M, 28)',
+      gender: 'male', age: '28', reason: 'anxiety',
+      clinical: ['cocaine abuse', 'tachycardia', 'hypertension'],
+      meds: ['ibuprofen 200 mg tablet'],
+      notes: 'urine toxicology results negative',
+    },
+    {
+      label: 'Chest pain with sweating (F, 67)',
+      gender: 'female', age: '67', reason: 'chest pain',
+      clinical: ['type 2 diabetes', 'hypercholesterolaemia', 'sweating', 'nausea'],
+      meds: ['metformin 500 mg tablet', 'atorvastatin 40 mg tablet'],
+      notes: 'pain spreads to the left arm, started 1 hour ago at rest',
+    },
+    {
+      label: 'Wheeze and cough in a child (F, 6)',
+      gender: 'female', age: '6', reason: 'wheezing',
+      clinical: ['cough', 'fever', 'asthma'],
+      meds: ['salbutamol 100 microgram inhalation'],
+      notes: 'worse at night, started after a cold 3 days ago',
+    },
+    {
+      label: 'Breathless with swollen legs (M, 78)',
+      gender: 'male', age: '78', reason: 'shortness of breath',
+      clinical: ['heart failure', 'atrial fibrillation', 'peripheral oedema'],
+      meds: ['furosemide 40 mg tablet', 'apixaban 5 mg tablet'],
+      notes: 'weight up 3 kg in one week',
+    },
+    {
+      label: 'Lower abdominal pain and bleeding (F, 26)',
+      gender: 'female', age: '26', reason: 'lower abdominal pain',
+      clinical: ['vaginal bleeding', 'nausea', 'dizziness'],
+      meds: [],
+      notes: 'last menstrual period 7 weeks ago',
+    },
+    {
+      label: 'Severe headache with blurred vision (M, 54)',
+      gender: 'male', age: '54', reason: 'headache',
+      clinical: ['hypertension', 'blurred vision', 'vomiting'],
+      meds: ['amlodipine 5 mg tablet'],
+      notes: 'blood pressure 220/130 mmHg, stopped taking medicines 2 weeks ago',
+    },
+  ];
 
   async function firstMatch(vsUrl, text) {
     const items = await expand(vsUrl, text);
     return items.length ? pickItem(items[0]) : null;
   }
 
-  async function loadSample() {
-    const btn = $('load-sample');
-    btn.textContent = 'Loading...';
+  async function loadSample(sc) {
+    const sel = $('load-sample');
+    sel.disabled = true;
+    sel.options[0].textContent = 'Loading...';
+    sel.value = '';
     try {
-      $('gender').value = 'male';
-      state.gender = genderOptions.find((g) => g.code === 'male');
-      $('age').value = state.age = '28';
-      const [reason, hist, med, ex1, ex2] = await Promise.all([
-        firstMatch(eclUrl(C.ECL.reason), 'anxiety'),
-        firstMatch(eclUrl(C.ECL.clinical), 'cocaine abuse'),
-        firstMatch(eclUrl(C.ECL.meds), 'ibuprofen 200 mg tablet'),
-        firstMatch(eclUrl(C.ECL.clinical), 'tachycardia'),
-        firstMatch(eclUrl(C.ECL.clinical), 'hypertension'),
+      $('gender').value = sc.gender;
+      state.gender = genderOptions.find((g) => g.code === sc.gender) || null;
+      $('age').value = state.age = sc.age;
+      const [reason, clinical, meds] = await Promise.all([
+        firstMatch(eclUrl(C.ECL.reason), sc.reason),
+        Promise.all(sc.clinical.map((t) => firstMatch(eclUrl(C.ECL.clinical), t))),
+        Promise.all(sc.meds.map((t) => firstMatch(eclUrl(C.ECL.meds), t))),
       ]);
       state.reason = reason;
-      state.meds = med ? [med] : [];
-      state.clinical = [hist, ex1, ex2].filter(Boolean);
-      notesFields.clinical.set('urine toxicology results negative');  // free text, as in the script
+      state.clinical = clinical.filter(Boolean);
+      state.meds = meds.filter(Boolean);
+      notesFields.clinical.set(sc.notes);
       changed();
     } finally {
-      btn.textContent = 'Load sample case';
+      sel.options[0].textContent = 'Load sample case...';
+      sel.disabled = false;
     }
+  }
+
+  function setupSamples() {
+    const sel = $('load-sample');
+    SAMPLE_CASES.forEach((sc, i) => {
+      const o = document.createElement('option');
+      o.value = String(i);
+      o.textContent = sc.label;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', () => {
+      const sc = SAMPLE_CASES[sel.value];
+      if (sc) loadSample(sc);
+    });
   }
 
   // ---------- Wiring ----------
@@ -612,7 +674,7 @@
     setupTypeahead('reason-search', eclUrl(C.ECL.reason), (it) => { state.reason = it; changed(); });
     setupTypeahead('meds-search', eclUrl(C.ECL.meds), (it) => { addUnique(state.meds, it); changed(); });
     notesFields.clinical = setupNotesField('clinical', eclUrl(C.ECL.clinical));
-    $('load-sample').onclick = loadSample;
+    setupSamples();
     $('dx-run').onclick = suggestDiagnoses;
     $('dx-endorse').onclick = codeDiagnosis;
     render();

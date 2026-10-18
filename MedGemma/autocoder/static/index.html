@@ -100,7 +100,9 @@
         <span class="step">1</span>
         <h2 class="font-semibold">Patient details</h2>
         <span class="hint ml-2 hidden xl:inline">Selected terms build the clinical record sent to MedGemma</span>
-        <button type="button" id="load-sample" class="ml-auto text-xs text-blue-700 hover:underline">Load sample case</button>
+        <select id="load-sample" class="ml-auto text-xs text-blue-700 bg-transparent border border-blue-200 rounded px-1 py-0.5 cursor-pointer" autocomplete="off" title="Fill in the patient details with an example case">
+          <option value="">Load sample case...</option>
+        </select>
       </div>
       <div class="p-3 space-y-3">
         <div class="space-y-2.5">
