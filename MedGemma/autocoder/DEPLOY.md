@@ -74,3 +74,11 @@ gcloud ai endpoints undeploy-model mg-endpoint-0c12b6ca-97e1-40e9-86c1-9ea493e41
 ```
 
 Long-term hosting options for the model are in issue #31.
+
+## Tests
+
+The tests cover the abuse limits, the MedGemma states and the wake button. Google auth and every outside call are mocked, so they need no network and never wake MedGemma.
+
+```powershell
+cd MedGemma; .\.venv\Scripts\python -m pip install -r requirements-dev.txt; .\.venv\Scripts\python -m pytest tests
+```

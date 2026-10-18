@@ -1,0 +1,4 @@
+# For running the tests: .\.venv\Scripts\python -m pytest tests
+-r requirements.txt
+pytest
+httpx

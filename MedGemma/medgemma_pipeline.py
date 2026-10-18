@@ -85,6 +85,8 @@ def ask_medgemma(prompt, max_tokens=1024, answer_prefix="", warn_if_cut=True, te
     except requests.ConnectionError:
         MEDGEMMA_URL = None  # the endpoint may have been redeployed under a new host name: look it up next time
         raise
+    if resp.status_code == 404:
+        MEDGEMMA_URL = None  # undeployed, or redeployed under a new host while the old one still resolves
     resp.raise_for_status()
     choice = resp.json()["predictions"]["choices"][0]
     if warn_if_cut and choice.get("finish_reason") == "length":

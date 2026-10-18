@@ -30,29 +30,57 @@ RATE_LIMIT_PER_HOUR = 30  # API calls per client IP; in memory, so Cloud Run run
 app = FastAPI(title="AutoCoder")
 
 _calls = defaultdict(list)  # client IP -> times of recent API calls
+SWEEP_EVERY = 600  # seconds between clean-ups of addresses with no recent calls
+_last_sweep = 0.0
 
 
 def client_ip(request):
-    """Cloud Run puts the caller's address first in X-Forwarded-For."""
+    """The caller's address. Cloud Run appends it to any X-Forwarded-For the client sent, so use the last entry
+    (the earlier ones can be faked). If a load balancer is put in front, use the second-to-last instead."""
     forwarded = request.headers.get("x-forwarded-for")
-    return forwarded.split(",")[0].strip() if forwarded else request.client.host
+    return forwarded.split(",")[-1].strip() if forwarded else request.client.host
+
+
+def recent_times(store, key, window, now):
+    """Times in store[key] within the window, pruned in place. Each list is changed in place, never replaced,
+    so requests running at the same time all see and add to the same list."""
+    times = store[key]
+    times[:] = [t for t in times if now - t < window]
+    return times
+
+
+def sweep(now):
+    """Forget addresses with no calls in the last day, so memory doesn't grow with every new caller."""
+    global _last_sweep
+    if now - _last_sweep < SWEEP_EVERY:
+        return
+    _last_sweep = now
+    for store, window in ((_calls, 3600), (_wakes, 86400)):
+        for key in [k for k, times in store.items() if not any(now - t < window for t in times)]:
+            del store[key]
 
 
 @app.middleware("http")
 async def guard_api(request: Request, call_next):
-    """Origin check and per-IP hourly limit on the API calls that reach MedGemma."""
+    """Origin check and per-IP hourly limit on the API calls that reach MedGemma.
+
+    /api/wake has its own daily limits (see wake), so it isn't counted here.
+    """
     if request.method == "POST" and request.url.path.startswith("/api/"):
         origin = request.headers.get("origin")
         if origin and origin not in ALLOWED_ORIGINS:
             return JSONResponse({"detail": "This page is not allowed to use the AutoCoder API."}, 403)
+        if request.url.path == "/api/wake":
+            return await call_next(request)
         now = time.time()
-        recent = [t for t in _calls[client_ip(request)] if now - t < 3600]
-        if len(recent) >= RATE_LIMIT_PER_HOUR:
+        sweep(now)
+        calls = recent_times(_calls, client_ip(request), 3600, now)
+        if len(calls) >= RATE_LIMIT_PER_HOUR:
             return JSONResponse({"detail": "Too many requests from your address. Try again in an hour."}, 429)
+        calls.append(now)  # recorded before the call runs, so a burst of parallel requests can't all get through
         response = await call_next(request)
-        if response.status_code != 503:  # "waking up" replies are retried by the page, so they don't count
-            recent.append(now)
-        _calls[client_ip(request)] = recent
+        if response.status_code == 503 and now in calls:  # "waking up" replies are retried by the page: don't count
+            calls.remove(now)
         return response
     return await call_next(request)
 
@@ -163,18 +191,22 @@ def wake(request: Request):
     if status()["state"] != "asleep":
         return status()  # already waking, ready or offline: nothing to do
     now = time.time()
+    sweep(now)
     ip = client_ip(request)
-    mine = [t for t in _wakes[ip] if now - t < 86400]
-    everyone = [t for times in _wakes.values() for t in times if now - t < 86400]
+    mine = [t for t in _wakes.get(ip, []) if now - t < 86400]
+    everyone = sum(1 for times in _wakes.values() for t in times if now - t < 86400)
     if len(mine) >= WAKES_PER_IP_PER_DAY:
         raise HTTPException(429, f"You can wake MedGemma {WAKES_PER_IP_PER_DAY} times a day. Try again tomorrow.")
-    if len(everyone) >= WAKES_PER_DAY:
+    if everyone >= WAKES_PER_DAY:
         raise HTTPException(429, "MedGemma has been woken too often today. Try again tomorrow.")
     try:
         pipeline.ask_medgemma("Hi", max_tokens=1, warn_if_cut=False)  # while asleep this is refused, which starts the wake-up
-    except requests.HTTPError as e:
-        if e.response is None or e.response.status_code != 429:
-            raise HTTPException(502, f"Could not wake MedGemma: {e}")
+    except Exception as e:  # demonstrator: pass any failure back to the page
+        if not (isinstance(e, requests.HTTPError) and e.response is not None and e.response.status_code == 429):
+            raise model_unavailable(e) or HTTPException(502, f"Could not wake MedGemma: {e}")
+    else:
+        model_answered()  # it was already up and the replica count was lagging: not a wake-up, so not counted
+        return status()
     _wakes[ip] = mine + [now]
     mark_waking()
     return status()

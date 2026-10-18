@@ -5,3 +5,6 @@ __pycache__/
 *.pyc
 medgemma_results.json
 test_medgemma.py
+tests/
+requirements-dev.txt
+.pytest_cache/
