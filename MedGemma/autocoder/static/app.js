@@ -481,6 +481,25 @@
     badge.dataset.state = state;
     badge.querySelector('b').textContent = MG_LABELS[state] || state;
     badge.title = MG_TIPS[state] || '';
+    $('mg-wake').classList.toggle('hidden', state !== 'asleep');
+  }
+
+  async function wakeMedGemma() {
+    const btn = $('mg-wake');
+    const msg = $('mg-wake-msg');
+    btn.disabled = true;
+    msg.classList.add('hidden');
+    try {
+      const r = await fetch(C.API_BASE + '/api/wake', { method: 'POST' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((typeof j.detail === 'string' && j.detail) || 'Server returned ' + r.status);
+      showMgState(j.state);
+    } catch (e) {
+      msg.textContent = e.message;
+      msg.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   // Polls the server, which reads the endpoint's replica count: checking does not wake MedGemma
@@ -573,6 +592,7 @@
     $('dx-endorse').onclick = codeDiagnosis;
     render();
     resetDiagnoses();
+    $('mg-wake').onclick = wakeMedGemma;
     checkMgState();
     setInterval(checkMgState, C.STATUS_POLL_MS);
     document.addEventListener('visibilitychange', checkMgState);

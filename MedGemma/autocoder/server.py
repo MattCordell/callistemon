@@ -79,6 +79,9 @@ class CodeIn(BaseModel):
     term: str
 
 
+WAKES_PER_IP_PER_DAY = 5  # "Wake up" button presses that start a wake-up; in memory, like the hourly limit
+WAKES_PER_DAY = 20  # all callers together: a ceiling on GPU time from the button (each wake-up is >= 30 min)
+_wakes = defaultdict(list)  # client IP -> times this caller started a wake-up
 WAKING_FOR = 20 * 60  # seconds after a "not ready" reply during which a sleeping model counts as waking
 STATUS_CACHE_FOR = 10  # seconds; many open pages share one endpoint lookup
 _last_not_ready = 0.0  # when MedGemma last answered "not ready" (a wake-up is under way)
@@ -129,6 +132,32 @@ def status():
         state = "waking" if now - _last_not_ready < WAKING_FOR else "asleep"
     _status_cache.update(at=now, body={"state": state})
     return _status_cache["body"]
+
+
+@app.post("/api/wake")
+def wake(request: Request):
+    """Start MedGemma waking up, for the page's "Wake up" button. Only a real wake-up counts towards the limits."""
+    global _last_not_ready
+    _status_cache["at"] = 0.0
+    if status()["state"] != "asleep":
+        return status()  # already waking, ready or offline: nothing to do
+    now = time.time()
+    ip = client_ip(request)
+    mine = [t for t in _wakes[ip] if now - t < 86400]
+    everyone = [t for times in _wakes.values() for t in times if now - t < 86400]
+    if len(mine) >= WAKES_PER_IP_PER_DAY:
+        raise HTTPException(429, f"You can wake MedGemma {WAKES_PER_IP_PER_DAY} times a day. Try again tomorrow.")
+    if len(everyone) >= WAKES_PER_DAY:
+        raise HTTPException(429, "MedGemma has been woken too often today. Try again tomorrow.")
+    try:
+        pipeline.ask_medgemma("Hi", max_tokens=1, warn_if_cut=False)  # while asleep this is refused, which starts the wake-up
+    except requests.HTTPError as e:
+        if e.response is None or e.response.status_code != 429:
+            raise HTTPException(502, f"Could not wake MedGemma: {e}")
+    _wakes[ip] = mine + [now]
+    _last_not_ready = now
+    _status_cache["at"] = 0.0
+    return status()
 
 
 @app.post("/api/diagnose")
