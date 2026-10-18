@@ -46,7 +46,8 @@ The endpoint uses Vertex AI scale-to-zero, which is a Preview feature.
 - Once it's up, it stays up for at least 30 minutes (`--min-scaleup-period 1800`). It then scales down after 30 minutes with no requests (`--idle-scaledown-period 1800`).
 - The badge in the page header (Asleep, Waking, Ready, Offline) comes from `/api/status`. That route reads the endpoint's replica count, so checking doesn't wake the model. "Waking" means no replica yet, but a request got a "not ready" reply in the last 20 minutes.
 - While the badge says Asleep, a "Wake up" button shows next to it. It calls `/api/wake`, which sends MedGemma one tiny request to start the wake-up. It's limited to 5 wake-ups per IP address a day, and 20 a day for everyone combined. Presses while the model is already waking or ready don't count. Like the hourly limit, these counts are kept in memory and reset when Cloud Run restarts the server.
-- Cold start: COLD_START_TIME. For comparison, a full deploy of the model took about 9.5 minutes.
+- Cold start: **about 4.5 minutes** from the first request to a real answer (279 s, measured 18 Oct 2026). For comparison, a full deploy of the model took about 9.5 minutes.
+- The prediction host name (`dedicatedEndpointDns`) changes when the model is redeployed. `medgemma_pipeline.py` reads it from the endpoint, so nothing needs changing after a redeploy.
 - Each wake-up costs at least 30 minutes of GPU time (g4-standard-48 with 1x RTX PRO 6000). The Origin check and the 30-requests-an-hour limit per address in `server.py` limit stray wake-ups.
 
 Things to know:

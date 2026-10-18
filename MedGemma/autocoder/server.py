@@ -85,6 +85,8 @@ _wakes = defaultdict(list)  # client IP -> times this caller started a wake-up
 WAKING_FOR = 20 * 60  # seconds after a "not ready" reply during which a sleeping model counts as waking
 STATUS_CACHE_FOR = 10  # seconds; many open pages share one endpoint lookup
 _last_not_ready = 0.0  # when MedGemma last answered "not ready" (a wake-up is under way)
+_last_answer = 0.0  # when MedGemma last answered; Vertex's replica count lags behind a fresh wake-up
+ANSWERED_FOR = 120  # seconds after an answer during which the model counts as ready whatever the count says
 _status_cache = {"at": 0.0, "body": None}
 
 
@@ -104,6 +106,14 @@ def model_unavailable(e):
     if e.response.status_code == 404:
         return HTTPException(503, "MedGemma is offline at the moment. It runs during demo sessions only.")
     return None
+
+
+def model_answered():
+    """Record a MedGemma answer, so the badge shows Ready straight away."""
+    global _last_answer, _last_not_ready
+    _last_answer = time.time()
+    _last_not_ready = 0.0
+    _status_cache["at"] = 0.0
 
 
 @app.get("/api/health")
@@ -126,7 +136,7 @@ def status():
         state = "unknown"
     elif replicas is None:
         state = "offline"
-    elif replicas > 0:
+    elif replicas > 0 or now - _last_answer < ANSWERED_FOR:
         state = "ready"
     else:
         state = "waking" if now - _last_not_ready < WAKING_FOR else "asleep"
@@ -170,6 +180,7 @@ def diagnose(body: NotesIn):
             body.notes, temperature=min(max(body.temperature, 0.1), 0.9))
     except Exception as e:  # demonstrator: pass any failure back to the page
         raise model_unavailable(e) or HTTPException(502, f"MedGemma request failed: {e}")
+    model_answered()
     return {"diagnoses": diagnoses, "reasoning": reasoning}
 
 
@@ -179,9 +190,11 @@ def code(body: CodeIn):
     if not body.term.strip():
         raise HTTPException(400, "No diagnosis to code.")
     try:
-        return pipeline.autocode(body.term)
+        result = pipeline.autocode(body.term)
     except Exception as e:  # demonstrator: pass any failure back to the page
         raise model_unavailable(e) or HTTPException(502, f"Coding failed: {e}")
+    model_answered()
+    return result
 
 
 # Added last so it is the outermost layer: guard_api's refusals still carry CORS headers the page can read
