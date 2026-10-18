@@ -85,9 +85,20 @@ _wakes = defaultdict(list)  # client IP -> times this caller started a wake-up
 WAKING_FOR = 20 * 60  # seconds after a "not ready" reply during which a sleeping model counts as waking
 STATUS_CACHE_FOR = 10  # seconds; many open pages share one endpoint lookup
 _last_not_ready = 0.0  # when MedGemma last answered "not ready" (a wake-up is under way)
+_wake_started = 0.0  # when the current wake-up began (retries during it don't move this)
 _last_answer = 0.0  # when MedGemma last answered; Vertex's replica count lags behind a fresh wake-up
 ANSWERED_FOR = 120  # seconds after an answer during which the model counts as ready whatever the count says
 _status_cache = {"at": 0.0, "body": None}
+
+
+def mark_waking():
+    """Record a "not ready" reply from MedGemma; the first in a while starts a new wake-up."""
+    global _last_not_ready, _wake_started
+    now = time.time()
+    if now - _last_not_ready >= WAKING_FOR:
+        _wake_started = now
+    _last_not_ready = now
+    _status_cache["at"] = 0.0  # show "Waking" straight away
 
 
 def model_unavailable(e):
@@ -95,12 +106,10 @@ def model_unavailable(e):
 
     The endpoint scales to zero when idle: while it starts up it answers 429, and the page retries.
     """
-    global _last_not_ready
     if not isinstance(e, requests.HTTPError) or e.response is None or ".prediction.vertexai.goog" not in e.response.url:
         return None
     if e.response.status_code == 429:
-        _last_not_ready = time.time()
-        _status_cache["at"] = 0.0  # show "Waking" straight away
+        mark_waking()
         return HTTPException(503, {"warming": True,
                                    "message": "MedGemma is waking up. This can take a few minutes."})
     if e.response.status_code == 404:
@@ -140,14 +149,16 @@ def status():
         state = "ready"
     else:
         state = "waking" if now - _last_not_ready < WAKING_FOR else "asleep"
-    _status_cache.update(at=now, body={"state": state})
-    return _status_cache["body"]
+    body = {"state": state}
+    if state == "waking":
+        body["waking_for"] = round(now - _wake_started)  # seconds; the page counts down from its expected wake time
+    _status_cache.update(at=now, body=body)
+    return body
 
 
 @app.post("/api/wake")
 def wake(request: Request):
     """Start MedGemma waking up, for the page's "Wake up" button. Only a real wake-up counts towards the limits."""
-    global _last_not_ready
     _status_cache["at"] = 0.0
     if status()["state"] != "asleep":
         return status()  # already waking, ready or offline: nothing to do
@@ -165,8 +176,7 @@ def wake(request: Request):
         if e.response is None or e.response.status_code != 429:
             raise HTTPException(502, f"Could not wake MedGemma: {e}")
     _wakes[ip] = mine + [now]
-    _last_not_ready = now
-    _status_cache["at"] = 0.0
+    mark_waking()
     return status()
 
 

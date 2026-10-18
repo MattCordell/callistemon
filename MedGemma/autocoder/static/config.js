@@ -11,6 +11,7 @@ window.AC_CONFIG = {
   WAKE_RETRY_MS: 20000,
   WAKE_GIVE_UP_MS: 15 * 60 * 1000,
   STATUS_POLL_MS: 15000,  // how often the MedGemma state badge is refreshed
+  WAKE_EXPECTED_S: 300,   // typical wake-up time (measured about 4.5 min); the countdown starts here
 
   // Plain FHIR value set (not ECL)
   GENDER_VS: 'http://hl7.org/fhir/ValueSet/administrative-gender',

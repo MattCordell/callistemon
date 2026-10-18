@@ -476,12 +476,36 @@
     unknown: 'Could not check MedGemma.',
   };
 
-  function showMgState(state) {
+  let wakeStartedAt = 0;  // Date.now() when the current wake-up began, from the server's waking_for
+  let countdownTimer = 0;
+
+  // Asleep: "Takes about 5 min" beside the button. Waking: a countdown that stops at "Any moment now".
+  function renderWakeNote() {
+    const note = $('mg-wake-note');
+    const state = $('mg-state').dataset.state;
+    if (state === 'asleep') {
+      note.textContent = 'Takes about ' + Math.round(C.WAKE_EXPECTED_S / 60) + ' min';
+    } else if (state === 'waking' && wakeStartedAt) {
+      const left = Math.round(C.WAKE_EXPECTED_S - (Date.now() - wakeStartedAt) / 1000);
+      note.textContent = left > 0
+        ? 'About ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0') + ' left'
+        : 'Any moment now...';
+    } else {
+      note.textContent = '';
+    }
+    note.classList.toggle('hidden', !note.textContent);
+  }
+
+  function showMgState(state, wakingFor) {
     const badge = $('mg-state');
     badge.dataset.state = state;
     badge.querySelector('b').textContent = MG_LABELS[state] || state;
     badge.title = MG_TIPS[state] || '';
     $('mg-wake').classList.toggle('hidden', state !== 'asleep');
+    wakeStartedAt = state === 'waking' && wakingFor != null ? Date.now() - wakingFor * 1000 : 0;
+    clearInterval(countdownTimer);
+    if (wakeStartedAt) countdownTimer = setInterval(renderWakeNote, 1000);
+    renderWakeNote();
   }
 
   async function wakeMedGemma() {
@@ -493,7 +517,7 @@
       const r = await fetch(C.API_BASE + '/api/wake', { method: 'POST' });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error((typeof j.detail === 'string' && j.detail) || 'Server returned ' + r.status);
-      showMgState(j.state);
+      showMgState(j.state, j.waking_for);
     } catch (e) {
       msg.textContent = e.message;
       msg.classList.remove('hidden');
@@ -507,7 +531,8 @@
     if (document.hidden) return;
     try {
       const r = await fetch(C.API_BASE + '/api/status');
-      showMgState(r.ok ? (await r.json()).state : 'unknown');
+      const j = r.ok ? await r.json() : { state: 'unknown' };
+      showMgState(j.state, j.waking_for);
     } catch (e) {
       showMgState('unknown');
     }
