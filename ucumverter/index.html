@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UCUMverter - UCUM unit conversion demo</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <!-- NLM UCUM library; exposes the global ucumPkg -->
+  <script src="https://cdn.jsdelivr.net/npm/@lhncbc/ucum-lhc@7.1.10/browser-dist/ucum-lhc.min.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <h1>UCUMverter</h1>
+        <p class="tagline">Change any unit. The dose stays the same. A demonstration of UCUM unit conversion with LOINC results and AMT medicines.</p>
+      </div>
+      <div class="header-links">
+        <a href="../">&larr; Callistemon home</a>
+        <a href="https://github.com/MattCordell/callistemon/issues" target="_blank" rel="noopener">Support / Feedback</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="disclaimer" role="note">
+    <strong>Demonstration only. Not for clinical use.</strong>
+    Guideline values are illustrative drafts and the dose model is deliberately simplified.
+  </div>
+
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+
+  <main class="wrap">
+    <!-- ============ PATIENT ============ -->
+    <section class="panel" aria-labelledby="h-patient">
+      <div class="panel-head">
+        <h2 id="h-patient">Patient</h2>
+        <div class="btn-row">
+          <button class="btn" id="btn-random">Random patient</button>
+          <button class="btn btn-accent" id="btn-shuffle" title="Pick a random unit for every field">Shuffle units</button>
+        </div>
+      </div>
+      <div class="grid-fields">
+        <label class="field">
+          <span>Age (years)</span>
+          <input type="number" id="age" min="18" max="120" step="1" inputmode="numeric">
+        </label>
+        <label class="field">
+          <span>Sex</span>
+          <select id="sex">
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+          </select>
+        </label>
+        <div class="field">
+          <label for="weight">Weight</label>
+          <div class="qty">
+            <input type="number" id="weight" step="any" min="0" inputmode="decimal">
+            <select id="weight-unit" aria-label="Weight unit"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="height">Height</label>
+          <div class="qty">
+            <input type="number" id="height" step="any" min="0" inputmode="decimal">
+            <select id="height-unit" aria-label="Height unit"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="creatinine">Serum creatinine</label>
+          <div class="qty">
+            <input type="number" id="creatinine" step="any" min="0" inputmode="decimal">
+            <select id="creatinine-unit" aria-label="Creatinine unit"></select>
+          </div>
+          <span class="hint">LOINC <code id="creatinine-loinc">-</code></span>
+        </div>
+      </div>
+    </section>
+
+    <div class="three">
+      <!-- ============ 1 GUIDELINE ============ -->
+      <section class="panel" aria-labelledby="h-guideline">
+        <h2 id="h-guideline"><span class="num-badge">1</span> Clinical guideline</h2>
+        <label class="field">
+          <span>Guideline</span>
+          <select id="guideline"></select>
+        </label>
+        <div class="field">
+          <label for="target-dose">Target dose</label>
+          <div class="qty">
+            <input type="number" id="target-dose" step="any" min="0" inputmode="decimal">
+            <select id="target-dose-unit" aria-label="Target dose unit"></select>
+          </div>
+        </div>
+        <dl class="facts" id="guideline-facts"></dl>
+      </section>
+
+      <!-- ============ 2 LAB RESULT ============ -->
+      <section class="panel" aria-labelledby="h-lab">
+        <h2 id="h-lab"><span class="num-badge">2</span> Lab result (TDM)</h2>
+        <label class="field">
+          <span>LOINC test</span>
+          <select id="loinc"></select>
+        </label>
+        <div class="field">
+          <label for="level">Measured level</label>
+          <div class="qty">
+            <input type="number" id="level" step="any" min="0" inputmode="decimal" placeholder="optional">
+            <select id="level-unit" aria-label="Measured level unit"></select>
+          </div>
+          <span class="hint" id="loinc-hint"></span>
+        </div>
+      </section>
+
+      <!-- ============ 3 DRUG ============ -->
+      <section class="panel" aria-labelledby="h-drug">
+        <h2 id="h-drug"><span class="num-badge">3</span> Drug selection</h2>
+        <label class="field">
+          <span>AMT medicine <span id="med-source" class="badge"></span></span>
+          <select id="product"></select>
+        </label>
+        <div id="product-strength" class="strength"></div>
+        <div class="field" id="strength-row" hidden>
+          <label for="strength-unit">Concentration shown as</label>
+          <div class="qty">
+            <output id="strength-value" class="qty-out">-</output>
+            <select id="strength-unit" aria-label="Concentration unit"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="target-level">Target level</label>
+          <div class="qty">
+            <input type="number" id="target-level" step="any" min="0" inputmode="decimal">
+            <select id="target-level-unit" aria-label="Target level unit"></select>
+          </div>
+          <span class="hint" id="target-range"></span>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============ RESULT ============ -->
+    <section class="panel result" aria-labelledby="h-result">
+      <h2 id="h-result">Result</h2>
+      <div id="errors" class="msg msg-error" hidden></div>
+      <div class="result-grid">
+        <div class="stat">
+          <span class="stat-label">Dose to deliver <span id="dose-substance"></span></span>
+          <span class="stat-value"><output id="out-dose">-</output>
+            <select id="out-dose-unit" aria-label="Dose unit"></select></span>
+          <span class="hint" id="out-dose-boss"></span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Volume</span>
+          <span class="stat-value"><output id="out-volume">-</output>
+            <select id="out-volume-unit" aria-label="Volume unit"></select></span>
+          <span class="hint" id="out-volume-note"></span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Units of the product</span>
+          <span class="stat-value"><output id="out-units">-</output></span>
+          <span class="hint" id="out-units-note"></span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Dosing weight</span>
+          <span class="stat-value"><output id="out-weight">-</output>
+            <select id="out-weight-unit" aria-label="Dosing weight unit"></select></span>
+          <span class="hint" id="out-weight-note"></span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Creatinine clearance</span>
+          <span class="stat-value"><output id="out-crcl">-</output>
+            <select id="out-crcl-unit" aria-label="Creatinine clearance unit"></select></span>
+          <span class="hint">Cockcroft-Gault, for information only</span>
+        </div>
+      </div>
+      <div id="warnings" class="msg msg-warn" hidden></div>
+
+      <div class="two">
+        <div>
+          <h3>Conversion trace</h3>
+          <p class="hint">Every input is converted to a canonical UCUM unit before any arithmetic.</p>
+          <div class="table-wrap">
+            <table class="trace">
+              <thead><tr><th>Quantity</th><th>Entered</th><th></th><th>Canonical</th><th>Note</th></tr></thead>
+              <tbody id="trace"></tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h3>Calculation steps</h3>
+          <ol id="steps" class="steps"></ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    UCUM conversion by the <a href="https://github.com/lhncbc/ucum-lhc" target="_blank" rel="noopener">NLM ucum-lhc library</a>.
+    Medicines from AMT via <a href="https://tx.ontoserver.csiro.au/fhir" target="_blank" rel="noopener">Ontoserver</a>.
+  </footer>
+</body>
+</html>

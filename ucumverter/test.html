@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UCUMverter tests</title>
+  <script src="https://cdn.jsdelivr.net/npm/@lhncbc/ucum-lhc@7.1.10/browser-dist/ucum-lhc.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 1rem; background: #fff; color: #1f2933; }
+    li { margin: .3rem 0; }
+    .pass { color: #0f766e; }
+    .fail { color: #b91c1c; font-weight: 600; }
+    pre { white-space: pre-wrap; margin: .2rem 0 0 1rem; color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <h1>UCUMverter tests</h1>
+  <p id="summary" role="status">Running...</p>
+  <ol id="results"></ol>
+  <script type="module">
+    import { tests } from './tests/calc.tests.js';
+    const loadJson = async (path) => (await fetch(path)).json();
+    const list = document.getElementById('results');
+    let failed = 0;
+    for (const t of tests) {
+      const li = document.createElement('li');
+      try {
+        await t.fn(loadJson);
+        li.className = 'pass';
+        li.textContent = `PASS  ${t.name}`;
+      } catch (e) {
+        failed++;
+        li.className = 'fail';
+        li.textContent = `FAIL  ${t.name}`;
+        const pre = document.createElement('pre');
+        pre.textContent = e.message;
+        li.appendChild(pre);
+      }
+      list.appendChild(li);
+    }
+    document.getElementById('summary').textContent = failed
+      ? `${failed} of ${tests.length} tests failed.`
+      : `All ${tests.length} tests passed.`;
+  </script>
+</body>
+</html>
