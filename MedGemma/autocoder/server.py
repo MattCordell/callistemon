@@ -108,7 +108,7 @@ class CodeIn(BaseModel):
 
 
 WAKES_PER_IP_PER_DAY = 5  # "Wake up" button presses that start a wake-up; in memory, like the hourly limit
-WAKES_PER_DAY = 20  # all callers together: a ceiling on GPU time from the button (each wake-up is >= 30 min)
+WAKES_PER_DAY = 20  # all callers together: a ceiling on GPU time from the button (each wake-up is >= 15 min)
 _wakes = defaultdict(list)  # client IP -> times this caller started a wake-up
 WAKING_FOR = 20 * 60  # seconds after a "not ready" reply during which a sleeping model counts as waking
 STATUS_CACHE_FOR = 10  # seconds; many open pages share one endpoint lookup
