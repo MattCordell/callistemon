@@ -13,16 +13,11 @@ export function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-/** Label shown in a unit dropdown: the UCUM code plus its UCUM name. */
-export function unitLabel(code) {
-  const name = describe(code);
-  return name && name !== code ? `${code}  (${name})` : code;
-}
-
-/** Fill a <select> with UCUM unit options, keeping the current choice if still offered. */
+/** Fill a <select> with UCUM unit options, keeping the current choice if still offered.
+ * Options show the UCUM code only; the UCUM name is the hover tooltip. */
 export function fillUnitSelect(select, codes, defaultCode) {
   const keep = codes.includes(select.value) ? select.value : (defaultCode || codes[0]);
-  select.innerHTML = codes.map(c => `<option value="${esc(c)}">${esc(unitLabel(c))}</option>`).join('');
+  select.innerHTML = codes.map(c => `<option value="${esc(c)}" title="${esc(describe(c))}">${esc(c)}</option>`).join('');
   select.value = keep;
 }
 

@@ -90,7 +90,7 @@ Up to 5 guidelines are intended. To add one, add an entry here, add its LOINC co
 
 ### units.json
 
-Every unit is a UCUM code, and the dropdowns show the code with its UCUM name. Lab units are grouped into unit sets (`massConc`, `molarConc`, and so on). Each LOINC code points to one set in `loincUnits`.
+Every unit is a UCUM code. The dropdowns show the code, and its UCUM name appears as a tooltip when you hover over an option. Lab units are grouped into unit sets (`massConc`, `molarConc`, and so on). Each LOINC code points to one set in `loincUnits`.
 
 ### snomed-ucum-map.json
 

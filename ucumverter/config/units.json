@@ -1,5 +1,5 @@
 {
-  "_comment": "Unit choices for UCUMverter. Every code must be a valid UCUM code. 'label' is optional; the app shows the UCUM code and the UCUM name.",
+  "_comment": "Unit choices for UCUMverter. Every code must be a valid UCUM code. Dropdowns show the code; the UCUM name appears as a hover tooltip.",
   "patient": {
     "weight": { "default": "kg", "options": ["kg", "g", "[lb_av]", "[stone_av]"] },
     "height": { "default": "cm", "options": ["cm", "m", "mm", "[in_i]", "[ft_i]"] }

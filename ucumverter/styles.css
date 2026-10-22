@@ -79,8 +79,8 @@ input, select, .qty-out {
 }
 input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .qty { display: flex; gap: .35rem; }
-.qty input, .qty .qty-out { flex: 1 1 40%; min-width: 4.5rem; }
-.qty select { flex: 1 1 60%; }
+.qty input, .qty .qty-out { flex: 1 1 auto; min-width: 4.5rem; }
+.qty select { flex: 0 0 auto; min-width: 6rem; }
 .qty-out { background: var(--code-bg); }
 
 .btn-row { display: flex; gap: .5rem; flex-wrap: wrap; }
