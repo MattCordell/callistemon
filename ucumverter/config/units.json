@@ -1,0 +1,39 @@
+{
+  "_comment": "Unit choices for UCUMverter. Every code must be a valid UCUM code. Dropdowns show the code; the UCUM name appears as a hover tooltip.",
+  "patient": {
+    "weight": { "default": "kg", "options": ["kg", "g", "[lb_av]", "[stone_av]"] },
+    "height": { "default": "cm", "options": ["cm", "m", "mm", "[in_i]", "[ft_i]"] }
+  },
+  "doseRate": { "default": "mg/kg", "options": ["mg/kg", "ug/kg", "g/kg", "mg/[lb_av]"] },
+  "outputs": {
+    "dose": { "default": "mg", "options": ["mg", "g", "ug"] },
+    "volume": { "default": "mL", "options": ["mL", "L", "dL", "uL"] },
+    "crcl": { "default": "mL/min", "options": ["mL/min", "mL/s", "L/h", "L/d"] },
+    "strength": { "default": "mg/mL", "options": ["mg/mL", "g/L", "ug/mL", "mg/L", "ug/uL"] },
+    "weight": { "default": "kg", "options": ["kg", "g", "[lb_av]"] }
+  },
+  "labUnitSets": {
+    "massConc": { "kind": "mass", "default": "mg/L", "options": ["mg/L", "ug/mL", "mg/dL", "ug/L"] },
+    "massConcLow": { "kind": "mass", "default": "ug/L", "options": ["ug/L", "ng/mL", "pg/mL", "mg/L"] },
+    "molarConc": { "kind": "molar", "default": "umol/L", "options": ["umol/L", "mmol/L", "nmol/L"] },
+    "molarConcLow": { "kind": "molar", "default": "nmol/L", "options": ["nmol/L", "pmol/L", "umol/L"] },
+    "creatinineMass": { "kind": "mass", "default": "mg/dL", "options": ["mg/dL", "mg/L", "ug/mL"] },
+    "creatinineMolar": { "kind": "molar", "default": "umol/L", "options": ["umol/L", "mmol/L"] }
+  },
+  "loincUnits": {
+    "14682-9": "creatinineMolar",
+    "2160-0": "creatinineMass",
+    "3663-2": "massConc",
+    "3664-0": "massConc",
+    "3665-7": "massConc",
+    "4092-3": "massConc",
+    "4091-5": "massConc",
+    "39797-6": "molarConc",
+    "3968-5": "massConc",
+    "74976-2": "massConc",
+    "14877-5": "molarConc",
+    "97195-2": "molarConc",
+    "10535-3": "massConcLow",
+    "14698-5": "molarConcLow"
+  }
+}

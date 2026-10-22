@@ -1,0 +1,125 @@
+/* UCUMverter styles. Tailwind 2 (CDN) provides the reset; layout lives here. */
+
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --ink: #1f2933;
+  --muted: #5f6b7a;
+  --line: #d9dee5;
+  --brand: #b91c1c;
+  --accent: #0f766e;
+  --accent-ink: #ffffff;
+  --warn-bg: #fff7e6;
+  --warn-line: #f0b429;
+  --error-bg: #fdecec;
+  --error-line: #d64545;
+  --ok-bg: #e6f6f2;
+  --code-bg: #eef1f5;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.45;
+}
+
+[hidden] { display: none !important; }
+
+code { background: var(--code-bg); padding: 0 .3em; border-radius: 4px; font-size: .9em; }
+
+.app-header { background: var(--panel); border-bottom: 1px solid var(--line); }
+.app-header-inner {
+  max-width: 1200px; margin: 0 auto; padding: 1rem;
+  display: flex; flex-wrap: wrap; gap: .75rem; justify-content: space-between; align-items: flex-end;
+}
+.app-header h1 { font-size: 1.75rem; font-weight: 700; color: var(--brand); }
+.tagline { color: var(--muted); max-width: 46rem; }
+.header-links { display: flex; gap: 1rem; font-size: .9rem; }
+.header-links a, .app-footer a { color: var(--accent); text-decoration: underline; }
+
+.disclaimer {
+  max-width: 1200px; margin: .75rem auto 0; padding: .6rem 1rem;
+  background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 8px;
+}
+@media (max-width: 1232px) { .disclaimer { margin-left: 1rem; margin-right: 1rem; } }
+
+.status { max-width: 1200px; margin: .5rem auto 0; padding: 0 1rem; font-size: .9rem; color: var(--muted); min-height: 1.2em; }
+.status.warn { color: #8a5a00; }
+.status.error { color: var(--error-line); font-weight: 600; }
+
+.wrap { max-width: 1200px; margin: 0 auto; padding: 1rem; display: grid; gap: 1rem; }
+.three { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+.two { display: grid; gap: 1.5rem; grid-template-columns: 1fr; margin-top: 1.25rem; }
+.two > div { min-width: 0; }
+@media (min-width: 900px) {
+  .three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .two { grid-template-columns: 3fr 2fr; }
+}
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 1rem; min-width: 0; }
+.panel h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: .75rem; display: flex; align-items: center; gap: .5rem; }
+.panel h3 { font-size: 1rem; font-weight: 700; margin-bottom: .25rem; }
+.panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+.panel-head h2 { margin-bottom: 0; }
+.num-badge {
+  display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%;
+  background: var(--brand); color: #fff; font-size: .9rem;
+}
+
+.grid-fields { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.field { display: flex; flex-direction: column; gap: .25rem; margin-bottom: .75rem; min-width: 0; }
+.grid-fields .field { margin-bottom: 0; }
+.field > span:first-child, .field > label { font-weight: 600; font-size: .9rem; }
+.hint { color: var(--muted); font-size: .8rem; }
+
+input, select, .qty-out {
+  border: 1px solid var(--line); border-radius: 6px; padding: .4rem .5rem; background: #fff; color: var(--ink);
+  min-width: 0; font-size: .95rem;
+}
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.qty { display: flex; gap: .35rem; }
+.qty input, .qty .qty-out { flex: 1 1 auto; min-width: 4.5rem; }
+.qty select { flex: 0 0 auto; min-width: 6rem; }
+.qty-out { background: var(--code-bg); }
+
+.btn-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+.btn {
+  border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: .4rem .8rem; font-weight: 600; font-size: .9rem;
+}
+.btn:hover { border-color: var(--accent); }
+.btn-accent { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn-accent:hover { filter: brightness(1.1); }
+
+.badge { display: inline-block; font-size: .7rem; font-weight: 600; padding: .05rem .45rem; border-radius: 999px; margin-left: .25rem; }
+.badge-ok { background: var(--ok-bg); color: var(--accent); }
+.badge-warn { background: var(--warn-bg); color: #8a5a00; border: 1px solid var(--warn-line); }
+
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: .3rem .75rem; font-size: .85rem; }
+.facts dt { color: var(--muted); }
+.facts dd { min-width: 0; overflow-wrap: anywhere; }
+.ecl { display: block; font-size: .75rem; white-space: normal; overflow-wrap: anywhere; }
+
+.result-grid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.stat { border: 1px solid var(--line); border-radius: 10px; padding: .75rem; display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+.stat-label { font-size: .85rem; color: var(--muted); font-weight: 600; }
+.stat-value { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.stat-value output { font-size: 1.6rem; font-weight: 700; }
+.stat-value select { font-size: .8rem; max-width: 100%; }
+
+.msg { border-radius: 8px; padding: .5rem .75rem; margin: .75rem 0; font-size: .9rem; }
+.msg-error { background: var(--error-bg); border: 1px solid var(--error-line); }
+.msg-warn { background: var(--warn-bg); border: 1px solid var(--warn-line); }
+
+.table-wrap { overflow-x: auto; margin-top: .5rem; }
+.trace { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.trace th, .trace td { border-bottom: 1px solid var(--line); padding: .35rem .4rem; text-align: left; vertical-align: top; }
+.trace th { color: var(--muted); font-weight: 600; }
+.trace td.num { white-space: nowrap; }
+.trace td.arrow { color: var(--accent); font-weight: 700; }
+.trace td.note { color: var(--muted); font-size: .8rem; }
+.trace tr.same td { color: var(--muted); }
+
+.steps { list-style: decimal; padding-left: 1.25rem; font-size: .85rem; display: grid; gap: .3rem; margin-top: .5rem; }
+
+.app-footer { max-width: 1200px; margin: 0 auto; padding: 1rem; color: var(--muted); font-size: .8rem; }

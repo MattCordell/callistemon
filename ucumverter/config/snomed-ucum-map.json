@@ -1,0 +1,23 @@
+{
+  "_comment": "DRAFT 1:1 map from SNOMED CT-AU unit concepts (as used in AMT strength properties) to UCUM codes. Replace with the curated map when available.",
+  "map": {
+    "258684004": { "display": "mg", "ucum": "mg" },
+    "258682000": { "display": "g", "ucum": "g" },
+    "258685003": { "display": "microgram", "ucum": "ug" },
+    "258773002": { "display": "mL", "ucum": "mL" },
+    "258770004": { "display": "L", "ucum": "L" },
+    "258774008": { "display": "microlitre", "ucum": "uL" },
+    "258718000": { "display": "mmol", "ucum": "mmol" },
+    "258719008": { "display": "micromol", "ucum": "umol" },
+    "258798001": { "display": "mg/mL", "ucum": "mg/mL" },
+    "258796002": { "display": "mg/L", "ucum": "mg/L" },
+    "258797006": { "display": "mg/dL", "ucum": "mg/dL" },
+    "258801007": { "display": "microgram/mL", "ucum": "ug/mL" },
+    "258799009": { "display": "microgram/L", "ucum": "ug/L" },
+    "258806002": { "display": "nanogram/mL", "ucum": "ng/mL" },
+    "258802000": { "display": "microgram/g", "ucum": "ug/g" },
+    "258803005": { "display": "microgram/kg", "ucum": "ug/kg" },
+    "258997004": { "display": "international unit", "ucum": "[iU]" },
+    "732935002": { "display": "each", "ucum": "{each}" }
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "_comment": "DRAFT demo guidelines for UCUMverter. Values are illustrative only and NOT for clinical use. Review before relying on any of them.",
+  "renal": {
+    "creatinine": {
+      "display": "Creatinine (serum/plasma)",
+      "molarMass": 113.12,
+      "loinc": [
+        { "code": "14682-9", "display": "Creatinine [Moles/volume] in Serum or Plasma" },
+        { "code": "2160-0", "display": "Creatinine [Mass/volume] in Serum or Plasma" }
+      ]
+    }
+  },
+  "guidelines": [
+    {
+      "id": "gentamicin-extended-interval",
+      "name": "Gentamicin - extended interval (once daily)",
+      "draft": true,
+      "source": "Demo values loosely based on adult extended-interval aminoglycoside dosing. Not for clinical use.",
+      "targetDose": { "value": 7, "unit": "mg/kg" },
+      "weightBasis": "adjustedIfObese",
+      "maxDose": null,
+      "doseSubstance": "387321007",
+      "analyte": "387321007",
+      "substances": {
+        "387321007": { "display": "Gentamicin", "molarMass": null }
+      },
+      "drugEcl": "^ 929360071000036103 |Medicinal product unit of use reference set| AND < 350121009 |Product containing gentamicin in parenteral dose form|",
+      "loinc": [
+        { "code": "3663-2", "display": "Gentamicin [Mass/volume] in Serum or Plasma --peak" },
+        { "code": "3664-0", "display": "Gentamicin [Mass/volume] in Serum or Plasma --random" },
+        { "code": "3665-7", "display": "Gentamicin [Mass/volume] in Serum or Plasma --trough" }
+      ],
+      "targetLevel": { "value": 20, "unit": "mg/L", "rangeText": "Peak 16-24 mg/L (demo value)" },
+      "crclWarnBelow": { "value": 40, "unit": "mL/min" }
+    },
+    {
+      "id": "vancomycin-loading",
+      "name": "Vancomycin - loading dose",
+      "draft": true,
+      "source": "Demo values loosely based on adult vancomycin loading dose guidance. Not for clinical use.",
+      "targetDose": { "value": 25, "unit": "mg/kg" },
+      "weightBasis": "actual",
+      "maxDose": { "value": 3, "unit": "g" },
+      "doseSubstance": "372735009",
+      "analyte": "372735009",
+      "substances": {
+        "372735009": { "display": "Vancomycin", "molarMass": 1449.25 }
+      },
+      "drugEcl": "^ 929360071000036103 |Medicinal product unit of use reference set| AND < 350180007 |Product containing vancomycin in parenteral dose form|",
+      "loinc": [
+        { "code": "4092-3", "display": "Vancomycin [Mass/volume] in Serum or Plasma --trough" },
+        { "code": "39797-6", "display": "Vancomycin [Moles/volume] in Serum or Plasma --trough" },
+        { "code": "4091-5", "display": "Vancomycin [Mass/volume] in Serum or Plasma --random" }
+      ],
+      "targetLevel": { "value": 15, "unit": "mg/L", "rangeText": "Trough 15-20 mg/L (demo value)" },
+      "crclWarnBelow": { "value": 50, "unit": "mL/min" }
+    },
+    {
+      "id": "phenytoin-loading",
+      "name": "Phenytoin - loading dose",
+      "draft": true,
+      "source": "Demo values loosely based on adult phenytoin sodium loading dose guidance. Dose is expressed as phenytoin sodium. Not for clinical use.",
+      "targetDose": { "value": 15, "unit": "mg/kg" },
+      "weightBasis": "actual",
+      "maxDose": { "value": 2, "unit": "g" },
+      "doseSubstance": "387416005",
+      "analyte": "387220006",
+      "substances": {
+        "387220006": { "display": "Phenytoin", "molarMass": 252.27 },
+        "387416005": { "display": "Phenytoin sodium", "molarMass": 274.25 }
+      },
+      "drugEcl": "^ 929360071000036103 |Medicinal product unit of use reference set| AND ((< 763158003 |Medicinal product| : 127489000 |Has active ingredient| = 387220006 |Phenytoin|) OR (< 763158003 |Medicinal product| : 762949000 |Has precise active ingredient| = 387416005 |Phenytoin sodium|))",
+      "loinc": [
+        { "code": "3968-5", "display": "Phenytoin [Mass/volume] in Serum or Plasma" },
+        { "code": "14877-5", "display": "Phenytoin [Moles/volume] in Serum or Plasma" },
+        { "code": "74976-2", "display": "Phenytoin [Mass/volume] in Serum or Plasma --trough" },
+        { "code": "97195-2", "display": "Phenytoin [Moles/volume] in Serum or Plasma --trough" }
+      ],
+      "targetLevel": { "value": 15, "unit": "mg/L", "rangeText": "10-20 mg/L = 40-80 umol/L (demo value)" },
+      "crclWarnBelow": null
+    },
+    {
+      "id": "digoxin-loading",
+      "name": "Digoxin - loading dose",
+      "draft": true,
+      "source": "Demo values loosely based on adult digoxin loading dose guidance. Not for clinical use.",
+      "targetDose": { "value": 10, "unit": "ug/kg" },
+      "weightBasis": "ideal",
+      "maxDose": { "value": 1000, "unit": "ug" },
+      "doseSubstance": "387461009",
+      "analyte": "387461009",
+      "substances": {
+        "387461009": { "display": "Digoxin", "molarMass": 780.94 }
+      },
+      "drugEcl": "^ 929360071000036103 |Medicinal product unit of use reference set| AND (< 763158003 |Medicinal product| : 127489000 |Has active ingredient| = 387461009 |Digoxin|)",
+      "loinc": [
+        { "code": "14698-5", "display": "Digoxin [Moles/volume] in Serum or Plasma" },
+        { "code": "10535-3", "display": "Digoxin [Mass/volume] in Serum or Plasma" }
+      ],
+      "targetLevel": { "value": 1, "unit": "nmol/L", "rangeText": "0.6-1.2 nmol/L = 0.5-0.9 ug/L (demo value)" },
+      "crclWarnBelow": { "value": 50, "unit": "mL/min" }
+    }
+  ]
+}
