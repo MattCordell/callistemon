@@ -8,7 +8,7 @@ A browser demo of UCUM unit conversion. It uses a therapeutic drug monitoring (T
 
 The app loads its JSON config with `fetch`, so it needs to be served over http. Opening `index.html` from disk (`file://`) won't work.
 
-1. From the repo root, run `python -m http.server 8000`.
+1. Run `python ucumverter/tools/serve.py` from the repo root. This server turns browser caching off, so a normal reload always shows your latest edits. With plain `python -m http.server`, the browser can keep stale copies of the JavaScript modules.
 2. Open `http://localhost:8000/ucumverter/`.
 3. Pick a guideline, then press **Random patient** and **Shuffle units** a few times. The dose, volume and units needed stay the same, and the conversion trace shows each conversion.
 
