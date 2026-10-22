@@ -100,11 +100,6 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1p
 .facts dd { min-width: 0; overflow-wrap: anywhere; }
 .ecl { display: block; font-size: .75rem; white-space: normal; overflow-wrap: anywhere; }
 
-.strength { font-size: .85rem; margin-bottom: .75rem; }
-.strength ul { display: grid; gap: .2rem; }
-.strength li span { display: inline-block; min-width: 7.5rem; color: var(--muted); }
-.strength code { overflow-wrap: anywhere; }
-
 .result-grid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .stat { border: 1px solid var(--line); border-radius: 10px; padding: .75rem; display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
 .stat-label { font-size: .85rem; color: var(--muted); font-weight: 600; }

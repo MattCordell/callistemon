@@ -206,22 +206,7 @@ async function loadProducts(g) {
 }
 
 function renderProduct() {
-  const el = $('product-strength');
-  const row = $('strength-row');
-  const p = state.product;
-  if (!p) { el.innerHTML = ''; row.hidden = true; return; }
-  const g = state.guideline;
-  const q = (label, x) => x
-    ? `<li><span>${label}</span> ${esc(fmt(x.value))} <code>${esc(x.snomedUnit)} |${esc(x.snomedDisplay)}|</code> &rarr; UCUM <code>${esc(x.ucum)}</code></li>`
-    : '';
-  const boss = g.substances[p.boss]?.display || p.boss || 'unknown';
-  el.innerHTML = `<p class="hint">SNOMED CT <code>${esc(p.code)}</code></p>
-    <ul>
-      <li><span>BoSS</span> ${esc(boss)} <code>${esc(p.boss || '')}</code></li>
-      ${q('Concentration', p.concentration)}
-      ${q('Quantity per unit', p.totalQuantity)}
-    </ul>`;
-  row.hidden = !p.concentration;
+  $('strength-row').hidden = !(state.product && state.product.concentration);
 }
 
 // ---------------------------------------------------------------- patient + shuffle
