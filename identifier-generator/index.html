@@ -28,12 +28,15 @@
     a real person's or provider's identifier. Never use them for real patients, providers or claims.
   </div>
 
-  <div id="status" class="status" role="status" aria-live="polite"></div>
-
   <main class="wrap">
+    <div class="tab-list" role="tablist" aria-label="Identifier tools">
+      <button type="button" class="tab" role="tab" id="tab-generate" data-tab="generate" aria-controls="panel-generate" aria-selected="true">Generate</button>
+      <button type="button" class="tab" role="tab" id="tab-validate" data-tab="validate" aria-controls="panel-validate" aria-selected="false" tabindex="-1">Validate</button>
+      <button type="button" class="tab" role="tab" id="tab-rules" data-tab="rules" aria-controls="panel-rules" aria-selected="false" tabindex="-1">Rules and limits</button>
+    </div>
+
     <!-- ============ GENERATE ============ -->
-    <section class="panel" aria-labelledby="h-generate">
-      <h2 id="h-generate">Generate</h2>
+    <section class="panel" role="tabpanel" id="panel-generate" aria-labelledby="tab-generate">
       <div class="grid-fields">
         <div class="field">
           <label for="gen-type">Identifier type</label>
@@ -59,6 +62,7 @@
       </div>
       <div class="btn-row gen-actions">
         <button class="btn btn-accent" id="btn-generate" type="button">Generate</button>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
       </div>
 
       <div id="results-area" hidden>
@@ -87,8 +91,7 @@
     </section>
 
     <!-- ============ VALIDATE ============ -->
-    <section class="panel" aria-labelledby="h-validate">
-      <h2 id="h-validate">Validate</h2>
+    <section class="panel" role="tabpanel" id="panel-validate" aria-labelledby="tab-validate" hidden>
       <p class="hint validate-intro">Paste any identifier to check it against the same rules. Spaces, hyphens and "/" are ignored.</p>
       <div class="grid-fields">
         <div class="field">
@@ -104,8 +107,7 @@
     </section>
 
     <!-- ============ ABOUT ============ -->
-    <section class="panel" aria-labelledby="h-about">
-      <h2 id="h-about">Rules and limits</h2>
+    <section class="panel" role="tabpanel" id="panel-rules" aria-labelledby="tab-rules" hidden>
       <details open>
         <summary>Format rules used for each type</summary>
         <dl class="rules" id="rules-list"></dl>

@@ -151,7 +151,50 @@ function renderRules() {
   }
 }
 
+// ---------- tabs ----------
+// Follows the WAI-ARIA tabs pattern: arrow keys, Home and End move between tabs.
+// The chosen tab is kept in the URL hash, so #validate and #rules can be linked to.
+const TABS = ['generate', 'validate', 'rules'];
+
+function selectTab(name, { focus = false, updateHash = true } = {}) {
+  for (const t of TABS) {
+    const selected = t === name;
+    const tab = $(`tab-${t}`);
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+    $(`panel-${t}`).hidden = !selected;
+    if (selected && focus) tab.focus();
+  }
+  if (updateHash) {
+    try { history.replaceState(null, '', `#${name}`); } catch { /* hash is only a convenience */ }
+  }
+}
+
+function tabFromHash() {
+  const name = location.hash.slice(1);
+  return TABS.includes(name) ? name : 'generate';
+}
+
+function initTabs() {
+  const list = document.querySelector('.tab-list');
+  list.addEventListener('click', (e) => {
+    const tab = e.target.closest('[role="tab"]');
+    if (tab) selectTab(tab.dataset.tab);
+  });
+  list.addEventListener('keydown', (e) => {
+    const i = TABS.indexOf(document.activeElement?.dataset?.tab);
+    if (i === -1) return;
+    const target = { ArrowRight: (i + 1) % TABS.length, ArrowLeft: (i + TABS.length - 1) % TABS.length, Home: 0, End: TABS.length - 1 }[e.key];
+    if (target === undefined) return;
+    e.preventDefault();
+    selectTab(TABS[target], { focus: true });
+  });
+  window.addEventListener('hashchange', () => selectTab(tabFromHash(), { updateHash: false }));
+  selectTab(tabFromHash(), { updateHash: false });
+}
+
 function init() {
+  initTabs();
   fillTypeSelect($('gen-type'));
   fillTypeSelect($('val-type'));
   renderRules();

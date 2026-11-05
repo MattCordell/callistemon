@@ -10,7 +10,7 @@ The page loads ES modules, so it needs to be served over http. Opening `index.ht
 
 1. Run `python ucumverter/tools/serve.py` from the repo root. It serves the whole repo with browser caching turned off.
 2. Open `http://localhost:8000/identifier-generator/`.
-3. Pick a type, press **Generate**, and copy one value or the whole list as a plain list, JSON or FHIR Identifier JSON. The **Validate** panel checks any value you paste.
+3. Pick a type, press **Generate**, and copy one value or the whole list as a plain list, JSON or FHIR Identifier JSON. The **Validate** tab checks any value you paste, and **Rules and limits** lists the formats. The tab shows in the URL, so `#validate` and `#rules` link straight to those tabs.
 
 ## Use it as a library
 
