@@ -1,0 +1,6 @@
+{
+  "name": "identifier-generator",
+  "private": true,
+  "type": "module",
+  "description": "Synthetic Australian health identifier generator and validator (demonstration only)."
+}

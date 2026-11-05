@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Identifier Generator - synthetic Australian health identifiers</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <div>
+        <h1>Identifier Generator</h1>
+        <p class="tagline">Make and check synthetic Australian health identifiers for demonstrations: Medicare, DVA, IHI, HPI-I, HPI-O, provider and prescriber numbers.</p>
+      </div>
+      <div class="header-links">
+        <a href="../">&larr; Callistemon home</a>
+        <a href="https://github.com/MattCordell/callistemon/issues" target="_blank" rel="noopener">Support / Feedback</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="disclaimer" role="note">
+    <strong>Synthetic demonstration identifiers.</strong>
+    Every value passes the published format and check-digit rules, but nothing guarantees it is not
+    a real person's or provider's identifier. Never use them for real patients, providers or claims.
+  </div>
+
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+
+  <main class="wrap">
+    <!-- ============ GENERATE ============ -->
+    <section class="panel" aria-labelledby="h-generate">
+      <h2 id="h-generate">Generate</h2>
+      <div class="grid-fields">
+        <div class="field">
+          <label for="gen-type">Identifier type</label>
+          <select id="gen-type"></select>
+          <span class="hint" id="gen-example"></span>
+        </div>
+        <div class="field">
+          <label for="gen-count">How many (1 to 50)</label>
+          <input id="gen-count" type="number" min="1" max="50" value="10">
+        </div>
+        <div class="field">
+          <label for="gen-seed">Seed (optional)</label>
+          <input id="gen-seed" type="text" autocomplete="off" placeholder="blank = random">
+          <span class="hint">The same seed gives the same list.</span>
+        </div>
+        <div class="field" id="gen-length-field" hidden>
+          <label for="gen-length">Medicare format</label>
+          <select id="gen-length">
+            <option value="11">11 digits (with IRN)</option>
+            <option value="10">10 digits (no IRN)</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row gen-actions">
+        <button class="btn btn-accent" id="btn-generate" type="button">Generate</button>
+      </div>
+
+      <div id="results-area" hidden>
+        <div class="table-wrap">
+          <table class="results" aria-label="Generated identifiers">
+            <thead><tr><th scope="col">#</th><th scope="col">Identifier</th><th scope="col">Check</th><th scope="col"><span class="sr-only">Copy</span></th></tr></thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+
+        <div class="export">
+          <div class="field">
+            <label for="out-format">Copy all as</label>
+            <select id="out-format">
+              <option value="list">Plain list (one per line)</option>
+              <option value="json">JSON</option>
+              <option value="fhir">FHIR Identifier JSON</option>
+            </select>
+          </div>
+          <pre id="out-text" class="out-text" tabindex="0" aria-label="Formatted output"></pre>
+          <div class="btn-row">
+            <button class="btn" id="btn-copy-all" type="button">Copy all</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ VALIDATE ============ -->
+    <section class="panel" aria-labelledby="h-validate">
+      <h2 id="h-validate">Validate</h2>
+      <p class="hint validate-intro">Paste any identifier to check it against the same rules. Spaces, hyphens and "/" are ignored.</p>
+      <div class="grid-fields">
+        <div class="field">
+          <label for="val-type">Identifier type</label>
+          <select id="val-type"></select>
+        </div>
+        <div class="field">
+          <label for="val-input">Identifier</label>
+          <input id="val-input" type="text" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+      <div id="val-result" class="msg" role="status" aria-live="polite" hidden></div>
+    </section>
+
+    <!-- ============ ABOUT ============ -->
+    <section class="panel" aria-labelledby="h-about">
+      <h2 id="h-about">Rules and limits</h2>
+      <details open>
+        <summary>Format rules used for each type</summary>
+        <dl class="rules" id="rules-list"></dl>
+      </details>
+      <details>
+        <summary>Why "not guaranteed non-real"?</summary>
+        <p>
+          No public specification reserves a test-only range for these identifiers. The Digital Health Agency and Services Australia
+          publish official test data to registered vendors, but it is gated and aimed at conformance testing.
+          Some spaces are crowded: an 8-digit Medicare base has roughly 50 million combinations, and millions of cards are in use.
+          So a valid-looking value can match a real one. The generator never emits the demo values listed in
+          <code>config/reserved.js</code>, and it generates the strictest valid subset of each format.
+        </p>
+      </details>
+      <details>
+        <summary>Use it as a library</summary>
+<pre class="code">import { generate, validate, toFhirIdentifier } from './modules/registry.js';
+
+generate('ihi', { count: 5, seed: 42 });        // ['8003...', ...]
+validate('ihi', '8003609928383098');            // { valid: true, warnings: [] }
+toFhirIdentifier('ihi', '8003609928383098');    // { system, value }</pre>
+        <p class="hint">Runs in browsers and Node (ES modules, no dependencies).</p>
+      </details>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    Format sources: HL7 AU Base IG (IHI, HPI-I, HPI-O, AHPRA) and
+    <a href="https://curmi.com/australian-health-identifiers/" target="_blank" rel="noopener">curmi.com</a> (Medicare, provider, prescriber, DVA).
+    Samples in <code>Identifiers.md</code> came from
+    <a href="https://ramd.iheaustralia.online/" target="_blank" rel="noopener">RAMD</a>.
+  </footer>
+</body>
+</html>
