@@ -1,52 +1,31 @@
-/* MHAOD Assessment demonstrator. Callistemon red brand, light and dark. */
+/* MHAOD Assessment demonstrator. Light clinical theme: calm teal on a pale
+   background, like most clinical systems. Light only, by design. */
 
 :root {
-  --bg: #f6f7f9;
+  --bg: #f3f7f7;
   --panel: #ffffff;
-  --ink: #1f2933;
-  --muted: #5f6b7a;
-  --line: #dde2e8;
-  --brand: #b91c1c;
+  --ink: #1d2b33;
+  --muted: #5a6b74;
+  --line: #d9e3e5;
+  --brand: #0f766e;
   --brand-ink: #ffffff;
-  --accent: #1d4ed8;
-  --warn-bg: #fff4e5;
+  --header-bg: #e6f3f1;
+  --header-ink: #134e4a;
+  --header-line: #b9dcd7;
+  --accent: #0369a1;
+  --warn-bg: #fff6e8;
   --warn-ink: #8a4b00;
   --warn-line: #f0b45c;
-  --info-ink: #3d5a80;
-  --ok-bg: #e7f6ec;
-  --ok-ink: #1e6b3a;
-  --placeholder-bg: #eef0f4;
-  --placeholder-ink: #4b5563;
-  --banner-bg: #fde68a;
-  --banner-ink: #5c3d00;
-  --terminologist: #4338ca;
-  --code-bg: #f1f3f6;
+  --info-ink: #35607a;
+  --ok-bg: #e4f4ee;
+  --ok-ink: #1d6a4a;
+  --placeholder-bg: #edf2f3;
+  --placeholder-ink: #4b5a63;
+  --banner-bg: #fef3c7;
+  --banner-ink: #6b4a00;
+  --terminologist: #4f46e5;
+  --code-bg: #eef3f4;
   color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #12161c;
-    --panel: #1b2129;
-    --ink: #e5e9ee;
-    --muted: #9aa5b1;
-    --line: #2e3742;
-    --brand: #ef4444;
-    --accent: #7aa2ff;
-    --warn-bg: #3a2a12;
-    --warn-ink: #f5c27a;
-    --warn-line: #a86b1d;
-    --info-ink: #9fb8d9;
-    --ok-bg: #173323;
-    --ok-ink: #8fd6a8;
-    --placeholder-bg: #2a313b;
-    --placeholder-ink: #c3cad3;
-    --banner-bg: #5c4a10;
-    --banner-ink: #fff3c4;
-    --terminologist: #a5b4fc;
-    --code-bg: #232a33;
-    color-scheme: dark;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -81,8 +60,9 @@ code, .ecl { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; fo
   gap: 16px;
   flex-wrap: wrap;
   padding: 12px 24px;
-  background: var(--brand);
-  color: var(--brand-ink);
+  background: var(--header-bg);
+  color: var(--header-ink);
+  border-bottom: 1px solid var(--header-line);
 }
 .app-header h1 { margin: 0; font-size: 1.25rem; }
 .brand { display: flex; flex-direction: column; margin-right: auto; }
@@ -91,15 +71,16 @@ code, .ecl { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; fo
 
 .view-switch { display: flex; gap: 4px; }
 .view-switch a {
-  color: var(--brand-ink);
+  color: var(--header-ink);
   text-decoration: none;
   padding: 6px 12px;
   border-radius: 6px;
   border: 1px solid transparent;
 }
-.view-switch a[aria-current="page"] { background: rgba(255, 255, 255, 0.18); }
+.view-switch a:hover { background: rgba(255, 255, 255, 0.6); }
+.view-switch a[aria-current="page"] { background: var(--panel); border-color: var(--header-line); font-weight: 600; }
 /* The Binding Review is a terminologist's view, styled apart from the form. */
-.view-switch a.view-review { border-color: rgba(255, 255, 255, 0.5); border-style: dashed; }
+.view-switch a.view-review { border-color: var(--terminologist); border-style: dashed; color: var(--terminologist); }
 
 main { padding: 20px 24px 40px; }
 
@@ -129,7 +110,7 @@ main { padding: 20px 24px 40px; }
   border-radius: 6px;
 }
 .btn-secondary { background: var(--panel); color: var(--ink); border-color: var(--line); }
-.app-header .btn-secondary { background: transparent; color: var(--brand-ink); border-color: rgba(255, 255, 255, 0.6); }
+.app-header .btn-secondary { background: var(--panel); color: var(--header-ink); border-color: var(--header-line); }
 .btn-link {
   font: inherit;
   font-size: 0.8em;
@@ -245,30 +226,16 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
 
 /* Extra tokens for the form, Lens and bands. */
 :root {
-  --sel-bg: #dbe7ff;
-  --sel-ink: #1e3a8a;
-  --sel-line: #1d4ed8;
+  --sel-bg: #d6efeb;
+  --sel-ink: #0f4f4a;
+  --sel-line: #0f766e;
   --lens-bg: #f5f5ff;
-  --sens-bg: #fde8e8;
-  --sens-ink: #8b1c1c;
-  --band-reduced: #fdf1e7;
-  --band-normal: #eaf6ee;
-  --band-increased: #e9effc;
-  --shadow: 0 6px 24px rgba(15, 23, 42, 0.14);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --sel-bg: #1e2f57;
-    --sel-ink: #c7d6ff;
-    --sel-line: #7aa2ff;
-    --lens-bg: #1d1f38;
-    --sens-bg: #3b1d1d;
-    --sens-ink: #f5b4b4;
-    --band-reduced: #2b231d;
-    --band-normal: #1c2a21;
-    --band-increased: #1e2639;
-    --shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
-  }
+  --sens-bg: #fcedf1;
+  --sens-ink: #9b3456;
+  --band-reduced: #fdf3ea;
+  --band-normal: #eaf6f0;
+  --band-increased: #eaf1fb;
+  --shadow: 0 6px 24px rgba(15, 42, 50, 0.12);
 }
 
 .sr-only {
@@ -281,11 +248,11 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
 
 /* Header: Lens toggle (form view only). */
 .btn-lens {
-  background: transparent;
-  color: var(--brand-ink);
-  border: 1px dashed rgba(255, 255, 255, 0.7);
+  background: var(--panel);
+  color: var(--terminologist);
+  border: 1px dashed var(--terminologist);
 }
-.btn-lens[aria-pressed="true"] { background: #fff; color: #4338ca; border-style: solid; }
+.btn-lens[aria-pressed="true"] { background: var(--terminologist); color: #fff; border-style: solid; }
 body[data-view="review"] .btn-lens { display: none; }
 .btn-small { padding: 3px 10px; font-size: 0.86em; }
 

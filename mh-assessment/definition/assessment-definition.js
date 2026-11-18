@@ -399,7 +399,8 @@ export const DEFINITION = {
         },
         {
           id: 'ph-allergy-reaction', label: 'Reaction',
-          control: 'text', cardinality: 'single', status: 'placeholder'
+          ecl: '^ 142341000036103 |Clinical manifestation reference set|',
+          control: 'typeahead', cardinality: 'single', status: 'placeholder'
         }
       ]
     },
