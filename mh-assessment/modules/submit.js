@@ -65,25 +65,37 @@ export function renderSubmitPanel() {
   loadEncounterClasses($('[data-encounter-class]'), $('[data-class-note]'));
 
   // ---- build and preview
+  // Builds from the current form state and returns the result (null on error).
+  // Only the newest build updates the display.
   async function rebuild() {
     const seq = ++buildSeq;
     let built;
     try {
       built = await buildBundle();
     } catch (err) {
-      if (seq !== buildSeq) return;
-      current = null;
-      $('[data-summary]').innerHTML = `<span class="text-warn">Could not build the Bundle: ${esc(err.message)}</span>`;
-      updateButtons();
-      return;
+      if (seq === buildSeq) {
+        current = null;
+        $('[data-summary]').innerHTML = `<span class="text-warn">Could not build the Bundle: ${esc(err.message)}</span>`;
+        updateButtons();
+      }
+      return null;
     }
-    if (seq !== buildSeq) return; // a newer build has started
-    current = built;
-    drawSummary(built);
-    drawPreview(built);
-    updateButtons();
+    if (seq === buildSeq) {
+      current = built;
+      drawSummary(built);
+      drawPreview(built);
+      updateButtons();
+    }
+    return built;
   }
   const scheduleRebuild = debounce(rebuild, REBUILD_MS);
+
+  // POST, Copy and Download use a build made at the moment of the click, so a
+  // change made in the last few hundred milliseconds is never left out.
+  function freshBuild() {
+    scheduleRebuild.cancel();
+    return rebuild();
+  }
 
   function drawSummary({ entries, warnings, blockers }) {
     const counts = new Map();
@@ -91,7 +103,8 @@ export function renderSubmitPanel() {
     const parts = [...counts].map(([type, n]) => `${n} ${type}`);
     $('[data-summary]').textContent = `Transaction Bundle with ${entries.length} ${entries.length === 1 ? 'resource' : 'resources'}: ${parts.join(', ')}.`;
     $('[data-blockers]').innerHTML = blockers.length
-      ? `<div class="notice notice-warn" role="alert"><strong>Before you can submit:</strong><ul>${blockers.map(b => `<li>${esc(b)}</li>`).join('')}</ul></div>`
+      ? `<div class="notice notice-warn" role="alert"><strong>Before you can submit:</strong><ul>${blockers.map(b => `<li>${esc(b)}</li>`).join('')}</ul>
+          <p class="small">Until then, Copy and Download give a draft that is not a valid Bundle.</p></div>`
       : '';
     $('[data-warnings]').innerHTML = warnings.length
       ? `<div class="notice"><strong>Not extracted:</strong><ul>${warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>`
@@ -143,28 +156,41 @@ export function renderSubmitPanel() {
   }
 
   // ---- copy and download
-  const bundleJson = () => JSON.stringify(current.bundle, null, 2);
+  // A Bundle with blockers is a draft: it is marked as one, not presented as valid.
+  const bundleJson = built => JSON.stringify(built.bundle, null, 2);
+  const isDraft = built => built.blockers.length > 0;
 
   $('[data-copy]').addEventListener('click', async () => {
-    if (!current) return;
-    const ok = await copyText(bundleJson());
+    const built = await freshBuild();
+    if (!built) return;
+    const ok = await copyText(bundleJson(built));
     const status = $('[data-copy-status]');
-    status.textContent = ok ? 'Copied.' : 'Copy failed. Use Download instead.';
-    setTimeout(() => { status.textContent = ''; }, 2500);
+    status.textContent = !ok ? 'Copy failed. Use Download instead.'
+      : isDraft(built) ? 'Copied a draft. It is not a valid Bundle yet.' : 'Copied.';
+    setTimeout(() => { status.textContent = ''; }, 4000);
   });
 
-  $('[data-download]').addEventListener('click', () => {
-    if (!current) return;
-    downloadText(`mh-assessment-bundle-${stamp()}.json`, bundleJson(), 'application/fhir+json');
+  $('[data-download]').addEventListener('click', async () => {
+    const built = await freshBuild();
+    if (!built) return;
+    const name = `mh-assessment-bundle-${isDraft(built) ? 'DRAFT-not-valid-' : ''}${stamp()}.json`;
+    downloadText(name, bundleJson(built), 'application/fhir+json');
   });
 
   // ---- POST
   $('[data-post]').addEventListener('click', async () => {
-    if (!current || posting || current.blockers.length) return;
-    const sent = current;
+    if (posting) return;
     posting = true;
     updateButtons();
     const out = $('[data-result]');
+    out.innerHTML = '<p class="muted"><span class="spinner" aria-hidden="true"></span> Preparing the Bundle...</p>';
+    const sent = await freshBuild();
+    if (!sent || sent.blockers.length) {
+      posting = false;
+      updateButtons();
+      out.innerHTML = sent ? '<p class="text-warn">The Bundle cannot be submitted yet. See the items above.</p>' : '';
+      return;
+    }
     out.innerHTML = '<p class="muted"><span class="spinner" aria-hidden="true"></span> Sending the transaction...</p>';
     try {
       const response = await postTransaction(sent.bundle);
@@ -172,7 +198,7 @@ export function renderSubmitPanel() {
       resetUuids();
       drawSuccess(out, sent, response);
     } catch (err) {
-      drawError(out, err);
+      drawError(out, err, sent);
     } finally {
       posting = false;
       updateButtons();
@@ -219,14 +245,26 @@ export function renderSubmitPanel() {
     });
   }
 
-  function drawError(out, err) {
-    const status = err instanceof FhirError && err.status ? `HTTP ${err.status}` : 'No response';
+  // The outcome is known only when the FHIR server itself answered: an
+  // OperationOutcome, or a 4xx refusal. After a timeout, a network drop or a
+  // 5xx from a proxy, the transaction may still have been saved.
+  function drawError(out, err, sent) {
+    const code = err instanceof FhirError ? err.status : 0;
+    const status = code ? `HTTP ${code}` : 'no response';
     const issues = err.outcome?.resourceType === 'OperationOutcome' ? (err.outcome.issue || []) : [];
+    const known = issues.length > 0 || (code >= 400 && code < 500);
+    const check = checkUrl(sent);
     out.innerHTML = `
       <div class="notice notice-warn" role="alert">
-        <strong>The transaction failed (${esc(status)}).</strong>
-        ${issues.length ? 'The server explained why in the table below.' : esc(err.message)}
-        <br><span class="small">Nothing was created: a transaction succeeds or fails as a whole.</span>
+        ${known ? `
+          <strong>The transaction failed (${esc(status)}).</strong>
+          ${issues.length ? 'The server explained why in the table below.' : esc(err.message)}
+          <br><span class="small">Nothing was created: a transaction succeeds or fails as a whole.</span>` : `
+          <strong>The result is unknown (${esc(status)}).</strong>
+          <br><span class="small">${esc(err.message)}</span>
+          <br>The server may have saved the transaction before the connection failed.
+          Check the server before you post again, or you may create a second copy of every resource.
+          ${check ? `<br><a href="${esc(check.url)}" target="_blank" rel="noopener">${esc(check.text)}</a>` : ''}`}
       </div>
       ${issues.length ? `
         <table class="result-table outcome-table">
@@ -257,6 +295,28 @@ export function renderSubmitPanel() {
   });
   rebuild();
   return root;
+}
+
+// A server search that shows whether an uncertain POST was saved: the
+// patient's latest Encounters, or for a new patient, patients with that family name.
+function checkUrl(sent) {
+  const base = getConfig().FHIR_BASE;
+  const resources = sent?.entries.map(e => e.resource) || [];
+  const subject = resources.find(r => r.resourceType === 'Encounter')?.subject?.reference || '';
+  if (subject.startsWith('Patient/')) {
+    return {
+      url: `${base}/Encounter?subject=${encodeURIComponent(subject)}&_sort=-_lastUpdated`,
+      text: "Check this patient's latest Encounters"
+    };
+  }
+  const family = resources.find(r => r.resourceType === 'Patient')?.name?.[0]?.family;
+  if (family) {
+    return {
+      url: `${base}/Patient?family=${encodeURIComponent(family)}&_sort=-_lastUpdated`,
+      text: `Check for patients named ${family}`
+    };
+  }
+  return { url: `${base}/Encounter?_sort=-_lastUpdated&_count=10`, text: 'Check the latest Encounters on the server' };
 }
 
 // Encounter class dropdown (FR-2): v3 ActEncounterCode, default from the definition.

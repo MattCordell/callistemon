@@ -10,12 +10,13 @@ import { getConfig } from '../config.js';
 // serverName is used in messages, for example "terminology server".
 // method and body are for the FHIR transaction POST. Content-Type is sent only
 // with a body, so terminology GETs stay free of a CORS preflight.
-export async function fetchJson(url, { makeError, serverName, method = 'GET', body }) {
-  const { FETCH_TIMEOUT_MS } = getConfig();
+// timeoutMs overrides FETCH_TIMEOUT_MS for this request.
+export async function fetchJson(url, { makeError, serverName, method = 'GET', body, timeoutMs }) {
+  const limit = timeoutMs ?? getConfig().FETCH_TIMEOUT_MS;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), limit);
   const timedOut = () => makeError(
-    `Timed out after ${Math.round(FETCH_TIMEOUT_MS / 1000)} s waiting for the ${serverName}`, { url });
+    `Timed out after ${Math.round(limit / 1000)} s waiting for the ${serverName}`, { url });
 
   try {
     let response;

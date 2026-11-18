@@ -33,10 +33,11 @@ export function resourceUrl(type, id) {
 // POSTs a transaction Bundle to the base URL (SPEC.md 7.4, FR-10).
 // Returns the transaction-response Bundle; throws FhirError on failure.
 export function postTransaction(bundle) {
-  const { FHIR_BASE } = getConfig();
+  const { FHIR_BASE, TRANSACTION_TIMEOUT_MS } = getConfig();
   return fetchJson(FHIR_BASE, {
     method: 'POST',
     body: bundle,
+    timeoutMs: TRANSACTION_TIMEOUT_MS,
     serverName: 'FHIR server',
     makeError: (message, details) => new FhirError(message, details)
   });
