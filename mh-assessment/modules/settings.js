@@ -19,7 +19,7 @@ export function mountSettings(dialog, openButton) {
           <input type="url" name="${key}" spellcheck="false" placeholder="${esc(DEFAULTS[key])}">
           <small class="muted">Default: ${esc(DEFAULTS[key])}. Leave blank to use the default.</small>
         </label>`).join('')}
-      <p class="muted small">Changes are saved in this browser only. Saving clears the terminology cache and re-runs the Binding Review.</p>
+      <p class="muted small">Changes are saved in this browser only. Saving clears the terminology cache, reloads the form's value lists (your answers are kept) and re-runs the Binding Review if it is open.</p>
       <div class="dialog-actions">
         <button type="button" class="btn btn-secondary" data-action="reset">Reset to defaults</button>
         <span class="spacer"></span>

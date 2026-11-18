@@ -13,6 +13,11 @@
 //   patientElement     Target element for output "patient".
 //   conditionCategory, clinicalStatus, verificationStatus   For output "condition".
 //   componentCode      The local component code for output "substance-use".
+//   info               Field: text for a clinician-facing info pop beside the label.
+//   scale              Field: true to group answers into the SCALE_BANDS below
+//                      (chips under band labels, dropdowns as option groups).
+//   Tab properties:    info (info pop by the tab heading), note (always-visible note at the
+//                      top of the tab), sectionInfo { sectionName: always-visible note }.
 //
 // All bindings are placeholders from SPEC.md Appendix B (checked 18 Nov 2026).
 // ECL is copied exactly from Appendix B.
@@ -48,14 +53,30 @@ export const DEFINITION = {
     { id: 'presenting-complaint', label: 'Presenting complaint' },
     { id: 'symptoms', label: 'Symptoms' },
     { id: 'neurovegetative', label: 'Neurovegetative' },
-    { id: 'risk', label: 'Risk' },
-    { id: 'stressors', label: 'Stressors and impact' },
+    {
+      id: 'risk', label: 'Risk',
+      note: 'This tab is a recording aid only. It is not a risk assessment tool.'
+    },
+    {
+      id: 'stressors', label: 'Stressors and impact',
+      sectionInfo: {
+        'Outcome measures': 'HoNOS is a licensed instrument. Only the total score is recorded here; item content is not reproduced.'
+      }
+    },
     { id: 'past-history', label: 'Past history' },
     { id: 'substance-use', label: 'Substance use' },
     { id: 'family-forensic', label: 'Family and forensic' },
     { id: 'personal-history', label: 'Personal history' },
-    { id: 'mental-state', label: 'Mental state' },
-    { id: 'diagnosis', label: 'Diagnosis' },
+    {
+      id: 'mental-state', label: 'Mental state',
+      sectionInfo: {
+        'MMSE': 'The MMSE is a licensed instrument. Only domain subscores and the total are recorded here; item content is not reproduced.'
+      }
+    },
+    {
+      id: 'diagnosis', label: 'Diagnosis',
+      info: 'DSM-5 (2013) removed the multiaxial system. Diagnoses are recorded as principal, additional or differential. Content formerly on Axes III to V is captured in Past history, Stressors and impact, and the outcome measures.'
+    },
     { id: 'review', label: 'Review and submit' }
   ],
 
@@ -96,6 +117,7 @@ export const DEFINITION = {
       valueSet: 'http://hl7.org/fhir/ValueSet/marital-status',
       control: 'select', cardinality: 'single',
       output: 'patient', patientElement: 'maritalStatus', status: 'placeholder',
+      info: 'These are the FHIR (HL7 v3) marital status codes. National reporting uses the METEOR "Person - marital status" codes, so a mapping would be needed. The mapping is not implemented in this demonstrator.',
       notes: 'FHIR v3 MaritalStatus. National reporting uses METEOR "Person - marital status" codes; a mapping would be needed (not implemented).'
     },
     {
@@ -169,7 +191,7 @@ export const DEFINITION = {
       id: 'nv-sleep', tab: 'neurovegetative', section: 'Neurovegetative disturbance',
       observable: { code: '258158006', display: 'Sleep' },
       ecl: '< 106168000 |Finding related to sleep| MINUS << 64572001 |Disease|',
-      control: 'auto', cardinality: 'multiple',
+      control: 'auto', cardinality: 'multiple', scale: true,
       output: 'observation-qa', category: 'survey', status: 'placeholder',
       notes: 'Multiple select. Includes Early morning waking (401236004).'
     },
@@ -177,21 +199,21 @@ export const DEFINITION = {
       id: 'nv-appetite', tab: 'neurovegetative', section: 'Neurovegetative disturbance',
       observable: { code: '364663004', display: 'Appetite observable' },
       ecl: '< 289161009 |Finding of appetite|',
-      control: 'auto', cardinality: 'single',
+      control: 'auto', cardinality: 'single', scale: true,
       output: 'observation-qa', category: 'survey', status: 'placeholder'
     },
     {
       id: 'nv-weight', tab: 'neurovegetative', section: 'Neurovegetative disturbance',
       observable: { code: '248346009', display: 'Weight change' },
       ecl: '< 365921005 |Weight change finding|',
-      control: 'auto', cardinality: 'single',
+      control: 'auto', cardinality: 'single', scale: true,
       output: 'observation-qa', category: 'survey', status: 'placeholder'
     },
     {
       id: 'nv-concentration', tab: 'neurovegetative', section: 'Neurovegetative disturbance',
       observable: { code: '247760006', display: 'Ability to concentrate' },
       ecl: ECL_CONCENTRATION,
-      control: 'auto', cardinality: 'single',
+      control: 'auto', cardinality: 'single', scale: true,
       output: 'observation-qa', category: 'survey', status: 'placeholder',
       notes: 'Includes Normal concentration.'
     },
@@ -199,7 +221,7 @@ export const DEFINITION = {
       id: 'nv-energy', tab: 'neurovegetative', section: 'Neurovegetative disturbance',
       observable: { code: '406202006', display: 'Energy observable' },
       ecl: '< 301325005 |Finding of general energy|',
-      control: 'auto', cardinality: 'single',
+      control: 'auto', cardinality: 'single', scale: true,
       output: 'observation-qa', category: 'survey', status: 'placeholder',
       notes: 'Three "Able to ... energy" concepts may warrant a MINUS.'
     },
@@ -208,7 +230,7 @@ export const DEFINITION = {
       label: 'Anhedonia',
       observable: { code: '285854004', display: 'Emotion' },
       ecl: '<< 28669007 |Anhedonia| OR << 247796005 |Loss of capacity for enjoyment| OR << 430641005 |Markedly diminished pleasure|',
-      control: 'auto', cardinality: 'single',
+      control: 'auto', cardinality: 'single', scale: true,
       output: 'observation-qa', category: 'survey', status: 'placeholder',
       notes: 'No specific observable and no normal concept found. Label set explicitly because the observable PT is "Emotion".'
     },
@@ -216,7 +238,7 @@ export const DEFINITION = {
       id: 'nv-libido', tab: 'neurovegetative', section: 'Neurovegetative disturbance',
       observable: { code: '248095000', display: 'Libido' },
       ecl: '< 365965002 |Libido - finding|',
-      control: 'auto', cardinality: 'single',
+      control: 'auto', cardinality: 'single', scale: true,
       output: 'observation-qa', category: 'survey', status: 'placeholder'
     },
 
@@ -732,6 +754,30 @@ export const DEFINITION = {
     }
   ]
 };
+
+// Bands for fields with `scale: true` (SPEC.md section 8: make "high and low"
+// visible). Each answer's AU preferred term is matched against the words below,
+// at the start of a word and ignoring case. Bands are tried in this order and
+// the first match wins; unmatched answers go to "Other". Reduced and Increased
+// are tried before Normal so terms such as "Abnormal weight loss" are not read
+// as normal. Display order is Reduced, Normal, Increased, Other.
+export const SCALE_BANDS = [
+  {
+    id: 'reduced', label: 'Reduced',
+    words: ['reduced', 'decrease', 'loss', 'lack', 'low', 'poor', 'impaired', 'unable', 'inhibited',
+      'diminished', 'no interest', 'cannot', 'lethargy']
+  },
+  {
+    id: 'increased', label: 'Increased',
+    words: ['increased', 'excess', 'hyper', 'gain', 'always', 'morbid']
+  },
+  {
+    id: 'normal', label: 'Normal',
+    words: ['normal', 'able to', 'appropriate']
+  }
+];
+export const SCALE_DISPLAY_ORDER = ['reduced', 'normal', 'increased', 'other'];
+export const SCALE_OTHER_LABEL = 'Other';
 
 // ECL used by the Binding Review checks (FR-6), kept here so no ECL lives in code.
 export const REVIEW_CHECKS = {

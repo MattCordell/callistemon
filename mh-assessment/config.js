@@ -11,7 +11,16 @@ export const DEFAULTS = Object.freeze({
   FETCH_TIMEOUT_MS: 30000,
   CONCURRENCY: 4,          // parallel terminology requests in the Binding Review
   LARGE_EXPANSION: 500,    // warn when an expansion is larger than this
-  PREVIEW_COUNT: 10        // members shown per field in the Binding Review
+  PREVIEW_COUNT: 10,       // members shown per field in the Binding Review
+  // Form: automatic control choice (SPEC.md section 5.4).
+  AUTO_CHIPS_MAX: 12,      // this many concepts or fewer: chips
+  AUTO_DROPDOWN_MAX: 60,   // this many or fewer: dropdown; more: typeahead
+  // Typeahead
+  TYPEAHEAD_COUNT: 20,
+  TYPEAHEAD_DEBOUNCE_MS: 250,
+  TYPEAHEAD_MIN_CHARS: 2,
+  TYPEAHEAD_BROWSE_MAX: 100, // value sets this small list all members on focus
+  PATIENT_SEARCH_COUNT: 20
 });
 
 // Only these keys can be changed from the Settings panel.

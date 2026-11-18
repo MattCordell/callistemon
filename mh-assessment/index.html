@@ -20,19 +20,17 @@
       <a href="#form" data-view="form">Clinical form</a>
       <a href="#review" data-view="review" class="view-review">Binding review</a>
     </nav>
+    <button type="button" class="btn btn-lens" id="lens-toggle" aria-pressed="false"
+      title="Show terminology bindings beside each coded field">Terminology lens</button>
     <button type="button" class="btn btn-secondary" id="open-settings">Settings</button>
   </header>
 
   <main>
-    <section id="view-form" class="view" hidden>
-      <div class="placeholder-panel">
-        <h2>Clinical form</h2>
-        <p>The assessment form is built in session 2. For now, use the Binding review to check the terminology bindings.</p>
-      </div>
-    </section>
+    <section id="view-form" class="view" hidden></section>
     <section id="view-review" class="view view-terminologist" hidden></section>
   </main>
 
+  <aside id="concept-drawer" class="concept-drawer" role="dialog" aria-labelledby="concept-drawer-title" hidden></aside>
   <dialog id="settings-dialog" aria-label="Settings"></dialog>
 
   <script type="module" src="app.js"></script>
