@@ -1,12 +1,13 @@
 // Boot: views, settings, the form, the Terminology Lens and the Binding Review.
 // Routes: #form/<tab-id> for the form, #review for the Binding Review.
 
-import { onConfigChange } from './config.js';
+import { getConfig, onConfigChange } from './config.js';
 import { clearCache } from './modules/terminology.js';
 import { mountBindingReview, runAll } from './modules/binding-review.js';
 import { mountSettings } from './modules/settings.js';
 import { mountForm, showTab, rerenderForm } from './modules/form.js';
-import { mountLens } from './modules/lens.js';
+import { mountLens, clearLensCache } from './modules/lens.js';
+import { getPatient, setPatient } from './modules/state.js';
 import { $ } from './modules/ui.js';
 
 const DEFAULT_VIEW = 'form';
@@ -32,10 +33,18 @@ mountBindingReview($('#view-review'));
 mountSettings($('#settings-dialog'), $('#open-settings'));
 mountLens($('#lens-toggle'), $('#concept-drawer'));
 
+let fhirBase = getConfig().FHIR_BASE;
+
 // runAll() clears the cache itself; clear it here only when the review isn't running.
-onConfigChange(() => {
+onConfigChange(cfg => {
   if (reviewStarted) runAll();
   else clearCache();
+  clearLensCache();
+  // A patient picked from the old FHIR server may not exist on the new one.
+  if (cfg.FHIR_BASE !== fhirBase) {
+    fhirBase = cfg.FHIR_BASE;
+    if (getPatient()?.mode === 'existing') setPatient(null);
+  }
   rerenderForm();
 });
 

@@ -2,7 +2,7 @@
 // Session 2: patient search. Session 3 adds the transaction POST.
 
 import { getConfig } from '../config.js';
-import { outcomeText } from './terminology.js';
+import { fetchJson } from './http.js';
 
 export class FhirError extends Error {
   constructor(message, { status = 0, outcome = null, url = '' } = {}) {
@@ -26,31 +26,11 @@ export function patientUrl(id) {
   return `${getConfig().FHIR_BASE}/Patient/${encodeURIComponent(id)}`;
 }
 
-async function getJson(url) {
-  const { FETCH_TIMEOUT_MS } = getConfig();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    let response;
-    try {
-      response = await fetch(url, {
-        headers: { Accept: 'application/fhir+json' },
-        signal: controller.signal
-      });
-    } catch (err) {
-      if (err.name === 'AbortError') throw new FhirError('Timed out waiting for the FHIR server', { url });
-      throw new FhirError('Network error: could not reach the FHIR server (offline, wrong URL or CORS)', { url });
-    }
-    let body = null;
-    try { body = await response.json(); } catch { /* not JSON */ }
-    if (!response.ok || body?.resourceType === 'OperationOutcome') {
-      const message = outcomeText(body) || `HTTP ${response.status} ${response.statusText}`;
-      throw new FhirError(message, { status: response.status, outcome: body, url });
-    }
-    return body;
-  } finally {
-    clearTimeout(timer);
-  }
+function getJson(url) {
+  return fetchJson(url, {
+    serverName: 'FHIR server',
+    makeError: (message, details) => new FhirError(message, details)
+  });
 }
 
 // Display helpers shared by the picker and the banner.

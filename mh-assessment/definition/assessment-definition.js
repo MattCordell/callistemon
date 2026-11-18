@@ -786,3 +786,14 @@ export const REVIEW_CHECKS = {
   // Codes in this system are local placeholders and cannot be looked up.
   localSystem: LOCAL
 };
+
+// SNOMED CT metadata codes the app reads from $lookup results. They are not
+// answer bindings, but they live here so that no SNOMED CT code is in code.
+export const SNOMED_METADATA = {
+  // Description types, used to pick out the FSN and synonyms.
+  fsnUse: { code: '900000000000003001', display: 'Fully specified name' },
+  synonymUse: { code: '900000000000013009', display: 'Synonym' },
+  // Attributes the concept detail drawer shows.
+  interprets: { code: '363714003', display: 'Interprets' },
+  hasInterpretation: { code: '363713009', display: 'Has interpretation' }
+};

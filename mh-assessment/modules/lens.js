@@ -2,19 +2,25 @@
 // each coded field, and a concept detail drawer populated by $lookup.
 // When the Lens is off, panels are hidden by CSS and the form stays clean.
 
-import { REVIEW_CHECKS } from '../definition/assessment-definition.js';
+import { REVIEW_CHECKS, SNOMED_METADATA } from '../definition/assessment-definition.js';
 import { getConfig } from '../config.js';
 import { lookup } from './terminology.js';
 import { esc, copyText, aucdiBadge } from './ui.js';
 
 const STORAGE_KEY = 'mh-assessment.lens';
-const INTERPRETS = '363714003';
-const HAS_INTERPRETATION = '363713009';
+const { interprets: INTERPRETS_ATTR, hasInterpretation: HAS_INTERPRETATION_ATTR } = SNOMED_METADATA;
+const INTERPRETS = INTERPRETS_ATTR.code;
+const HAS_INTERPRETATION = HAS_INTERPRETATION_ATTR.code;
 
 let drawer = null;
 let drawerOpener = null;
 let drawerToken = 0;
 const ptCache = new Map(); // "system|code" -> AU preferred term
+
+// Called on a Settings change: preferred terms may differ on another server or edition.
+export function clearLensCache() {
+  ptCache.clear();
+}
 
 // ---------------------------------------------------------------- toggle
 
@@ -223,8 +229,8 @@ export async function openConcept(coding, opener) {
       isSct ? ['Fully specified name', esc(res.fsn || '')] : null,
       ['Synonyms', synonyms.length ? `<ul class="plain">${synonyms.map(s => `<li>${esc(s)}</li>`).join('')}</ul>` : '<span class="muted">None</span>'],
       isSct ? ['Parents', list(res.parents.map(valueCode))] : null,
-      isSct ? ['Interprets', list(interprets)] : null,
-      isSct ? ['Has interpretation', list(hasInterp)] : null,
+      isSct ? [esc(INTERPRETS_ATTR.display), list(interprets)] : null,
+      isSct ? [esc(HAS_INTERPRETATION_ATTR.display), list(hasInterp)] : null,
       ['Status', res.inactive === true ? '<span class="tag tag-warn">inactive</span>' : 'Active'],
       ['System', esc(coding.system)],
       res.version ? ['Version', `<span class="small">${esc(res.version)}</span>`] : null

@@ -2,10 +2,14 @@
 // Results are cached in memory by request URL. The cache holds promises,
 // so parallel callers share one request. Failed requests are not cached.
 //
-// Only the Accept header is sent: Ontoserver's CORS policy allows
-// "content-type, accept" and nothing else.
+// Requests go through the shared helper in http.js, which sends only the
+// Accept header (Ontoserver's CORS policy allows nothing else).
 
 import { getConfig } from '../config.js';
+import { SNOMED_METADATA } from '../definition/assessment-definition.js';
+import { fetchJson as httpFetchJson, outcomeText } from './http.js';
+
+export { outcomeText };
 
 const cache = new Map();
 
@@ -103,51 +107,11 @@ function getJson(url) {
   return promise;
 }
 
-async function fetchJson(url) {
-  const { FETCH_TIMEOUT_MS } = getConfig();
-  const controller = new AbortController();
-  // The timeout covers the whole request, including reading the body.
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  const timedOut = () => new TerminologyError(
-    `Timed out after ${Math.round(FETCH_TIMEOUT_MS / 1000)} s`, { url });
-
-  try {
-    let response;
-    try {
-      response = await fetch(url, {
-        headers: { Accept: 'application/fhir+json' },
-        signal: controller.signal
-      });
-    } catch (err) {
-      if (err.name === 'AbortError') throw timedOut();
-      throw new TerminologyError(
-        'Network error: could not reach the terminology server (offline, wrong URL or CORS)', { url });
-    }
-
-    let body = null;
-    try {
-      body = await response.json();
-    } catch (err) {
-      if (err.name === 'AbortError') throw timedOut();
-      // Otherwise the body was not JSON; fall through to the status check.
-    }
-
-    if (!response.ok || body?.resourceType === 'OperationOutcome') {
-      const message = outcomeText(body) || `HTTP ${response.status} ${response.statusText}`;
-      throw new TerminologyError(message, { status: response.status, outcome: body, url });
-    }
-    return body;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-export function outcomeText(outcome) {
-  if (!outcome || outcome.resourceType !== 'OperationOutcome') return '';
-  return (outcome.issue || [])
-    .map(i => i.details?.text || i.diagnostics || i.code)
-    .filter(Boolean)
-    .join(' | ');
+function fetchJson(url) {
+  return httpFetchJson(url, {
+    serverName: 'terminology server',
+    makeError: (message, details) => new TerminologyError(message, details)
+  });
 }
 
 function paramMap(parameters = []) {
@@ -156,8 +120,8 @@ function paramMap(parameters = []) {
   return map;
 }
 
-const FSN_USE = '900000000000003001';
-const SYNONYM_USE = '900000000000013009';
+const FSN_USE = SNOMED_METADATA.fsnUse.code;
+const SYNONYM_USE = SNOMED_METADATA.synonymUse.code;
 
 function parseLookup(result) {
   const params = result.parameter || [];

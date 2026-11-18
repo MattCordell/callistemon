@@ -15,7 +15,8 @@ const rendered = new Set();
 export function mountForm(container) {
   root = container;
   root.innerHTML = `
-    <div class="patient-banner" role="status" aria-label="Patient"></div>
+    <section class="patient-banner" aria-label="Patient"></section>
+    <div class="sr-only" aria-live="polite" data-patient-live></div>
     <div class="tabbar" role="tablist" aria-label="Assessment sections">
       ${tabs.map((t, i) => `
         <a role="tab" href="#form/${esc(t.id)}" id="tab-${esc(t.id)}" aria-controls="panel-${esc(t.id)}"
@@ -29,7 +30,7 @@ export function mountForm(container) {
       ${tabs.map(t => `<section role="tabpanel" id="panel-${esc(t.id)}" aria-labelledby="tab-${esc(t.id)}" class="tab-panel" hidden></section>`).join('')}
     </div>`;
 
-  mountBanner(root.querySelector('.patient-banner'));
+  mountBanner(root.querySelector('.patient-banner'), root.querySelector('[data-patient-live]'));
   root.querySelector('.tabbar').addEventListener('keydown', onTabKey);
   subscribe(updateCounts);
   updateCounts();

@@ -156,12 +156,15 @@ export function renderField(def, { value, onChange, compact = false, scale = fal
   resolveLabel(def, el.querySelector('.field-label'));
 
   const ctx = { def, slot, labelId, label, value, set, fctx, scale, initialQuery };
+  let ready;
   if (CODED_CONTROLS.includes(def.control) || (def.control === 'boolean' && bindingOf(def))) {
-    mountCoded(ctx);
+    ready = mountCoded(ctx);
   } else {
     mountPlain(ctx);
+    ready = Promise.resolve();
   }
-  return { el, fctx };
+  // ready resolves once the control is in the DOM (coded controls load values first).
+  return { el, fctx, ready };
 }
 
 // ---------------------------------------------------------------- coded controls
@@ -289,7 +292,7 @@ function dropdownControl(ctx, members) {
   const drawChips = () => {
     if (!chips) return;
     chips.innerHTML = value.map(selectedChipHtml).join('');
-    select.querySelectorAll('option[value]').forEach(o => {
+    select.querySelectorAll('option[value]:not([value=""])').forEach(o => {
       const m = members[Number(o.value)];
       if (m) o.disabled = value.some(v => sameCoding(v, m));
     });
@@ -474,6 +477,7 @@ export function renderGroup(def, { value, onChange }) {
   if (hasTerminology(def) || gctx.columns.length) el.append(createLensPanel(gctx));
 
   const rowsEl = el.querySelector('.group-rows');
+  let lastRowFirstCell = null; // { cell, ready } for the newest row's first column
 
   const commit = () => {
     onChange(rows.map(r => ({ ...r })));
@@ -488,8 +492,8 @@ export function renderGroup(def, { value, onChange }) {
     }
     rows.forEach((row, index) => {
       const rowEl = html(`<div class="group-row">${seeded ? `<span class="group-seed">${esc(row._seed || '')}</span>` : ''}</div>`);
-      for (const col of cols) {
-        const { el: cell } = renderField(col, {
+      for (const [colIndex, col] of cols.entries()) {
+        const { el: cell, ready } = renderField(col, {
           compact: true,
           withLens: false,
           value: row[col.id],
@@ -500,6 +504,7 @@ export function renderGroup(def, { value, onChange }) {
           }
         });
         rowEl.append(cell);
+        if (colIndex === 0) lastRowFirstCell = { cell, ready };
       }
       const remove = html(`<button type="button" class="btn-link group-remove" aria-label="Remove row ${index + 1}${row._seed ? ` (${esc(row._seed)})` : ''}">Remove</button>`);
       remove.addEventListener('click', () => {
@@ -512,10 +517,15 @@ export function renderGroup(def, { value, onChange }) {
     });
   }
 
+  // Focus the new row's first control once it exists: coded cells load their values first.
   el.querySelector('[data-add]').addEventListener('click', () => {
     rows.push({});
     drawRows();
-    rowsEl.lastElementChild?.querySelector('input, select, textarea, button')?.focus();
+    const target = lastRowFirstCell;
+    target?.ready.then(() => {
+      if (!target.cell.isConnected) return;
+      target.cell.querySelector('input:not([disabled]), select:not([disabled]), textarea, button')?.focus();
+    });
   });
 
   drawRows();

@@ -143,13 +143,23 @@ export function renderPatientSection(sectionName, fields, renderTopField) {
 
 // ---------------------------------------------------------------- banner
 
-export function mountBanner(el) {
+// The banner redraws as new-patient details are typed, so it is not a live
+// region. liveEl announces only changes to the patient selection.
+export function mountBanner(el, liveEl) {
   const patientIds = new Set(patientFields().map(f => f.id));
   const draw = () => { el.innerHTML = bannerHtml(); };
   subscribe(change => {
     if (change.type === 'patient' || patientIds.has(change.id)) draw();
+    if (change.type === 'patient' && liveEl) liveEl.textContent = selectionMessage();
   });
   draw();
+}
+
+function selectionMessage() {
+  const p = getPatient();
+  if (!p) return 'No patient selected.';
+  if (p.mode === 'existing') return `Patient selected: ${patientName(p.resource)}.`;
+  return 'New patient. Enter their details in the Patient section.';
 }
 
 function bannerHtml() {

@@ -174,7 +174,13 @@ export function createTypeahead({ binding, labelId, multiple, value, onChange, b
     if (q || browse) search(q);
   });
 
-  input.addEventListener('blur', () => setTimeout(close, 150));
+  // Drop any pending or in-flight search, so the list cannot reopen after focus leaves.
+  input.addEventListener('blur', () => {
+    search.cancel();
+    seq++;
+    if (status.textContent === 'Searching...') setStatus('');
+    setTimeout(close, 150);
+  });
 
   input.addEventListener('keydown', e => {
     if (e.key === 'ArrowDown') {
