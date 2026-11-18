@@ -1,5 +1,5 @@
 // FHIR server client for Callistemon (vanilla HAPI R4).
-// Session 2: patient search. Session 3 adds the transaction POST.
+// Patient search and the transaction POST.
 
 import { getConfig } from '../config.js';
 import { fetchJson } from './http.js';
@@ -23,7 +23,29 @@ export async function searchPatients(name) {
 }
 
 export function patientUrl(id) {
-  return `${getConfig().FHIR_BASE}/Patient/${encodeURIComponent(id)}`;
+  return resourceUrl('Patient', id);
+}
+
+export function resourceUrl(type, id) {
+  return `${getConfig().FHIR_BASE}/${type}/${encodeURIComponent(id)}`;
+}
+
+// POSTs a transaction Bundle to the base URL (SPEC.md 7.4, FR-10).
+// Returns the transaction-response Bundle; throws FhirError on failure.
+export function postTransaction(bundle) {
+  const { FHIR_BASE } = getConfig();
+  return fetchJson(FHIR_BASE, {
+    method: 'POST',
+    body: bundle,
+    serverName: 'FHIR server',
+    makeError: (message, details) => new FhirError(message, details)
+  });
+}
+
+// "Observation/123/_history/1" or a full URL -> { type, id }.
+export function parseLocation(location) {
+  const m = /(?:^|\/)([A-Z][A-Za-z]+)\/([^/]+)(?:\/_history\/[^/]+)?\/?$/.exec(location || '');
+  return m ? { type: m[1], id: m[2] } : null;
 }
 
 function getJson(url) {

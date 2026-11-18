@@ -17,6 +17,28 @@ const answers = new Map();
 let patient = null;            // { mode: 'existing', resource } | { mode: 'new' } | null
 const listeners = new Set();
 
+// Assessment details for the Encounter and every timestamp (FR-2, SPEC.md 7.1).
+// dateTime is a local "YYYY-MM-DDTHH:MM" string, as a datetime-local input gives.
+let assessment = {
+  dateTime: localDateTimeNow(),
+  encounterClass: DEFINITION.encounter.classDefault
+};
+
+export function getAssessment() {
+  return { ...assessment };
+}
+
+export function setAssessment(partial) {
+  assessment = { ...assessment, ...partial };
+  notify({ type: 'assessment' });
+}
+
+function localDateTimeNow() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function getAnswer(id) {
   return answers.get(id);
 }
