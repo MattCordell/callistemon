@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MHAOD Assessment</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="synthetic-banner" role="note">
+    Synthetic data only. Do not enter real patient information.
+  </div>
+
+  <header class="app-header">
+    <div class="brand">
+      <a href="../" class="home-link" title="Callistemon home">Callistemon</a>
+      <h1>Mental health assessment</h1>
+    </div>
+    <nav class="view-switch" aria-label="View">
+      <a href="#form" data-view="form">Clinical form</a>
+      <a href="#review" data-view="review" class="view-review">Binding review</a>
+    </nav>
+    <button type="button" class="btn btn-lens" id="lens-toggle" aria-pressed="false"
+      title="Show terminology bindings beside each coded field">Terminology lens</button>
+    <button type="button" class="btn btn-secondary" id="open-settings">Settings</button>
+  </header>
+
+  <main>
+    <section id="view-form" class="view" hidden></section>
+    <section id="view-review" class="view view-terminologist" hidden></section>
+  </main>
+
+  <aside id="concept-drawer" class="concept-drawer" role="dialog" aria-labelledby="concept-drawer-title" hidden></aside>
+  <dialog id="settings-dialog" aria-label="Settings"></dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
