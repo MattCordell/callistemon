@@ -29,7 +29,7 @@ const PLAIN_TYPES = {
 // Builds the Questionnaire. Labels use AU preferred terms where the field has no label.
 export async function buildQuestionnaire() {
   const names = await labelResolver();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDate();
 
   const groups = DEFINITION.tabs
     .map(tab => ({
@@ -55,6 +55,12 @@ export async function buildQuestionnaire() {
     description: 'Generated from the MHAOD assessment definition file. Bindings are placeholders. Synthetic data only.',
     item: groups
   };
+}
+
+// Today's date in the browser's time zone (toISOString would give the UTC date).
+function localDate(d = new Date()) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function fieldItem(def, names) {

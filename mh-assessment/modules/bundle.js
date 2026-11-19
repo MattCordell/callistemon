@@ -119,10 +119,12 @@ export async function labelResolver(answers = null) {
 // a failed lookup falls back to the definition display.
 async function observableDisplays(answers) {
   const cfg = getConfig();
-  const codes = new Set(DEFINITION.fields
-    .filter(f => f.observable && (f.observable.system || cfg.SNOMED_SYSTEM) === cfg.SNOMED_SYSTEM)
-    .filter(f => !answers || !blank(answers.get(f.id)))
-    .map(f => f.observable.code));
+  // Columns count as answered when their repeating group is.
+  const defs = DEFINITION.fields.flatMap(f => [f, ...(f.columns || [])].map(def => ({ def, fieldId: f.id })));
+  const codes = new Set(defs
+    .filter(({ def }) => def.observable && (def.observable.system || cfg.SNOMED_SYSTEM) === cfg.SNOMED_SYSTEM)
+    .filter(({ fieldId }) => !answers || !blank(answers.get(fieldId)))
+    .map(({ def }) => def.observable.code));
   const out = new Map();
   await Promise.all([...codes].map(async code => {
     try {

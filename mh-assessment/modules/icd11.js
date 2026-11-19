@@ -37,7 +37,7 @@ function unquote(value) {
 
 // Parses the map TSV. Returns Map<SNOMED CT code, rows[]>, rows sorted for display.
 export function parseMapTsv(text) {
-  const lines = String(text).replace(/^﻿/, '').split(/\r?\n/);
+  const lines = String(text).replace(/^\uFEFF/, '').split(/\r?\n/);
   const header = (lines.shift() || '').split('\t').map(unquote);
   const at = {};
   for (const [key, name] of Object.entries(COL)) {
@@ -90,24 +90,35 @@ export function loadIcd11Map() {
 
 // ---------------------------------------------------------------- panel
 
-// An empty panel for a field. Fill it with updateIcd11Panel.
+// The ICD-11 block for a field: a visually hidden status line (the only live
+// region) and the panel itself. Fill it with updateIcd11Panel.
 export function createIcd11Panel() {
-  const panel = html('<div class="icd11-panel" aria-live="polite" hidden></div>');
-  panel.addEventListener('click', e => {
-    if (e.target.closest('[data-icd11-retry]')) updateIcd11Panel(panel, panel._value);
+  const block = html(`
+    <div class="icd11">
+      <p class="sr-only" aria-live="polite" data-icd11-status></p>
+      <div class="icd11-panel" hidden></div>
+    </div>`);
+  block.addEventListener('click', e => {
+    if (e.target.closest('[data-icd11-retry]')) updateIcd11Panel(block, block._value, { announce: true });
   });
-  return panel;
+  return block;
 }
 
-// value: a coding, an array of codings, or empty.
-export function updateIcd11Panel(panel, value) {
-  panel._value = value;
+// value: a coding, an array of codings, or empty. announce: true when the user
+// changed the selection, so the status line is read out. A tab rendering an
+// existing value stays quiet.
+export function updateIcd11Panel(block, value, { announce = false } = {}) {
+  block._value = value;
+  const panel = block.querySelector('.icd11-panel');
+  const status = block.querySelector('[data-icd11-status]');
+  const say = text => { if (announce) status.textContent = text; };
   const codings = (Array.isArray(value) ? value : [value]).filter(c => c && c.code);
-  const seq = (panel._seq || 0) + 1;
-  panel._seq = seq;
+  const seq = (block._seq || 0) + 1;
+  block._seq = seq;
   if (!codings.length) {
     panel.hidden = true;
     panel.innerHTML = '';
+    status.textContent = '';
     return;
   }
   panel.hidden = false;
@@ -115,14 +126,25 @@ export function updateIcd11Panel(panel, value) {
 
   loadIcd11Map()
     .then(index => {
-      if (panel._seq !== seq) return;
+      if (block._seq !== seq) return;
       panel.innerHTML = headHtml() + codings.map(c => conceptHtml(c, index.get(c.code) || [], codings.length > 1)).join('');
+      say(statusText(codings, index));
     })
     .catch(err => {
-      if (panel._seq !== seq) return;
+      if (block._seq !== seq) return;
       panel.innerHTML = `${headHtml()}<p class="small text-warn">The ICD-11 map could not be loaded: ${esc(err.message)}
         <button type="button" class="btn-link" data-icd11-retry>Retry</button></p>`;
+      say('The ICD-11 map could not be loaded.');
     });
+}
+
+// "Unreviewed ICD-11 research map: 14 entries for Major depression, single episode."
+function statusText(codings, index) {
+  const parts = codings.map(c => {
+    const n = (index.get(c.code) || []).length;
+    return `${n || 'no'} ${n === 1 ? 'entry' : 'entries'} for ${c.display || c.code}`;
+  });
+  return `Unreviewed ICD-11 research map: ${parts.join('; ')}.`;
 }
 
 function headHtml() {

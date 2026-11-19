@@ -59,10 +59,14 @@ exampleBtn.addEventListener('click', async () => {
   exampleBtn.disabled = true;
   exampleStatus.textContent = 'Loading the example...';
   try {
-    const { loaded, skipped } = await loadExample();
-    rerenderForm();
-    exampleStatus.textContent = `Example loaded: ${loaded} fields filled`
-      + (skipped ? `, ${skipped} ${skipped === 1 ? 'value' : 'values'} skipped (see the browser console).` : '.');
+    const { loaded, skipped, changed } = await loadExample();
+    if (changed) {
+      exampleStatus.textContent = 'The form or settings changed while the example was loading, so nothing was replaced. Press Load example again.';
+    } else {
+      rerenderForm();
+      exampleStatus.textContent = `Example loaded: ${loaded} fields filled`
+        + (skipped ? `, ${skipped} ${skipped === 1 ? 'value' : 'values'} skipped (see the browser console).` : '.');
+    }
   } catch (err) {
     exampleStatus.textContent = `The example could not be loaded: ${err.message}`;
   } finally {

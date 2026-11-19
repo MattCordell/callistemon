@@ -7,7 +7,7 @@ import { DEFINITION, EXAMPLE_SCENARIO } from '../definition/assessment-definitio
 import { getConfig } from '../config.js';
 import { validateCode } from './terminology.js';
 import { bindingOf } from './controls.js';
-import { allAnswers, getPatient, setPatient, replaceAnswers } from './state.js';
+import { allAnswers, getPatient, setPatient, replaceAnswers, getRevision } from './state.js';
 import { createLimiter } from './ui.js';
 
 // Field and column definitions by id.
@@ -27,8 +27,12 @@ export function formHasData() {
   return allAnswers().size > 0 || getPatient() !== null;
 }
 
-// Loads the example. Returns { loaded, skipped }: counts of values.
+// Loads the example. Returns { loaded, skipped } (counts), or { changed: true }
+// when the form or the settings changed while codes were being checked. Then
+// nothing is replaced, so no edit is lost and no stale edition is used.
 export async function loadExample() {
+  const startRevision = getRevision();
+  const startConfig = JSON.stringify(getConfig());
   const defs = definitionsById();
   const limit = createLimiter(getConfig().CONCURRENCY);
   let skipped = 0;
@@ -96,6 +100,9 @@ export async function loadExample() {
     return [id, await resolveValue(def, spec)];
   }));
 
+  if (getRevision() !== startRevision || JSON.stringify(getConfig()) !== startConfig) {
+    return { changed: true };
+  }
   const entries = resolved.filter(([, v]) => v != null);
   replaceAnswers(entries);
   if (usePatient) setPatient({ mode: 'new' });

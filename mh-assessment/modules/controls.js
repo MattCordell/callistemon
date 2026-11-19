@@ -157,7 +157,7 @@ export function renderField(def, { value, onChange, compact = false, scale = fal
     fctx.value = v;
     onChange(v);
     updateLens(fctx);
-    if (icd11Panel) updateIcd11Panel(icd11Panel, v);
+    if (icd11Panel) updateIcd11Panel(icd11Panel, v, { announce: true });
   };
 
   if (withLens && hasTerminology(def)) el.append(createLensPanel(fctx));
@@ -522,7 +522,7 @@ export function renderGroup(def, { value, onChange }) {
       });
       rowEl.append(remove);
       // ICD-11 panels (FR-9) span the whole row rather than one narrow cell.
-      rowEl.querySelectorAll('.icd11-panel').forEach(p => {
+      rowEl.querySelectorAll('.icd11').forEach(p => {
         p.classList.add('icd11-row-panel');
         rowEl.append(p);
       });

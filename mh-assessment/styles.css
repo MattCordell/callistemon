@@ -756,7 +756,8 @@ body.lens-on .lens-panel {
 .icd11-desc { grid-column: 2; }
 .icd11-meta { grid-column: 2; color: var(--muted); font-size: 0.9em; }
 .icd11-more > summary { cursor: pointer; color: var(--accent); margin-top: 4px; }
-.icd11-row-panel { grid-column: 1 / -1; margin-top: 0; max-width: none; }
+.icd11-row-panel { grid-column: 1 / -1; }
+.icd11-row-panel .icd11-panel { margin-top: 0; max-width: none; }
 
 /* Example loader status in the header */
 .header-status { font-size: 0.85rem; color: var(--header-ink); }
