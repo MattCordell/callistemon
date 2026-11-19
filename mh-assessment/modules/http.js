@@ -8,18 +8,25 @@ import { getConfig } from '../config.js';
 
 // makeError(message, { status, outcome, url }) builds the caller's error type.
 // serverName is used in messages, for example "terminology server".
-export async function fetchJson(url, { makeError, serverName }) {
-  const { FETCH_TIMEOUT_MS } = getConfig();
+// method and body are for the FHIR transaction POST. Content-Type is sent only
+// with a body, so terminology GETs stay free of a CORS preflight.
+// timeoutMs overrides FETCH_TIMEOUT_MS for this request.
+export async function fetchJson(url, { makeError, serverName, method = 'GET', body, timeoutMs }) {
+  const limit = timeoutMs ?? getConfig().FETCH_TIMEOUT_MS;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), limit);
   const timedOut = () => makeError(
-    `Timed out after ${Math.round(FETCH_TIMEOUT_MS / 1000)} s waiting for the ${serverName}`, { url });
+    `Timed out after ${Math.round(limit / 1000)} s waiting for the ${serverName}`, { url });
 
   try {
     let response;
     try {
+      const headers = { Accept: 'application/fhir+json' };
+      if (body !== undefined) headers['Content-Type'] = 'application/fhir+json';
       response = await fetch(url, {
-        headers: { Accept: 'application/fhir+json' },
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal
       });
     } catch (err) {
@@ -28,22 +35,22 @@ export async function fetchJson(url, { makeError, serverName }) {
         `Network error: could not reach the ${serverName} (offline, wrong URL or CORS)`, { url });
     }
 
-    let body = null;
+    let json = null;
     try {
-      body = await response.json();
+      json = await response.json();
     } catch (err) {
       if (err.name === 'AbortError') throw timedOut();
       // Otherwise the body was not JSON; the checks below report it.
     }
 
-    if (!response.ok || body?.resourceType === 'OperationOutcome') {
-      const message = outcomeText(body) || `HTTP ${response.status} ${response.statusText}`;
-      throw makeError(message, { status: response.status, outcome: body, url });
+    if (!response.ok || json?.resourceType === 'OperationOutcome') {
+      const message = outcomeText(json) || `HTTP ${response.status} ${response.statusText}`.trim();
+      throw makeError(message, { status: response.status, outcome: json, url });
     }
-    if (body === null || typeof body !== 'object') {
+    if (json === null || typeof json !== 'object') {
       throw makeError(`The ${serverName} returned a response that is not JSON`, { status: response.status, url });
     }
-    return body;
+    return json;
   } finally {
     clearTimeout(timer);
   }

@@ -7,11 +7,17 @@
 //   valueSet           Canonical value set URL, for bindings that are not ECL.
 //   options            Inline [{ system, code, display }] for local or FHIR-internal codes.
 //   columns            Sub-fields of a "repeating-group". Each column has its own binding.
+//   role               On a column: what the FHIR extraction does with it. One of
+//                      code, clinicalStatus, verificationStatus, rank, dosage, reaction,
+//                      relationship, onsetAge, substance, status.
 //   min, max           Bounds for integer fields.
 //   helper             A short line shown under the field.
 //   seedRows           Starting row labels for a repeating group.
 //   patientElement     Target element for output "patient".
 //   conditionCategory, clinicalStatus, verificationStatus   For output "condition".
+//                      clinicalStatus is the default when a row has no status column value.
+//                      Also clinicalStatus for output "allergy".
+//   encounterRank      On an option: Encounter.diagnosis.rank when that option is chosen.
 //   componentCode      The local component code for output "substance-use".
 //   info               Field: text for a clinician-facing info pop beside the label.
 //   scale              Field: true to group answers into the SCALE_BANDS below
@@ -30,6 +36,10 @@ const COND_CLINICAL = 'http://terminology.hl7.org/CodeSystem/condition-clinical'
 const COND_VER = 'http://terminology.hl7.org/CodeSystem/condition-ver-status';
 const COND_CAT = 'http://terminology.hl7.org/CodeSystem/condition-category';
 const ALLERGY_VER = 'http://terminology.hl7.org/CodeSystem/allergyintolerance-verification';
+const ALLERGY_CLINICAL = 'http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical';
+
+const CLINICAL_ACTIVE = { system: COND_CLINICAL, code: 'active', display: 'Active' };
+const CLINICAL_INACTIVE = { system: COND_CLINICAL, code: 'inactive', display: 'Inactive' };
 
 // Shared ECL, kept identical where Appendix B says "same binding as".
 const ECL_MOOD = '(< 106131003 |Mood finding| MINUS << 64572001 |Disease|) MINUS (<< 416383008 |Disturbance in affect| OR 80608005 |Appropriate affect|)';
@@ -79,6 +89,10 @@ export const DEFINITION = {
     },
     { id: 'review', label: 'Review and submit' }
   ],
+
+  // QuestionnaireResponse.questionnaire. Placeholder canonical until FR-12
+  // generates the Questionnaire (session 4), which will use the same URL.
+  questionnaireUrl: 'https://callistemon.site/fhir/Questionnaire/mhaod-assessment',
 
   // FR-2: Encounter class. Default AMB, selectable from v3 ActEncounterCode.
   encounter: {
@@ -302,7 +316,7 @@ export const DEFINITION = {
       label: 'HoNOS total score',
       observable: { system: LOCAL, code: 'honos-total', display: 'HoNOS total score' },
       control: 'integer', cardinality: 'single', min: 0, max: 48,
-      output: 'observation-score', status: 'placeholder',
+      output: 'observation-score', category: 'survey', status: 'placeholder',
       notes: 'Local code. No SNOMED observable found, and no LOINC code found on this server. Score only; item content is licensed and not reproduced.'
     },
 
@@ -312,16 +326,18 @@ export const DEFINITION = {
       label: 'Past psychiatric diagnoses',
       control: 'repeating-group', cardinality: 'multiple',
       output: 'condition', conditionCategory: { system: COND_CAT, code: 'problem-list-item' },
+      // Used when a row has no clinical status chosen.
+      clinicalStatus: CLINICAL_INACTIVE,
       aucdi: 'Problem/Diagnosis summary', status: 'placeholder',
       columns: [
         {
-          id: 'ph-psych-dx', label: 'Diagnosis',
+          id: 'ph-psych-dx', role: 'code', label: 'Diagnosis',
           ecl: ECL_MENTAL_DISORDER,
           control: 'typeahead', cardinality: 'single', status: 'placeholder',
           notes: 'The AU preferred term of 74732009 is "Mental illness", a nice demonstration of AU preferred terms.'
         },
         {
-          id: 'ph-psych-dx-status', label: 'Clinical status',
+          id: 'ph-psych-dx-status', role: 'clinicalStatus', label: 'Clinical status',
           options: [
             { system: COND_CLINICAL, code: 'inactive', display: 'Inactive' },
             { system: COND_CLINICAL, code: 'resolved', display: 'Resolved' }
@@ -356,8 +372,9 @@ export const DEFINITION = {
       ecl: '< 404684003 |Clinical finding|',
       control: 'typeahead', cardinality: 'multiple',
       output: 'condition', conditionCategory: { system: COND_CAT, code: 'problem-list-item' },
+      clinicalStatus: CLINICAL_ACTIVE,
       aucdi: 'Problem/Diagnosis summary', status: 'placeholder',
-      notes: 'Typeahead. Coded picker is a SHOULD.'
+      notes: 'Typeahead. Coded picker is a SHOULD. Extracted with clinical status Active (default; no status picker).'
     },
     {
       id: 'ph-medication-list', tab: 'past-history', section: 'Current medications',
@@ -366,13 +383,13 @@ export const DEFINITION = {
       output: 'medication-statement', aucdi: 'Medication use statement', status: 'placeholder',
       columns: [
         {
-          id: 'ph-medications', label: 'Medication',
+          id: 'ph-medications', role: 'code', label: 'Medication',
           ecl: ECL_MEDICINES,
           control: 'typeahead', cardinality: 'single', status: 'placeholder',
           notes: 'Matt to confirm the AMT scope (for example whether to add the MP or TPUU reference sets).'
         },
         {
-          id: 'ph-medication-dosage', label: 'Dosage',
+          id: 'ph-medication-dosage', role: 'dosage', label: 'Dosage',
           control: 'text', cardinality: 'single', status: 'placeholder'
         }
       ]
@@ -382,15 +399,16 @@ export const DEFINITION = {
       label: 'Allergies and adverse reactions',
       control: 'repeating-group', cardinality: 'multiple',
       output: 'allergy', aucdi: 'Adverse reaction risk summary', status: 'placeholder',
+      clinicalStatus: { system: ALLERGY_CLINICAL, code: 'active', display: 'Active' },
       columns: [
         {
-          id: 'ph-allergies', label: 'Substance',
+          id: 'ph-allergies', role: 'code', label: 'Substance',
           ecl: '< 105590001 |Substance| OR ' + ECL_MEDICINES,
           control: 'typeahead', cardinality: 'single', status: 'placeholder',
           notes: 'Alternative: the NCTS Adverse Reaction Agent value set, if it is available on the terminology server.'
         },
         {
-          id: 'ph-allergy-verification', label: 'Verification',
+          id: 'ph-allergy-verification', role: 'verificationStatus', label: 'Verification',
           options: [
             { system: ALLERGY_VER, code: 'unconfirmed', display: 'Unconfirmed' },
             { system: ALLERGY_VER, code: 'confirmed', display: 'Confirmed' }
@@ -398,7 +416,7 @@ export const DEFINITION = {
           control: 'select', cardinality: 'single', status: 'placeholder'
         },
         {
-          id: 'ph-allergy-reaction', label: 'Reaction',
+          id: 'ph-allergy-reaction', role: 'reaction', label: 'Reaction',
           ecl: '^ 142341000036103 |Clinical manifestation reference set|',
           control: 'typeahead', cardinality: 'single', status: 'placeholder'
         }
@@ -438,12 +456,12 @@ export const DEFINITION = {
       notes: '"Misuse" wording is not neutral; flag for review. Seed row codes to be supplied by Matt.',
       columns: [
         {
-          id: 'su-substance-substance', label: 'Substance',
+          id: 'su-substance-substance', role: 'substance', label: 'Substance',
           ecl: '< 105590001 |Substance|',
           control: 'typeahead', cardinality: 'single', status: 'placeholder'
         },
         {
-          id: 'su-substance-status', label: 'Use status',
+          id: 'su-substance-status', role: 'status', label: 'Use status',
           ecl: '417284009 |Current substance user| OR 44870007 |Former substance user|',
           control: 'auto', cardinality: 'single', status: 'placeholder',
           notes: '"Never used" concept TBC. Written here as an ECL disjunction of the Appendix B codes.'
@@ -464,7 +482,7 @@ export const DEFINITION = {
       output: 'family-history', status: 'placeholder',
       columns: [
         {
-          id: 'fh-relationship', label: 'Relationship',
+          id: 'fh-relationship', role: 'relationship', label: 'Relationship',
           options: [
             { system: V3_ROLE, code: 'MTH', display: 'mother' },
             { system: V3_ROLE, code: 'FTH', display: 'father' },
@@ -480,12 +498,12 @@ export const DEFINITION = {
           notes: 'v3 RoleCode examples from SPEC.md 7.3. The full v3 FamilyMember value set has about 105 codes.'
         },
         {
-          id: 'fh-condition', label: 'Condition',
+          id: 'fh-condition', role: 'code', label: 'Condition',
           ecl: ECL_MENTAL_DISORDER,
           control: 'typeahead', cardinality: 'single', status: 'placeholder'
         },
         {
-          id: 'fh-onset-age', label: 'Age at onset (years)',
+          id: 'fh-onset-age', role: 'onsetAge', label: 'Age at onset (years)',
           control: 'integer', cardinality: 'single', min: 0, max: 120, status: 'placeholder'
         }
       ]
@@ -708,7 +726,7 @@ export const DEFINITION = {
       id: 'mse-mmse-total', tab: 'mental-state', section: 'MMSE',
       observable: { code: '447316007', display: 'Mini-mental state examination score' },
       control: 'integer', cardinality: 'single', min: 0, max: 30,
-      output: 'observation-score', status: 'placeholder',
+      output: 'observation-score', category: 'survey', status: 'placeholder',
       notes: 'Integer, 0 to 30.'
     },
 
@@ -718,24 +736,26 @@ export const DEFINITION = {
       label: 'Diagnoses',
       control: 'repeating-group', cardinality: 'multiple',
       output: 'condition', conditionCategory: { system: COND_CAT, code: 'encounter-diagnosis' },
+      clinicalStatus: CLINICAL_ACTIVE,
       aucdi: 'Problem/Diagnosis summary', status: 'placeholder',
       columns: [
         {
-          id: 'dx-diagnosis', label: 'Diagnosis',
+          id: 'dx-diagnosis', role: 'code', label: 'Diagnosis',
           ecl: ECL_MENTAL_DISORDER,
           control: 'typeahead', cardinality: 'single', status: 'placeholder',
           notes: 'The AU preferred term is "Mental illness", a nice demonstration of AU preferred terms.'
         },
         {
-          id: 'dx-diagnosis-rank', label: 'Principal or additional',
+          id: 'dx-diagnosis-rank', role: 'rank', label: 'Principal or additional',
           options: [
-            { system: LOCAL, code: 'principal', display: 'Principal' },
-            { system: LOCAL, code: 'additional', display: 'Additional' }
+            // encounterRank: Encounter.diagnosis.rank for this choice.
+            { system: LOCAL, code: 'principal', display: 'Principal', encounterRank: 1 },
+            { system: LOCAL, code: 'additional', display: 'Additional', encounterRank: 2 }
           ],
           control: 'select', cardinality: 'single', status: 'placeholder'
         },
         {
-          id: 'dx-diagnosis-verification', label: 'Verification',
+          id: 'dx-diagnosis-verification', role: 'verificationStatus', label: 'Verification',
           options: [
             { system: COND_VER, code: 'confirmed', display: 'Confirmed' },
             { system: COND_VER, code: 'provisional', display: 'Provisional' }
@@ -750,6 +770,7 @@ export const DEFINITION = {
       ecl: ECL_MENTAL_DISORDER,
       control: 'typeahead', cardinality: 'multiple',
       output: 'condition', conditionCategory: { system: COND_CAT, code: 'encounter-diagnosis' },
+      clinicalStatus: CLINICAL_ACTIVE,
       verificationStatus: { system: COND_VER, code: 'differential', display: 'Differential' },
       aucdi: 'Problem/Diagnosis summary', status: 'placeholder'
     }
@@ -784,6 +805,15 @@ export const SCALE_OTHER_LABEL = 'Other';
 export const REVIEW_CHECKS = {
   observableEcl: '< 363787002 |Observable entity|',
   // Codes in this system are local placeholders and cannot be looked up.
+  localSystem: LOCAL
+};
+
+// FHIR code systems and units the FHIR layer writes (SPEC.md section 7).
+// Kept here so no code system or code appears in the app code.
+export const FHIR_CODES = {
+  observationCategory: 'http://terminology.hl7.org/CodeSystem/observation-category',
+  // FamilyMemberHistory.condition.onsetAge, in years.
+  ageYears: { system: 'http://unitsofmeasure.org', code: 'a', unit: 'years' },
   localSystem: LOCAL
 };
 

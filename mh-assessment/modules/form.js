@@ -6,6 +6,7 @@ import { esc, html, infoPop } from './ui.js';
 import { getAnswer, setAnswer, subscribe, countForTab } from './state.js';
 import { renderField, renderGroup, bandLabel } from './controls.js';
 import { renderPatientSection, mountBanner } from './patient.js';
+import { renderSubmitPanel } from './submit.js';
 
 const tabs = DEFINITION.tabs;
 let root = null;
@@ -158,11 +159,6 @@ function renderSection(tab, name, fields) {
 }
 
 function placeholderFor(tab) {
-  if (tab.id === 'review') {
-    return html(`
-      <div class="placeholder-panel">
-        <p>The FHIR Bundle preview, download and submission arrive in session 3.</p>
-      </div>`);
-  }
+  if (tab.id === 'review') return renderSubmitPanel();
   return html('<p class="muted">No fields are defined for this tab.</p>');
 }

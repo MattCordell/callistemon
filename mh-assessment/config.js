@@ -9,6 +9,7 @@ export const DEFAULTS = Object.freeze({
   SNOMED_EDITION: 'http://snomed.info/sct/32506021000036107',
   DISPLAY_LANGUAGE: 'en-AU',
   FETCH_TIMEOUT_MS: 30000,
+  TRANSACTION_TIMEOUT_MS: 120000, // the transaction POST: a cold server can be slow
   CONCURRENCY: 4,          // parallel terminology requests in the Binding Review
   LARGE_EXPANSION: 500,    // warn when an expansion is larger than this
   PREVIEW_COUNT: 10,       // members shown per field in the Binding Review
