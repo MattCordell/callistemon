@@ -7,6 +7,7 @@ import { getAssessment, setAssessment, setPatient, subscribe } from './state.js'
 import { expand } from './terminology.js';
 import { postTransaction, parseLocation, resourceUrl, FhirError } from './fhir-client.js';
 import { buildBundle } from './bundle.js';
+import { buildQuestionnaire } from './questionnaire.js';
 import { resetUuids } from './fhir-codes.js';
 import { esc, html, debounce, copyText, downloadText } from './ui.js';
 
@@ -44,6 +45,17 @@ export function renderSubmitPanel() {
         </div>
         <p class="small muted" data-target></p>
         <div class="submit-result" data-result aria-live="polite"></div>
+      </section>
+
+      <section class="form-section">
+        <h3>Questionnaire</h3>
+        <p class="small muted">The QuestionnaireResponse references a Questionnaire generated from the definition file:
+          one item per field, grouped by tab, with each coded field's ECL as its answer value set.</p>
+        <div class="submit-actions">
+          <button type="button" class="btn btn-secondary" data-questionnaire>Download Questionnaire</button>
+          <span class="small muted" data-questionnaire-status aria-live="polite"></span>
+        </div>
+        <p class="small muted">Canonical URL: <code>${esc(DEFINITION.questionnaireUrl)}</code></p>
       </section>
 
       <section class="form-section">
@@ -175,6 +187,23 @@ export function renderSubmitPanel() {
     if (!built) return;
     const name = `mh-assessment-bundle-${isDraft(built) ? 'DRAFT-not-valid-' : ''}${stamp()}.json`;
     downloadText(name, bundleJson(built), 'application/fhir+json');
+  });
+
+  // ---- Questionnaire (FR-12)
+  $('[data-questionnaire]').addEventListener('click', async () => {
+    const btn = $('[data-questionnaire]');
+    const status = $('[data-questionnaire-status]');
+    btn.disabled = true;
+    status.textContent = 'Building the Questionnaire...';
+    try {
+      const q = await buildQuestionnaire();
+      downloadText(`mh-assessment-questionnaire-${q.version}.json`, JSON.stringify(q, null, 2), 'application/fhir+json');
+      status.textContent = '';
+    } catch (err) {
+      status.textContent = `Could not build the Questionnaire: ${err.message}`;
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   // ---- POST

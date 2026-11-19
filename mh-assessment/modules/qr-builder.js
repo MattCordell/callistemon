@@ -8,7 +8,8 @@ import { coding, blank } from './fhir-codes.js';
 export function buildQuestionnaireResponse(ctx) {
   const qr = {
     resourceType: 'QuestionnaireResponse',
-    questionnaire: DEFINITION.questionnaireUrl,
+    // Versioned canonical, so a response says which Questionnaire version it answered.
+    questionnaire: `${DEFINITION.questionnaireUrl}|${DEFINITION.questionnaireVersion}`,
     status: 'completed',
     subject: ctx.refs.patient,
     encounter: ctx.refs.encounter
@@ -38,7 +39,7 @@ function fieldItems(def, ctx) {
     return value.filter(row => !blank(row)).map(row => {
       const children = (def.columns || []).flatMap(col => {
         const answer = answersFor(col, row[col.id]);
-        return answer.length ? [{ linkId: col.id, text: col.label || col.id, answer }] : [];
+        return answer.length ? [{ linkId: col.id, text: ctx.labelOf(col), answer }] : [];
       });
       return { linkId: def.id, text, item: children };
     }).filter(item => item.item.length);

@@ -8,6 +8,7 @@ import { expand, lookup } from './terminology.js';
 import { esc, html, infoPop, aucdiBadge } from './ui.js';
 import { createTypeahead, selectedChipHtml } from './typeahead.js';
 import { createLensPanel, updateLens } from './lens.js';
+import { createIcd11Panel, updateIcd11Panel } from './icd11.js';
 
 let uid = 0;
 const nextId = prefix => `${prefix}-${++uid}`;
@@ -146,10 +147,17 @@ export function renderField(def, { value, onChange, compact = false, scale = fal
     </div>`);
 
   const slot = el.querySelector('.field-control');
+  // FR-9: unreviewed ICD-11 entities for the selected concept, under the control.
+  const icd11Panel = def.icd11 ? createIcd11Panel() : null;
+  if (icd11Panel) {
+    slot.after(icd11Panel);
+    updateIcd11Panel(icd11Panel, value);
+  }
   const set = v => {
     fctx.value = v;
     onChange(v);
     updateLens(fctx);
+    if (icd11Panel) updateIcd11Panel(icd11Panel, v, { announce: true });
   };
 
   if (withLens && hasTerminology(def)) el.append(createLensPanel(fctx));
@@ -513,6 +521,11 @@ export function renderGroup(def, { value, onChange }) {
         drawRows();
       });
       rowEl.append(remove);
+      // ICD-11 panels (FR-9) span the whole row rather than one narrow cell.
+      rowEl.querySelectorAll('.icd11').forEach(p => {
+        p.classList.add('icd11-row-panel');
+        rowEl.append(p);
+      });
       rowsEl.append(rowEl);
     });
   }

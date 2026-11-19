@@ -16,6 +16,7 @@ import { DEFINITION } from '../definition/assessment-definition.js';
 const answers = new Map();
 let patient = null;            // { mode: 'existing', resource } | { mode: 'new' } | null
 const listeners = new Set();
+let revision = 0;              // bumped on every change, so callers can tell if state moved
 
 // Assessment details for the Encounter and every timestamp (FR-2, SPEC.md 7.1).
 // dateTime is a local "YYYY-MM-DDTHH:MM" string, as a datetime-local input gives.
@@ -49,6 +50,13 @@ export function setAnswer(id, value) {
   notify({ type: 'answer', id });
 }
 
+// Replaces every answer at once (the example loader). One notification.
+export function replaceAnswers(entries) {
+  answers.clear();
+  for (const [id, value] of entries) if (!isEmpty(value)) answers.set(id, value);
+  notify({ type: 'reset' });
+}
+
 export function getPatient() {
   return patient;
 }
@@ -67,7 +75,13 @@ export function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
+// A number that changes whenever answers, the patient or the assessment change.
+export function getRevision() {
+  return revision;
+}
+
 function notify(change) {
+  revision++;
   listeners.forEach(fn => fn(change));
 }
 

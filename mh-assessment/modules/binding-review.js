@@ -359,7 +359,7 @@ function exportCsv() {
       row.info.join('; ')
     ].map(csvCell).join(',');
   });
-  const csv = '﻿' + [header.join(','), ...lines].join('\r\n');
+  const csv = '\uFEFF' + [header.join(','), ...lines].join('\r\n');
   const stamp = new Date().toISOString().slice(0, 10);
   downloadText(`binding-review-${stamp}.csv`, csv, 'text/csv;charset=utf-8');
 }
