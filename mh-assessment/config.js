@@ -21,7 +21,10 @@ export const DEFAULTS = Object.freeze({
   TYPEAHEAD_DEBOUNCE_MS: 250,
   TYPEAHEAD_MIN_CHARS: 2,
   TYPEAHEAD_BROWSE_MAX: 100, // value sets this small list all members on focus
-  PATIENT_SEARCH_COUNT: 20
+  PATIENT_SEARCH_COUNT: 20,
+  // ICD-11 unreviewed display (FR-9): the draft research map, relative to index.html.
+  ICD11_MAP_URL: 'data/ICD11_Ch6_SCT_combined_map.tsv',
+  ICD11_PREVIEW_ROWS: 5    // rows shown per concept before "Show all"
 });
 
 // Only these keys can be changed from the Settings panel.

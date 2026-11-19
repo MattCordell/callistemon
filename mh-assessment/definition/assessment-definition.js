@@ -22,6 +22,8 @@
 //   info               Field: text for a clinician-facing info pop beside the label.
 //   scale              Field: true to group answers into the SCALE_BANDS below
 //                      (chips under band labels, dropdowns as option groups).
+//   icd11              Field or column: true to show the unreviewed ICD-11 research
+//                      map entries for the selected SNOMED CT concept (FR-9). UI only.
 //   Tab properties:    info (info pop by the tab heading), note (always-visible note at the
 //                      top of the tab), sectionInfo { sectionName: always-visible note }.
 //
@@ -90,9 +92,10 @@ export const DEFINITION = {
     { id: 'review', label: 'Review and submit' }
   ],
 
-  // QuestionnaireResponse.questionnaire. Placeholder canonical until FR-12
-  // generates the Questionnaire (session 4), which will use the same URL.
+  // Canonical URL of the generated Questionnaire (FR-12). The QuestionnaireResponse
+  // references it. Bump questionnaireVersion when the fields change.
   questionnaireUrl: 'https://callistemon.site/fhir/Questionnaire/mhaod-assessment',
+  questionnaireVersion: '0.1.0',
 
   // FR-2: Encounter class. Default AMB, selectable from v3 ActEncounterCode.
   encounter: {
@@ -500,7 +503,8 @@ export const DEFINITION = {
         {
           id: 'fh-condition', role: 'code', label: 'Condition',
           ecl: ECL_MENTAL_DISORDER,
-          control: 'typeahead', cardinality: 'single', status: 'placeholder'
+          control: 'typeahead', cardinality: 'single', status: 'placeholder',
+          icd11: true
         },
         {
           id: 'fh-onset-age', role: 'onsetAge', label: 'Age at onset (years)',
@@ -743,6 +747,7 @@ export const DEFINITION = {
           id: 'dx-diagnosis', role: 'code', label: 'Diagnosis',
           ecl: ECL_MENTAL_DISORDER,
           control: 'typeahead', cardinality: 'single', status: 'placeholder',
+          icd11: true,
           notes: 'The AU preferred term is "Mental illness", a nice demonstration of AU preferred terms.'
         },
         {
@@ -772,9 +777,63 @@ export const DEFINITION = {
       output: 'condition', conditionCategory: { system: COND_CAT, code: 'encounter-diagnosis' },
       clinicalStatus: CLINICAL_ACTIVE,
       verificationStatus: { system: COND_VER, code: 'differential', display: 'Differential' },
-      aucdi: 'Problem/Diagnosis summary', status: 'placeholder'
+      aucdi: 'Problem/Diagnosis summary', status: 'placeholder',
+      icd11: true
     }
   ]
+};
+
+// Example scenario for the "Load example" button (FR-11): a moderate depressive
+// presentation with melancholic features. Synthetic data only.
+//
+//   patient   Demographic answers, used only when no patient is selected.
+//   answers   Keyed by field id. Coded values are { code, system? } (system defaults
+//             to SNOMED CT). Repeating groups are arrays of rows keyed by column id.
+//
+// Codes are resolved against the field's current binding at load time. A code
+// that is no longer in the binding is skipped with a console warning, so this
+// list never overrides the bindings above. Checked on Ontoserver 19 Nov 2026.
+export const EXAMPLE_SCENARIO = {
+  patient: {
+    'ctx-given-name': 'Alex',
+    'ctx-family-name': 'Sample',
+    'ctx-birth-date': '1986-04-12',
+    'ctx-gender': { system: 'http://hl7.org/fhir/administrative-gender', code: 'female' },
+    'ctx-marital-status': { system: 'http://terminology.hl7.org/CodeSystem/v3-MaritalStatus', code: 'S' }
+  },
+  answers: {
+    'ctx-legal-status': { system: LOCAL, code: 'voluntary' },
+    'ctx-employment': 'Works full time as a bookkeeper. Has taken two weeks of sick leave.',
+    'pc-complaint': "I just can't get going any more. I wake up at four every morning and the mornings are the worst.",
+    'pc-hpc': 'Six weeks of low mood since separating from her partner. Mood is worst in the morning and lifts a little by evening. Eating less and has lost about 5 kg. Poor concentration at work.',
+    'sx-mood': [{ code: '366979004' }, { code: '247800004' }],          // Depressed mood; Diurnal variation of mood
+    'nv-sleep': [{ code: '401236004' }],                                // Early morning waking
+    'nv-appetite': { code: '64379006' },                                // Decrease in appetite
+    'nv-weight': { code: '262285001' },                                 // Weight loss
+    'nv-concentration': { code: '26329005' },                           // Poor concentration
+    'nv-energy': { code: '248274002' },                                 // Lack of energy
+    'nv-libido': { code: '8357008' },                                   // Reduced libido
+    'risk-notes': 'No current plan or intent. Protective factors: two children, supportive sister.',
+    'st-stressors': [{ code: '160788005' }],                            // Separation
+    'st-impact-self': { system: LOCAL, code: 'moderate' },
+    'st-impact-work': { system: LOCAL, code: 'moderate' },
+    'st-honos-total': 14,
+    'su-tobacco': { code: '77176002' },                                 // Current smoker
+    'fh-history': [{
+      'fh-relationship': { system: V3_ROLE, code: 'MTH' },
+      'fh-condition': { code: '35489007' },                             // Depression
+      'fh-onset-age': 45
+    }],
+    'mse-mood': [{ code: '366979004' }],                                // Depressed mood
+    'mse-affect': [{ code: '39370001' }],                               // Restricted affect
+    'mse-mmse-total': 29,
+    'dx-diagnoses': [{
+      'dx-diagnosis': { code: '36923009' },                             // Major depression, single episode
+      'dx-diagnosis-rank': { system: LOCAL, code: 'principal' },
+      'dx-diagnosis-verification': { system: COND_VER, code: 'provisional' }
+    }],
+    'dx-differential': [{ code: '17226007' }]                           // Adjustment disorder
+  }
 };
 
 // Bands for fields with `scale: true` (SPEC.md section 8: make "high and low"

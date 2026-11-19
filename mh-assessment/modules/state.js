@@ -49,6 +49,13 @@ export function setAnswer(id, value) {
   notify({ type: 'answer', id });
 }
 
+// Replaces every answer at once (the example loader). One notification.
+export function replaceAnswers(entries) {
+  answers.clear();
+  for (const [id, value] of entries) if (!isEmpty(value)) answers.set(id, value);
+  notify({ type: 'reset' });
+}
+
 export function getPatient() {
   return patient;
 }

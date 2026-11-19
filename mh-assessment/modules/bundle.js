@@ -28,9 +28,7 @@ export async function buildBundle({
   const when = toFhirDateTime(assessment.dateTime);
   if (!when) blockers.push('Enter the assessment date and time.');
 
-  const displays = await observableDisplays(answers);
-  const observableDisplay = def => displays.get(def.observable?.code) || def.observable?.display || '';
-  const labelOf = def => def.label || (def.observable ? observableDisplay(def) : '') || initialLabel(def);
+  const { labelOf, observableDisplay } = await labelResolver(answers);
 
   // ---- Patient
   const entries = [];
@@ -106,13 +104,24 @@ export async function buildBundle({
   return { bundle, entries, warnings, blockers };
 }
 
-// AU preferred terms of the SNOMED CT observables of answered fields.
-// $lookup results are cached; a failed lookup falls back to the definition display.
+// Field labels as the FHIR layer writes them: the definition label, else the
+// AU preferred term of the observable (SPEC.md 5.2). With `answers`, only the
+// observables of answered fields are looked up; without, all of them (the
+// Questionnaire). Returns { labelOf(def), observableDisplay(def) }.
+export async function labelResolver(answers = null) {
+  const displays = await observableDisplays(answers);
+  const observableDisplay = def => displays.get(def.observable?.code) || def.observable?.display || '';
+  const labelOf = def => def.label || (def.observable ? observableDisplay(def) : '') || initialLabel(def);
+  return { labelOf, observableDisplay };
+}
+
+// AU preferred terms of SNOMED CT observables. $lookup results are cached;
+// a failed lookup falls back to the definition display.
 async function observableDisplays(answers) {
   const cfg = getConfig();
   const codes = new Set(DEFINITION.fields
     .filter(f => f.observable && (f.observable.system || cfg.SNOMED_SYSTEM) === cfg.SNOMED_SYSTEM)
-    .filter(f => !blank(answers.get(f.id)))
+    .filter(f => !answers || !blank(answers.get(f.id)))
     .map(f => f.observable.code));
   const out = new Map();
   await Promise.all([...codes].map(async code => {

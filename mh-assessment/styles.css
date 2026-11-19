@@ -715,3 +715,49 @@ body.lens-on .lens-panel {
   max-height: 480px;
 }
 .bundle-entry .entry-url { margin: 0; padding: 4px 12px 8px; }
+
+/* ICD-11 unreviewed display (FR-9) */
+.icd11-panel {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px dashed var(--warn-line);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 0.86rem;
+  max-width: 820px;
+}
+.icd11-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin-bottom: 4px; }
+.icd11-title { font-weight: 700; }
+.badge-unreviewed {
+  display: inline-block;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border: 1px solid var(--warn-line);
+  border-radius: 4px;
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.icd11-concept { margin: 6px 0 2px; font-weight: 600; }
+.icd11-list { list-style: none; margin: 0; padding: 0; }
+.icd11-row {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, max-content) 1fr;
+  gap: 0 10px;
+  padding: 3px 0;
+  border-top: 1px solid var(--line);
+}
+.icd11-list .icd11-row:first-child { border-top: 0; }
+.icd11-code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-weight: 600; }
+.icd11-uri { font-weight: 400; font-size: 0.82em; word-break: break-all; max-width: 16rem; }
+.icd11-desc { grid-column: 2; }
+.icd11-meta { grid-column: 2; color: var(--muted); font-size: 0.9em; }
+.icd11-more > summary { cursor: pointer; color: var(--accent); margin-top: 4px; }
+.icd11-row-panel { grid-column: 1 / -1; margin-top: 0; max-width: none; }
+
+/* Example loader status in the header */
+.header-status { font-size: 0.85rem; color: var(--header-ink); }
+.header-status:empty { display: none; }

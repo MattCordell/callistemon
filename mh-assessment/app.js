@@ -8,6 +8,7 @@ import { mountSettings } from './modules/settings.js';
 import { mountForm, showTab, rerenderForm } from './modules/form.js';
 import { mountLens, clearLensCache } from './modules/lens.js';
 import { getPatient, setPatient } from './modules/state.js';
+import { loadExample, formHasData } from './modules/example.js';
 import { $ } from './modules/ui.js';
 
 const DEFAULT_VIEW = 'form';
@@ -46,6 +47,28 @@ onConfigChange(cfg => {
     if (getPatient()?.mode === 'existing') setPatient(null);
   }
   rerenderForm();
+});
+
+// FR-11: Load example.
+const exampleBtn = $('#load-example');
+const exampleStatus = $('#example-status');
+let statusTimer = null;
+exampleBtn.addEventListener('click', async () => {
+  if (formHasData() && !confirm('Replace the current form with the example assessment?')) return;
+  clearTimeout(statusTimer);
+  exampleBtn.disabled = true;
+  exampleStatus.textContent = 'Loading the example...';
+  try {
+    const { loaded, skipped } = await loadExample();
+    rerenderForm();
+    exampleStatus.textContent = `Example loaded: ${loaded} fields filled`
+      + (skipped ? `, ${skipped} ${skipped === 1 ? 'value' : 'values'} skipped (see the browser console).` : '.');
+  } catch (err) {
+    exampleStatus.textContent = `The example could not be loaded: ${err.message}`;
+  } finally {
+    exampleBtn.disabled = false;
+    statusTimer = setTimeout(() => { exampleStatus.textContent = ''; }, 10000);
+  }
 });
 
 window.addEventListener('hashchange', showView);

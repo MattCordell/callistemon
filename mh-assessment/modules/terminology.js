@@ -83,7 +83,8 @@ export async function validateCode(binding, code, system) {
   const params = new URLSearchParams({
     url: bindingUrl(binding),
     system: system || cfg.SNOMED_SYSTEM,
-    code
+    code,
+    displayLanguage: cfg.DISPLAY_LANGUAGE
   });
   const result = await getJson(`${cfg.TX_BASE}/ValueSet/$validate-code?${params}`);
   const p = paramMap(result.parameter);
